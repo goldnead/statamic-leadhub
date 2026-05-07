@@ -4,11 +4,26 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-05-07
+
+First green-CI release. v0.2.0 was structurally complete but had four bugs that only the new matrix surfaced — all four are fixed here.
+
 ### Added
 
-- **GitHub Actions CI matrix** (`.github/workflows/tests.yml`) — runs the Pest suite across PHP 8.2 + 8.3 × Statamic 5.* + 6.* × eloquent + flat drivers (8 jobs total).
+- **GitHub Actions CI matrix** (`.github/workflows/tests.yml`) — runs the Pest suite across PHP 8.2 + 8.3 × Statamic 5.* + 6.* × eloquent + flat drivers (8 jobs total). All cells are passing on this release.
 - `RepositoryBindingTest` Pest suite — verifies that the `LEADHUB_DRIVER` env var actually flips the container bindings, ensuring every matrix cell exercises a different code path.
 - `TestCase::defineEnvironment()` now reads `LEADHUB_DRIVER` from env so the matrix can shift the default driver per job.
+
+### Fixed
+
+- **Composer install fails out of the box.** `pixelfear/composer-dist-plugin` (a transitive dependency of `statamic/cms`) was blocked by Composer 2.2+'s plugin allow-list. Added it (and `composer/installers`, `php-http/discovery`) to `config.allow-plugins` in `composer.json`. ([`9ed33ff`](https://github.com/goldnead/statamic-leadhub/commit/9ed33ff791634a3d3c9efcc4beec35b06b25a270))
+- **Tags from form submissions were silently dropped.** `Eloquent::attach()` on the `leadhub_contact_tag` pivot threw a SQL error because `withTimestamps()` expected an `updated_at` column the migration didn't define — and the listener's outer `try/catch` swallowed it. Migration now includes `updated_at`. ([`0e649b9`](https://github.com/goldnead/statamic-leadhub/commit/0e649b97b1e7844e643383982813280c074a3b5a))
+- **Driver binding ignored runtime config changes.** `ServiceProvider::register()` read `config('leadhub.storage.driver')` once and bound the concrete implementation eagerly. Tools like `orchestra/testbench`'s `defineEnvironment` hook (and runtime config changes) had no effect on the bindings. Driver selection is now wrapped in a closure so it resolves on every `app()` call. ([`870e9b6`](https://github.com/goldnead/statamic-leadhub/commit/870e9b6bd3c45eb514b6193b3cc09668eb107382))
+- **Defensive: `default_tags` cast roundtrip.** `SubmissionMapper::extractTags()` now also accepts a JSON string for `default_tags` in case the cast leaks the unparsed JSON through. Belt-and-suspenders against driver/cast quirks. ([`f42a790`](https://github.com/goldnead/statamic-leadhub/commit/f42a790c74d78564f07aee360aeaf003b7f2aaa6))
+- **Test setup bugs from v0.2.0:**
+  - `Event::fake()` without arguments was wiping out Eloquent model events too, breaking auto-UUID generation in tests. Replaced with `Event::fake([…specific events…])`.
+  - `ContactResolverTest > does not overwrite` made an incorrect assumption about Faker-generated `last_name`. Test now sets `last_name => null` explicitly so the "fill empty fields" rule applies.
+  - `FollowupServiceTest` called `->get()` on `dueToday()`/`overdue()` which became `Collection` returns in v0.2 (used to be Builder). Removed the redundant `->get()`. ([`3a820b3`](https://github.com/goldnead/statamic-leadhub/commit/3a820b34104e060d6ea975fe4889678d539e6eaa))
 
 ## [0.2.0] — 2026-05-07
 
