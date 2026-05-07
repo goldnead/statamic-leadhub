@@ -12,6 +12,10 @@ return new class extends Migration
             $table->unsignedBigInteger('contact_id');
             $table->unsignedBigInteger('tag_id');
             $table->timestamp('created_at')->nullable();
+            // Eloquent's `withTimestamps()` on BelongsToMany expects both
+            // created_at AND updated_at on the pivot. Adding it here keeps
+            // attach() / detach() / sync() from blowing up.
+            $table->timestamp('updated_at')->nullable();
 
             $table->primary(['contact_id', 'tag_id']);
             $table->index('contact_id');

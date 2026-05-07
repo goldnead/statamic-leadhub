@@ -151,31 +151,12 @@ it('attaches mapped tags to the contact during processing', function (): void {
         'default_tags' => ['lead'],
     ]);
 
-    // Sanity: verify the cast roundtrip preserves both fields when the listener
-    // reloads the mapping from DB. If these break, the rest of the test cannot
-    // succeed.
-    $reload = FormMapping::query()->where('form_handle', 'contact')->first();
-    expect($reload)->not->toBeNull();
-    expect($reload->tags_field)->toBe('topics');
-    expect($reload->default_tags)->toEqual(['lead']);
-
     $submission = fakeStatamicSubmission('contact', [
         'email' => 'jane@example.com',
         'topics' => 'workshop, coaching',
     ]);
 
     $this->listener->handle(new SubmissionCreated($submission));
-
-    // Re-run the mapper with the SAME inputs the listener would have used.
-    // If THIS produces the right tags but the contact has none, the bug is in
-    // attachMany. If THIS is also empty, the bug is in the mapper.
-    $reloadAfter = FormMapping::query()->where('form_handle', 'contact')->first();
-    $dtoFromMapper = (new \Goldnead\Leadhub\Services\SubmissionMapper)->map(
-        ['email' => 'jane@example.com', 'topics' => 'workshop, coaching'],
-        $reloadAfter,
-        '1700000000.0',
-    );
-    expect($dtoFromMapper->tags)->toEqualCanonicalizing(['lead', 'workshop', 'coaching']);
 
     $contact = Contact::first();
     $tagNames = $contact->tags()->pluck('name')->all();
