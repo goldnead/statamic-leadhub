@@ -2,6 +2,7 @@
 
 > Turn Statamic form submissions into contacts, timelines, and follow-ups — directly inside your Control Panel.
 
+[![tests](https://github.com/goldnead/statamic-leadhub/actions/workflows/tests.yml/badge.svg)](https://github.com/goldnead/statamic-leadhub/actions/workflows/tests.yml)
 [![Statamic 5+](https://img.shields.io/badge/Statamic-5.0%20%7C%206.0-orange.svg)](https://statamic.com)
 [![PHP 8.2+](https://img.shields.io/badge/PHP-8.2%2B-blue.svg)](https://www.php.net/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)

@@ -43,12 +43,18 @@ abstract class TestCase extends OrchestraTestCase
             'secret',
         ]);
 
-        // Default test driver: eloquent.
-        $app['config']->set('leadhub.storage.driver', 'eloquent');
+        // Driver: read from LEADHUB_DRIVER env so the CI matrix can flip
+        // between eloquent and flat per job. Defaults to eloquent for local dev.
+        $driver = env('LEADHUB_DRIVER', 'eloquent');
+        $app['config']->set('leadhub.storage.driver', $driver);
+
+        // Flat-file driver paths — use a unique per-process tmp dir so
+        // parallel test runs don't trample each other.
+        $tmpRoot = sys_get_temp_dir().'/leadhub-test-'.getmypid();
         $app['config']->set('leadhub.storage.flat', [
-            'path' => sys_get_temp_dir().'/leadhub-test-flat',
+            'path' => $tmpRoot.'/content',
             'index_disk' => 'local',
-            'index_path' => 'leadhub/index',
+            'index_path' => 'leadhub-test-'.getmypid().'/index',
         ]);
     }
 }
