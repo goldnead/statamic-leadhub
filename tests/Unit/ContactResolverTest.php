@@ -3,12 +3,13 @@
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactUpdated;
 use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentContactRepository;
 use Goldnead\Leadhub\Services\ContactResolver;
 use Goldnead\Leadhub\Support\ContactDto;
 use Illuminate\Support\Facades\Event;
 
 beforeEach(function (): void {
-    $this->resolver = new ContactResolver();
+    $this->resolver = new ContactResolver(new EloquentContactRepository());
 });
 
 it('creates a new contact when no email match exists', function (): void {

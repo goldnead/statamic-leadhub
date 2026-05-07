@@ -2,60 +2,43 @@
 
 namespace Goldnead\Leadhub\Services;
 
+use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
 use Goldnead\Leadhub\Events\LeadHubFollowupCompleted;
 use Goldnead\Leadhub\Events\LeadHubFollowupSet;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Followup;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 class FollowupService
 {
-    public function __construct(protected TimelineService $timeline)
-    {
+    public function __construct(
+        protected FollowupRepository $followups,
+        protected TimelineService $timeline,
+    ) {
     }
 
-    /**
-     * Set the active followup for a contact. If one already exists,
-     * it is replaced (PRD §7: "Kontakt kann genau einen aktiven Follow-up haben").
-     */
     public function set(Contact $contact, Carbon|string $dueAt, ?string $note = null, ?string $createdBy = null): Followup
     {
         $dueAt = $dueAt instanceof Carbon ? $dueAt : Carbon::parse($dueAt);
 
-        // Mark any active followups as removed.
-        $contact->followups()
-            ->whereNull('completed_at')
-            ->get()
-            ->each(function (Followup $existing): void {
-                $existing->delete();
-            });
+        $this->followups->removeActiveFor($contact);
 
-        $followup = $contact->followups()->create([
-            'due_at' => $dueAt,
-            'note' => $note,
-            'created_by' => $createdBy,
-        ]);
+        $followup = $this->followups->create($contact, $dueAt, $note, $createdBy);
 
         $this->timeline->recordFollowupSet($contact, $dueAt);
         event(new LeadHubFollowupSet($contact, null, ['followup_id' => $followup->id]));
 
-        return $followup->fresh();
+        return $followup;
     }
 
     public function update(Followup $followup, Carbon|string|null $dueAt = null, ?string $note = null): Followup
     {
-        if ($dueAt !== null) {
-            $followup->due_at = $dueAt instanceof Carbon ? $dueAt : Carbon::parse($dueAt);
-        }
+        $dueAtParsed = $dueAt === null
+            ? null
+            : ($dueAt instanceof Carbon ? $dueAt : Carbon::parse($dueAt));
 
-        if ($note !== null) {
-            $followup->note = $note;
-        }
-
-        $followup->save();
-
-        return $followup->fresh();
+        return $this->followups->update($followup, $dueAtParsed, $note);
     }
 
     public function complete(Followup $followup, ?string $completedBy = null): Followup
@@ -64,36 +47,50 @@ class FollowupService
             return $followup;
         }
 
-        $followup->completed_at = now();
-        $followup->completed_by = $completedBy;
-        $followup->save();
+        $completed = $this->followups->markCompleted($followup, $completedBy);
 
-        $this->timeline->recordFollowupCompleted($followup->contact);
-        event(new LeadHubFollowupCompleted($followup->contact, null, ['followup_id' => $followup->id]));
+        $contact = $followup->contact ?? null;
+        if ($contact) {
+            $this->timeline->recordFollowupCompleted($contact);
+            event(new LeadHubFollowupCompleted($contact, null, ['followup_id' => $completed->id]));
+        }
 
-        return $followup->fresh();
+        return $completed;
     }
 
     public function remove(Followup $followup): void
     {
-        $contact = $followup->contact;
+        $contact = $followup->contact ?? null;
 
-        $followup->delete();
+        $this->followups->delete($followup);
 
-        $this->timeline->recordFollowupRemoved($contact);
+        if ($contact) {
+            $this->timeline->recordFollowupRemoved($contact);
+        }
     }
 
-    public function dueToday(): Builder
+    public function dueToday(?int $limit = null): Collection
     {
-        return Followup::query()
-            ->dueToday()
-            ->whereHas('contact', fn (Builder $q) => $q->whereNull('archived_at'));
+        return $this->followups->dueToday($limit);
     }
 
-    public function overdue(): Builder
+    public function overdue(?int $limit = null): Collection
     {
-        return Followup::query()
-            ->overdue()
-            ->whereHas('contact', fn (Builder $q) => $q->whereNull('archived_at'));
+        return $this->followups->overdue($limit);
+    }
+
+    public function upcoming(?int $limit = null): Collection
+    {
+        return $this->followups->upcoming($limit);
+    }
+
+    public function countDueToday(): int
+    {
+        return $this->followups->countDueToday();
+    }
+
+    public function countOverdue(): int
+    {
+        return $this->followups->countOverdue();
     }
 }

@@ -42,5 +42,13 @@ abstract class TestCase extends OrchestraTestCase
             'token',
             'secret',
         ]);
+
+        // Default test driver: eloquent.
+        $app['config']->set('leadhub.storage.driver', 'eloquent');
+        $app['config']->set('leadhub.storage.flat', [
+            'path' => sys_get_temp_dir().'/leadhub-test-flat',
+            'index_disk' => 'local',
+            'index_path' => 'leadhub/index',
+        ]);
     }
 }

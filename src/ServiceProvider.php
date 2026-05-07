@@ -2,6 +2,14 @@
 
 namespace Goldnead\Leadhub;
 
+use Goldnead\Leadhub\Console\StacheWarmCommand;
+use Goldnead\Leadhub\Console\StorageMigrateCommand;
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
+use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
+use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
+use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
+use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactDeleted;
@@ -16,6 +24,22 @@ use Goldnead\Leadhub\Events\LeadHubTagRemoved;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Policies\LeadHubPolicy;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentContactRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentEventRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentFollowupRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentFormMappingRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentNoteRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentTagRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FileStore;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileEventRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFollowupRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFormMappingRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileNoteRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\Index;
+use Goldnead\Leadhub\Repositories\FlatFile\IndexBuilder;
+use Goldnead\Leadhub\Repositories\FlatFile\ModelHydrator;
 use Illuminate\Support\Facades\Gate;
 use Statamic\Events\SubmissionCreated;
 use Statamic\Facades\CP\Nav;
@@ -24,10 +48,6 @@ use Statamic\Providers\AddonServiceProvider;
 
 class ServiceProvider extends AddonServiceProvider
 {
-    /**
-     * Event => [Listener] mapping for the Statamic form submission flow
-     * and our internal LeadHub events.
-     */
     protected $listen = [
         SubmissionCreated::class => [
             CreateOrUpdateLeadFromSubmission::class,
@@ -45,29 +65,27 @@ class ServiceProvider extends AddonServiceProvider
         LeadHubContactDeleted::class => [],
     ];
 
-    /**
-     * Routes are loaded by Statamic when the addon boots. The 'cp' key
-     * registers routes under the /cp prefix with the statamic.cp middleware.
-     */
     protected $routes = [
         'cp' => __DIR__.'/../routes/cp.php',
     ];
 
-    /**
-     * View namespace — referenced as `leadhub::dashboard` etc.
-     */
     protected $viewNamespace = 'leadhub';
 
-    /**
-     * Translations (resources/lang/{en,de}/) are auto-loaded.
-     */
     protected $translations = true;
 
-    /**
-     * The config file is auto-published when running
-     * `php artisan vendor:publish --tag=leadhub-config`.
-     */
     protected $config = true;
+
+    protected $commands = [
+        StacheWarmCommand::class,
+        StorageMigrateCommand::class,
+    ];
+
+    public function register(): void
+    {
+        parent::register();
+
+        $this->bindRepositories();
+    }
 
     public function bootAddon(): void
     {
@@ -79,9 +97,130 @@ class ServiceProvider extends AddonServiceProvider
             ->registerPublishables();
     }
 
+    /**
+     * Bind repository interfaces to their concrete implementations
+     * based on the configured storage driver.
+     */
+    protected function bindRepositories(): void
+    {
+        // Eloquent driver: bind directly. Always available — used as a fallback
+        // and as the migration source/target.
+        $this->app->bind(EloquentContactRepository::class);
+        $this->app->bind(EloquentEventRepository::class);
+        $this->app->bind(EloquentNoteRepository::class);
+        $this->app->bind(EloquentFollowupRepository::class);
+        $this->app->bind(EloquentTagRepository::class);
+        $this->app->bind(EloquentFormMappingRepository::class);
+
+        // Flat-file driver: shared FileStore + per-entity Indexes.
+        $this->app->singleton(FileStore::class, function ($app) {
+            return new FileStore((string) config('leadhub.storage.flat.path', base_path('content/leadhub')));
+        });
+
+        $this->app->singleton(IndexBuilder::class, function ($app) {
+            return new IndexBuilder($app->make(FileStore::class));
+        });
+
+        $this->app->singleton(ModelHydrator::class, function ($app) {
+            return new ModelHydrator();
+        });
+
+        $this->app->bind('leadhub.index.contacts', function ($app) {
+            return new Index(
+                'contacts',
+                (string) config('leadhub.storage.flat.index_disk', 'local'),
+                (string) config('leadhub.storage.flat.index_path', 'leadhub/index'),
+            );
+        });
+        $this->app->bind('leadhub.index.tags', function ($app) {
+            return new Index(
+                'tags',
+                (string) config('leadhub.storage.flat.index_disk', 'local'),
+                (string) config('leadhub.storage.flat.index_path', 'leadhub/index'),
+            );
+        });
+        $this->app->bind('leadhub.index.form_mappings', function ($app) {
+            return new Index(
+                'form_mappings',
+                (string) config('leadhub.storage.flat.index_disk', 'local'),
+                (string) config('leadhub.storage.flat.index_path', 'leadhub/index'),
+            );
+        });
+
+        // Flat-file repositories — wired with their shared dependencies.
+        $this->app->singleton(FlatFileTagRepository::class, function ($app) {
+            return new FlatFileTagRepository(
+                $app->make(FileStore::class),
+                $app->make('leadhub.index.tags'),
+                $app->make(IndexBuilder::class),
+                $app->make(ModelHydrator::class),
+            );
+        });
+        $this->app->singleton(FlatFileFollowupRepository::class, function ($app) {
+            return new FlatFileFollowupRepository(
+                $app->make(FileStore::class),
+                $app->make('leadhub.index.contacts'),
+                $app->make(IndexBuilder::class),
+                $app->make(ModelHydrator::class),
+            );
+        });
+        $this->app->singleton(FlatFileContactRepository::class, function ($app) {
+            return new FlatFileContactRepository(
+                $app->make(FileStore::class),
+                $app->make('leadhub.index.contacts'),
+                $app->make(IndexBuilder::class),
+                $app->make(ModelHydrator::class),
+                $app->make(FlatFileTagRepository::class),
+                $app->make(FlatFileFollowupRepository::class),
+            );
+        });
+        $this->app->singleton(FlatFileEventRepository::class, function ($app) {
+            return new FlatFileEventRepository(
+                $app->make(FileStore::class),
+                $app->make(ModelHydrator::class),
+            );
+        });
+        $this->app->singleton(FlatFileNoteRepository::class, function ($app) {
+            return new FlatFileNoteRepository(
+                $app->make(FileStore::class),
+                $app->make(ModelHydrator::class),
+            );
+        });
+        $this->app->singleton(FlatFileFormMappingRepository::class, function ($app) {
+            return new FlatFileFormMappingRepository(
+                $app->make(FileStore::class),
+                $app->make('leadhub.index.form_mappings'),
+                $app->make(IndexBuilder::class),
+                $app->make(ModelHydrator::class),
+            );
+        });
+
+        // Driver selection.
+        $driver = config('leadhub.storage.driver', 'eloquent');
+
+        if ($driver === 'flat') {
+            $this->app->bind(ContactRepository::class, FlatFileContactRepository::class);
+            $this->app->bind(EventRepository::class, FlatFileEventRepository::class);
+            $this->app->bind(NoteRepository::class, FlatFileNoteRepository::class);
+            $this->app->bind(FollowupRepository::class, FlatFileFollowupRepository::class);
+            $this->app->bind(TagRepository::class, FlatFileTagRepository::class);
+            $this->app->bind(FormMappingRepository::class, FlatFileFormMappingRepository::class);
+        } else {
+            $this->app->bind(ContactRepository::class, EloquentContactRepository::class);
+            $this->app->bind(EventRepository::class, EloquentEventRepository::class);
+            $this->app->bind(NoteRepository::class, EloquentNoteRepository::class);
+            $this->app->bind(FollowupRepository::class, EloquentFollowupRepository::class);
+            $this->app->bind(TagRepository::class, EloquentTagRepository::class);
+            $this->app->bind(FormMappingRepository::class, EloquentFormMappingRepository::class);
+        }
+    }
+
     protected function registerMigrations(): self
     {
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        // Migrations only matter for the eloquent driver.
+        if (config('leadhub.storage.driver', 'eloquent') === 'eloquent') {
+            $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        }
 
         return $this;
     }

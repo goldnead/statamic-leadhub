@@ -2,8 +2,8 @@
 
 namespace Goldnead\Leadhub\Listeners;
 
+use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
-use Goldnead\Leadhub\Models\FormMapping;
 use Goldnead\Leadhub\Services\ContactResolver;
 use Goldnead\Leadhub\Services\SubmissionMapper;
 use Goldnead\Leadhub\Services\TagService;
@@ -19,6 +19,7 @@ class CreateOrUpdateLeadFromSubmission
         protected ContactResolver $resolver,
         protected TimelineService $timeline,
         protected TagService $tags,
+        protected FormMappingRepository $mappings,
     ) {
     }
 
@@ -27,8 +28,7 @@ class CreateOrUpdateLeadFromSubmission
         try {
             $this->process($event);
         } catch (\Throwable $e) {
-            // Fail-safe: never break the Statamic form submission flow.
-            // (PRD §19.5)
+            // Fail-safe: never break the Statamic form submission flow. (PRD §19.5)
             Log::warning('[LeadHub] Failed to process form submission', [
                 'message' => $e->getMessage(),
                 'submission' => method_exists($event->submission, 'id')
@@ -53,9 +53,8 @@ class CreateOrUpdateLeadFromSubmission
         }
 
         $handle = $form->handle();
-        $mapping = FormMapping::query()->where('form_handle', $handle)->first();
+        $mapping = $this->mappings->findByHandle($handle);
 
-        // PRD §19.1: Missing mapping → silent no-op.
         if (! $mapping || ! $mapping->isEnabled()) {
             return;
         }
@@ -68,7 +67,6 @@ class CreateOrUpdateLeadFromSubmission
 
         $dto = $this->mapper->map($data, $mapping, $submissionId);
 
-        // PRD §19.3 + §19.4: skip if no email or invalid email.
         if (! $dto->hasEmail() || ! EmailNormalizer::isValid($dto->email)) {
             Log::info('[LeadHub] Skipping submission without valid email', [
                 'form_handle' => $handle,
@@ -80,7 +78,6 @@ class CreateOrUpdateLeadFromSubmission
 
         [$contact, $wasCreated] = $this->resolver->resolveOrCreate($dto);
 
-        // Always record submission_received in the timeline.
         $payload = $mapping->attach_full_submission
             ? $dto->rawSubmission
             : array_filter($dto->toContactAttributes());
@@ -92,13 +89,11 @@ class CreateOrUpdateLeadFromSubmission
             $submissionId,
         );
 
-        // Mapping-driven tags (silent — no separate timeline entry per tag).
         if (! empty($dto->tags)) {
             $this->tags->attachMany($contact, $dto->tags, silent: true);
         }
 
-        // Track when this mapping last processed a submission.
-        $mapping->forceFill(['last_processed_at' => now()])->save();
+        $this->mappings->markProcessed($mapping);
 
         event(new LeadHubSubmissionAttached(
             $contact,

@@ -2,27 +2,32 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
 use Goldnead\Leadhub\Http\Requests\StoreNoteRequest;
-use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Services\TimelineService;
 
 class NoteController extends Controller
 {
-    public function __construct(protected TimelineService $timeline)
-    {
+    public function __construct(
+        protected ContactRepository $contacts,
+        protected NoteRepository $notes,
+        protected TimelineService $timeline,
+    ) {
     }
 
-    public function store(StoreNoteRequest $request, int $contactId)
+    public function store(StoreNoteRequest $request, int|string $contactId)
     {
-        $contact = Contact::query()->findOrFail($contactId);
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
 
-        $note = $contact->notes()->create([
-            'body' => $request->string('body')->toString(),
-            'user_id' => (string) $request->user()?->id(),
-        ]);
+        $body = $request->string('body')->toString();
+        $userId = (string) ($request->user()?->id() ?? '');
 
-        $this->timeline->recordNoteAdded($contact, $note->body);
+        $note = $this->notes->create($contact, $body, $userId !== '' ? $userId : null);
+
+        $this->timeline->recordNoteAdded($contact, $body);
         event(new LeadHubNoteAdded($contact, metadata: ['note_id' => $note->id]));
 
         if ($request->expectsJson()) {

@@ -2,42 +2,39 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
+use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Http\Requests\UpdateFormMappingRequest;
-use Goldnead\Leadhub\Models\FormMapping;
 use Illuminate\Http\Request;
 use Statamic\Facades\Form;
 
 class FormMappingController extends Controller
 {
+    public function __construct(protected FormMappingRepository $mappings)
+    {
+    }
+
     public function index(Request $request)
     {
         abort_unless($request->user()?->hasPermission('manage leadhub form mappings'), 403);
 
-        // All Statamic forms (handle => Form instance), ensure each has a mapping row.
-        $statamicForms = collect(Form::all())->map(function ($form) {
-            return [
-                'handle' => $form->handle(),
-                'title' => $form->title() ?? $form->handle(),
-            ];
-        });
+        $statamicForms = collect(Form::all())->map(fn ($form) => [
+            'handle' => $form->handle(),
+            'title' => $form->title() ?? $form->handle(),
+        ]);
 
-        $mappings = FormMapping::query()->get()->keyBy('form_handle');
+        $existingMappings = $this->mappings->all()->keyBy('form_handle');
 
-        // Auto-create empty mapping rows for any Statamic form without one,
-        // so the UI can render a "Configure" button consistently.
+        // Auto-create empty mapping rows for any Statamic form without one.
         foreach ($statamicForms as $f) {
-            if (! $mappings->has($f['handle'])) {
-                $mapping = FormMapping::create([
-                    'form_handle' => $f['handle'],
-                    'enabled' => false,
-                ]);
-                $mappings->put($f['handle'], $mapping);
+            if (! $existingMappings->has($f['handle'])) {
+                $mapping = $this->mappings->firstOrCreate($f['handle']);
+                $existingMappings->put($f['handle'], $mapping);
             }
         }
 
         return view('leadhub::forms.index', [
             'forms' => $statamicForms,
-            'mappings' => $mappings,
+            'mappings' => $existingMappings,
         ]);
     }
 
@@ -45,17 +42,10 @@ class FormMappingController extends Controller
     {
         abort_unless($request->user()?->hasPermission('manage leadhub form mappings'), 403);
 
-        $mapping = FormMapping::query()
-            ->firstOrCreate(
-                ['form_handle' => $formHandle],
-                ['enabled' => false]
-            );
+        $mapping = $this->mappings->firstOrCreate($formHandle);
 
         $form = Form::find($formHandle);
-
-        if (! $form) {
-            abort(404, "Statamic form [{$formHandle}] not found.");
-        }
+        abort_unless($form, 404, "Statamic form [{$formHandle}] not found.");
 
         $fields = $this->extractFormFields($form);
 
@@ -71,17 +61,16 @@ class FormMappingController extends Controller
 
     public function update(UpdateFormMappingRequest $request, string $formHandle)
     {
-        $mapping = FormMapping::query()
-            ->where('form_handle', $formHandle)
-            ->firstOrFail();
+        $mapping = $this->mappings->findByHandle($formHandle);
+        abort_unless($mapping, 404);
 
         $data = $request->validated();
-        $mapping->fill($data);
-        $mapping->form_handle = $formHandle;
-        $mapping->save();
+        $data['form_handle'] = $formHandle;
+
+        $this->mappings->update($mapping, $data);
 
         if ($request->expectsJson()) {
-            return response()->json(['data' => $mapping->fresh()]);
+            return response()->json(['data' => $this->mappings->findByHandle($formHandle)]);
         }
 
         return redirect()
@@ -89,10 +78,6 @@ class FormMappingController extends Controller
             ->with('success', __('leadhub::forms.flashes.saved'));
     }
 
-    /**
-     * Extract a flat list of [handle => display] pairs from a Statamic form's blueprint.
-     * Tolerates older Statamic API shapes by falling back to fields().
-     */
     protected function extractFormFields($form): array
     {
         $fields = [];
@@ -108,7 +93,7 @@ class FormMappingController extends Controller
                 }
             }
         } catch (\Throwable) {
-            // Fall through to the empty-fields case.
+            // Fall through to empty.
         }
 
         return $fields;

@@ -2,15 +2,17 @@
 
 namespace Goldnead\Leadhub\Services;
 
+use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
 use Statamic\Facades\User;
 
 class TimelineService
 {
-    /**
-     * Record a timeline event for a contact.
-     */
+    public function __construct(protected EventRepository $events)
+    {
+    }
+
     public function record(
         Contact $contact,
         string $type,
@@ -21,18 +23,14 @@ class TimelineService
     ): Event {
         $resolved = $this->resolveActor($actorType, $actorId);
 
-        $event = new Event([
-            'type' => $type,
-            'summary' => $summary,
-            'payload' => $this->redactPayload($payload),
-            'actor_type' => $resolved['type'],
-            'actor_id' => $resolved['id'],
-        ]);
-
-        $event->contact_id = $contact->id;
-        $event->save();
-
-        return $event;
+        return $this->events->record(
+            $contact,
+            $type,
+            $summary,
+            $this->redactPayload($payload),
+            $resolved['type'],
+            $resolved['id'],
+        );
     }
 
     public function recordContactCreated(Contact $contact): Event
@@ -136,9 +134,6 @@ class TimelineService
         );
     }
 
-    /**
-     * Redact configured sensitive keys from the payload before persisting.
-     */
     protected function redactPayload(array $payload): array
     {
         $patterns = (array) config('leadhub.timeline_payload_redaction', []);
@@ -179,10 +174,6 @@ class TimelineService
         return false;
     }
 
-    /**
-     * Resolve the actor for an event. If not explicitly provided, falls back
-     * to the currently authenticated CP user (if any), then 'system'.
-     */
     protected function resolveActor(?string $actorType, ?string $actorId): array
     {
         if ($actorType !== null) {

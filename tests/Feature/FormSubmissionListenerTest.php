@@ -4,6 +4,10 @@ use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event as LeadHubEvent;
 use Goldnead\Leadhub\Models\FormMapping;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentContactRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentEventRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentFormMappingRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentTagRepository;
 use Goldnead\Leadhub\Services\ContactResolver;
 use Goldnead\Leadhub\Services\SubmissionMapper;
 use Goldnead\Leadhub\Services\TagService;
@@ -40,12 +44,14 @@ function fakeStatamicSubmission(string $handle, array $data, string $id = '17000
 }
 
 beforeEach(function (): void {
-    $timeline = new TimelineService();
+    $timeline = new TimelineService(new EloquentEventRepository());
+    $tagsRepo = new EloquentTagRepository();
     $this->listener = new CreateOrUpdateLeadFromSubmission(
         new SubmissionMapper(),
-        new ContactResolver(),
+        new ContactResolver(new EloquentContactRepository()),
         $timeline,
-        new TagService($timeline),
+        new TagService($tagsRepo, $timeline),
+        new EloquentFormMappingRepository(),
     );
 });
 

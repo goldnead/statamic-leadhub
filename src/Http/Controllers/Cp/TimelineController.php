@@ -2,20 +2,30 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
-use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Illuminate\Http\Request;
 
 class TimelineController extends Controller
 {
-    public function index(Request $request, int $contactId)
+    public function __construct(
+        protected ContactRepository $contacts,
+        protected EventRepository $events,
+    ) {
+    }
+
+    public function index(Request $request, int|string $contactId)
     {
         abort_unless($request->user()?->hasPermission('view leadhub contacts'), 403);
 
-        $contact = Contact::query()->findOrFail($contactId);
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
 
-        $events = $contact->events()
-            ->orderByDesc('created_at')
-            ->paginate(30);
+        $events = $this->events->forContact(
+            $contact,
+            perPage: 30,
+            page: (int) $request->input('page', 1),
+        );
 
         return response()->json([
             'data' => $events->items(),

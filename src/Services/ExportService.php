@@ -2,33 +2,28 @@
 
 namespace Goldnead\Leadhub\Services;
 
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Jobs\ExportContactsJob;
 use Goldnead\Leadhub\Models\Contact;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Storage;
 
 class ExportService
 {
-    /**
-     * Run an export. If the matching contact count exceeds the configured
-     * threshold, the export is queued; otherwise it's generated immediately.
-     *
-     * Returns either:
-     *   ['queued' => true, 'job_id' => string|null]
-     * or
-     *   ['queued' => false, 'path' => string, 'filename' => string]
-     */
+    public function __construct(protected ContactRepository $contacts)
+    {
+    }
+
     public function run(array $filters, ?string $userId = null): array
     {
         $threshold = (int) config('leadhub.exports.queue_threshold', 1000);
 
-        $count = $this->buildQuery($filters)->count();
+        // Cheap count — get the paginator total without loading rows.
+        $count = $this->contacts->paginate($filters, perPage: 1, page: 1)->total();
 
         if ($count >= $threshold) {
-            $job = new ExportContactsJob($filters, $userId);
-            dispatch($job);
+            dispatch(new ExportContactsJob($filters, $userId));
 
-            return ['queued' => true, 'job_id' => null, 'count' => $count];
+            return ['queued' => true, 'count' => $count];
         }
 
         $path = $this->generateCsv($filters);
@@ -37,10 +32,6 @@ class ExportService
         return ['queued' => false, 'path' => $path, 'filename' => $filename, 'count' => $count];
     }
 
-    /**
-     * Generate the CSV file synchronously and return the absolute path.
-     * Caller is responsible for cleaning up the file (e.g. via deleteFileAfterSend).
-     */
     public function generateCsv(array $filters): string
     {
         $tmpDir = sys_get_temp_dir();
@@ -54,47 +45,48 @@ class ExportService
         // BOM for Excel UTF-8 compatibility.
         fwrite($handle, "\xEF\xBB\xBF");
 
-        $columns = [
+        fputcsv($handle, [
             'id', 'name', 'email', 'phone', 'company', 'status',
             'tags', 'source', 'created_at', 'last_activity_at',
             'followup_due_at', 'consent',
-        ];
-        fputcsv($handle, $columns);
+        ]);
 
-        $this->buildQuery($filters)
-            ->with(['tags', 'followups'])
-            ->orderBy('id')
-            ->chunk(500, function ($contacts) use ($handle): void {
-                foreach ($contacts as $contact) {
-                    /** @var Contact $contact */
-                    $active = $contact->followups->whereNull('completed_at')->sortBy('due_at')->first();
+        $page = 1;
+        do {
+            $paginator = $this->contacts->paginate($filters, perPage: 500, page: $page);
 
-                    fputcsv($handle, [
-                        $contact->id,
-                        $contact->displayName(),
-                        $contact->email,
-                        $contact->phone,
-                        $contact->company,
-                        $contact->status,
-                        $contact->tags->pluck('name')->implode(','),
-                        $contact->source_form,
-                        $contact->created_at?->toIso8601String(),
-                        $contact->last_activity_at?->toIso8601String(),
-                        $active?->due_at?->toIso8601String(),
-                        $contact->consent ? '1' : '0',
-                    ]);
-                }
-            });
+            foreach ($paginator->items() as $contact) {
+                /** @var Contact $contact */
+                $tags = $contact->getRelation('tags') ?? collect();
+                $followups = $contact->getRelation('followups') ?? collect();
+                $active = $followups instanceof \Illuminate\Support\Collection
+                    ? $followups->whereNull('completed_at')->sortBy('due_at')->first()
+                    : null;
+
+                fputcsv($handle, [
+                    $contact->id,
+                    $contact->displayName(),
+                    $contact->email,
+                    $contact->phone,
+                    $contact->company,
+                    $contact->status,
+                    $tags->pluck('name')->implode(','),
+                    $contact->source_form,
+                    $contact->created_at?->toIso8601String(),
+                    $contact->last_activity_at?->toIso8601String(),
+                    $active?->due_at?->toIso8601String(),
+                    $contact->consent ? '1' : '0',
+                ]);
+            }
+
+            $page++;
+        } while ($paginator->hasMorePages());
 
         fclose($handle);
 
         return $path;
     }
 
-    /**
-     * Persist a CSV to the configured disk and return the storage path.
-     * Used by the queued ExportContactsJob.
-     */
     public function persistCsv(array $filters): string
     {
         $tmp = $this->generateCsv($filters);
@@ -106,53 +98,5 @@ class ExportService
         @unlink($tmp);
 
         return $relative;
-    }
-
-    protected function buildQuery(array $filters): Builder
-    {
-        $query = Contact::query();
-
-        $query = (! empty($filters['archived']))
-            ? $query->archived()
-            : $query->active();
-
-        if (! empty($filters['status'])) {
-            $query->withStatus($filters['status']);
-        }
-
-        if (! empty($filters['source'])) {
-            $query->where('source_form', $filters['source']);
-        }
-
-        if (! empty($filters['tag'])) {
-            $query->whereHas('tags', fn (Builder $q) => $q->where('leadhub_tags.id', $filters['tag']));
-        }
-
-        if (! empty($filters['from'])) {
-            $query->where('created_at', '>=', $filters['from']);
-        }
-        if (! empty($filters['to'])) {
-            $query->where('created_at', '<=', $filters['to']);
-        }
-
-        if (! empty($filters['followup'])) {
-            switch ($filters['followup']) {
-                case 'has':
-                    $query->whereHas('followups', fn (Builder $q) => $q->whereNull('completed_at'));
-                    break;
-                case 'today':
-                    $query->whereHas('followups', fn (Builder $q) => $q->dueToday());
-                    break;
-                case 'overdue':
-                    $query->whereHas('followups', fn (Builder $q) => $q->overdue());
-                    break;
-            }
-        }
-
-        if (! empty($filters['q'])) {
-            $query->search($filters['q']);
-        }
-
-        return $query;
     }
 }

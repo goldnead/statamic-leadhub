@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Services;
 
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactUpdated;
 use Goldnead\Leadhub\Models\Contact;
@@ -10,6 +11,10 @@ use Goldnead\Leadhub\Support\EmailNormalizer;
 
 class ContactResolver
 {
+    public function __construct(protected ContactRepository $contacts)
+    {
+    }
+
     /**
      * Find an existing contact by normalized email or create a new one.
      * Returns a tuple-like array: [Contact $contact, bool $wasCreated].
@@ -21,15 +26,12 @@ class ContactResolver
         }
 
         $normalized = EmailNormalizer::normalize($dto->email);
+        $existing = $this->contacts->findByEmailNormalized($normalized);
 
-        $contact = Contact::query()
-            ->where('email_normalized', $normalized)
-            ->first();
+        if ($existing) {
+            $this->updateExisting($existing, $dto);
 
-        if ($contact) {
-            $this->updateExisting($contact, $dto);
-
-            return [$contact, false];
+            return [$existing, false];
         }
 
         $contact = $this->createNew($dto, $normalized);
@@ -39,15 +41,15 @@ class ContactResolver
 
     protected function createNew(ContactDto $dto, string $normalized): Contact
     {
-        $contact = new Contact();
-        $contact->fill($dto->toContactAttributes());
-        $contact->email = $dto->email;
-        $contact->email_normalized = $normalized;
-        $contact->status = $dto->defaultStatus ?? config('leadhub.default_status', 'new');
-        $contact->consent = $dto->consent;
-        $contact->consent_at = $dto->consent ? now() : null;
-        $contact->last_activity_at = now();
-        $contact->save();
+        $attributes = $dto->toContactAttributes();
+        $attributes['email'] = $dto->email;
+        $attributes['email_normalized'] = $normalized;
+        $attributes['status'] = $dto->defaultStatus ?? config('leadhub.default_status', 'new');
+        $attributes['consent'] = $dto->consent;
+        $attributes['consent_at'] = $dto->consent ? now() : null;
+        $attributes['last_activity_at'] = now();
+
+        $contact = $this->contacts->create($attributes);
 
         event(new LeadHubContactCreated($contact));
 
@@ -55,11 +57,8 @@ class ContactResolver
     }
 
     /**
-     * Update an existing contact from a new submission.
-     *
-     * Rule (PRD §15.3): "Never overwrite non-empty contact fields from a form
-     * submission unless setting allows it." Only fills fields that are currently
-     * empty on the contact, unless the overwrite config flag is set.
+     * PRD §15.3: Never overwrite non-empty contact fields from a form
+     * submission unless the overwrite config flag is set.
      */
     protected function updateExisting(Contact $contact, ContactDto $dto): void
     {
@@ -69,7 +68,6 @@ class ContactResolver
 
         foreach ($attributes as $key => $value) {
             if ($key === 'email') {
-                // Never overwrite the canonical email; we matched on it.
                 continue;
             }
 
@@ -89,19 +87,16 @@ class ContactResolver
         }
 
         $contact->last_activity_at = now();
-        $contact->save();
+
+        $this->contacts->save($contact);
 
         if ($changed) {
             event(new LeadHubContactUpdated($contact));
         }
     }
 
-    /**
-     * Bump the last_activity_at timestamp without other changes.
-     */
     public function touchActivity(Contact $contact): void
     {
-        $contact->last_activity_at = now();
-        $contact->save();
+        $this->contacts->touchActivity($contact);
     }
 }

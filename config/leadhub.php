@@ -120,4 +120,39 @@ return [
         'lowercase' => true,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Storage Driver
+    |--------------------------------------------------------------------------
+    |
+    | LeadHub supports two storage drivers:
+    |
+    | - "eloquent": uses dedicated database tables (default).
+    |   Recommended for any project with >500 contacts or >5k timeline events.
+    |   Requires running `php artisan migrate`.
+    |
+    | - "flat": stores leads as YAML files under content/leadhub/, with a
+    |   Stache-style JSON index for fast lookups. True to Statamic's
+    |   flat-file philosophy. Best for small lead volumes (≤500 contacts,
+    |   ≤10k timeline events). Migrations are NOT required.
+    |
+    | Switch drivers by changing this value (or LEADHUB_DRIVER env var) and
+    | running `php artisan leadhub:storage:migrate --from=eloquent --to=flat`
+    | or vice versa to move existing data.
+    |
+    */
+
+    'storage' => [
+        'driver' => env('LEADHUB_DRIVER', 'eloquent'),
+
+        'flat' => [
+            // Where lead YAML files live (typically inside the site's content dir).
+            'path' => env('LEADHUB_FLAT_PATH', base_path('content/leadhub')),
+
+            // Disk + directory for the JSON indexes.
+            'index_disk' => env('LEADHUB_INDEX_DISK', 'local'),
+            'index_path' => env('LEADHUB_INDEX_PATH', 'leadhub/index'),
+        ],
+    ],
+
 ];

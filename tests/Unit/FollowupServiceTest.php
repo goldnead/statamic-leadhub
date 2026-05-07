@@ -4,13 +4,16 @@ use Goldnead\Leadhub\Events\LeadHubFollowupCompleted;
 use Goldnead\Leadhub\Events\LeadHubFollowupSet;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Followup;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentEventRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentFollowupRepository;
 use Goldnead\Leadhub\Services\FollowupService;
 use Goldnead\Leadhub\Services\TimelineService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 
 beforeEach(function (): void {
-    $this->service = new FollowupService(new TimelineService());
+    $timeline = new TimelineService(new EloquentEventRepository());
+    $this->service = new FollowupService(new EloquentFollowupRepository(), $timeline);
 });
 
 it('creates a follow-up for a contact', function (): void {

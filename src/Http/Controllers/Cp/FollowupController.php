@@ -2,57 +2,43 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
 use Goldnead\Leadhub\Http\Requests\StoreFollowupRequest;
-use Goldnead\Leadhub\Models\Contact;
-use Goldnead\Leadhub\Models\Followup;
 use Goldnead\Leadhub\Services\FollowupService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class FollowupController extends Controller
 {
-    public function __construct(protected FollowupService $service)
-    {
+    public function __construct(
+        protected ContactRepository $contacts,
+        protected FollowupRepository $followupsRepo,
+        protected FollowupService $service,
+    ) {
     }
 
     public function index(Request $request)
     {
         abort_unless($request->user()?->hasPermission('view leadhub contacts'), 403);
 
-        $today = $this->service->dueToday()
-            ->with('contact')
-            ->orderBy('due_at')
-            ->get();
-
-        $overdue = $this->service->overdue()
-            ->with('contact')
-            ->orderBy('due_at')
-            ->get();
-
-        $upcoming = Followup::query()
-            ->active()
-            ->where('due_at', '>', now()->endOfDay())
-            ->with('contact')
-            ->orderBy('due_at')
-            ->limit(50)
-            ->get();
-
         return view('leadhub::followups.index', [
-            'today' => $today,
-            'overdue' => $overdue,
-            'upcoming' => $upcoming,
+            'today' => $this->service->dueToday(),
+            'overdue' => $this->service->overdue(),
+            'upcoming' => $this->service->upcoming(50),
         ]);
     }
 
-    public function store(StoreFollowupRequest $request, int $contactId)
+    public function store(StoreFollowupRequest $request, int|string $contactId)
     {
-        $contact = Contact::query()->findOrFail($contactId);
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
 
         $followup = $this->service->set(
             $contact,
             Carbon::parse($request->string('due_at')->toString()),
             $request->input('note'),
-            (string) $request->user()?->id(),
+            (string) ($request->user()?->id() ?? ''),
         );
 
         if ($request->expectsJson()) {
@@ -62,18 +48,19 @@ class FollowupController extends Controller
         return back()->with('success', __('leadhub::contacts.flashes.followup_set'));
     }
 
-    public function update(Request $request, int $followupId)
+    public function update(Request $request, int|string $followupId)
     {
         abort_unless($request->user()?->hasPermission('edit leadhub contacts'), 403);
 
-        $followup = Followup::query()->findOrFail($followupId);
+        $followup = $this->followupsRepo->find($followupId);
+        abort_unless($followup, 404);
 
         $request->validate([
             'due_at' => 'sometimes|date',
             'note' => 'sometimes|nullable|string|max:5000',
         ]);
 
-        $followup = $this->service->update(
+        $this->service->update(
             $followup,
             $request->input('due_at'),
             $request->input('note'),
@@ -82,22 +69,25 @@ class FollowupController extends Controller
         return back()->with('success', __('leadhub::contacts.flashes.followup_updated'));
     }
 
-    public function complete(Request $request, int $followupId)
+    public function complete(Request $request, int|string $followupId)
     {
         abort_unless($request->user()?->hasPermission('edit leadhub contacts'), 403);
 
-        $followup = Followup::query()->findOrFail($followupId);
+        $followup = $this->followupsRepo->find($followupId);
+        abort_unless($followup, 404);
 
-        $this->service->complete($followup, (string) $request->user()?->id());
+        $this->service->complete($followup, (string) ($request->user()?->id() ?? ''));
 
         return back()->with('success', __('leadhub::contacts.flashes.followup_completed'));
     }
 
-    public function destroy(Request $request, int $followupId)
+    public function destroy(Request $request, int|string $followupId)
     {
         abort_unless($request->user()?->hasPermission('edit leadhub contacts'), 403);
 
-        $followup = Followup::query()->findOrFail($followupId);
+        $followup = $this->followupsRepo->find($followupId);
+        abort_unless($followup, 404);
+
         $this->service->remove($followup);
 
         return back()->with('success', __('leadhub::contacts.flashes.followup_removed'));

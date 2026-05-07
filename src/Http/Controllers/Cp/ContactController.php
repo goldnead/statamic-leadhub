@@ -2,19 +2,27 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
+use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
+use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
+use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
 use Goldnead\Leadhub\Events\LeadHubContactDeleted;
+use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Http\Requests\UpdateContactRequest;
-use Goldnead\Leadhub\Models\Contact;
-use Goldnead\Leadhub\Models\Tag;
 use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class ContactController extends Controller
 {
     public function __construct(
+        protected ContactRepository $contacts,
+        protected EventRepository $events,
+        protected NoteRepository $notes,
+        protected TagRepository $tagsRepo,
+        protected FormMappingRepository $mappings,
         protected TimelineService $timeline,
         protected TagService $tags,
     ) {
@@ -24,136 +32,110 @@ class ContactController extends Controller
     {
         abort_unless($request->user()?->hasPermission('view leadhub contacts'), 403);
 
-        $query = Contact::query()->with('tags', 'followups');
+        $filters = [
+            'archived' => $request->boolean('archived'),
+            'status' => $request->string('status')->toString() ?: null,
+            'source_form' => $request->string('source')->toString() ?: null,
+            'tag_id' => $request->input('tag') ?: null,
+            'from' => $request->input('from'),
+            'to' => $request->input('to'),
+            'has_followup' => $request->string('followup')->toString() ?: null,
+            'search' => $request->string('q')->toString() ?: null,
+            'sort' => $request->input('sort', 'created_at'),
+            'direction' => $request->input('direction', 'desc'),
+        ];
 
-        // Default: hide archived unless explicitly asked.
-        $showArchived = $request->boolean('archived');
-        $query = $showArchived ? $query->archived() : $query->active();
-
-        // Filters
-        if ($status = $request->string('status')->toString()) {
-            $query->withStatus($status);
-        }
-
-        if ($source = $request->string('source')->toString()) {
-            $query->where('source_form', $source);
-        }
-
-        if ($tagId = $request->input('tag')) {
-            $query->whereHas('tags', fn (Builder $q) => $q->where('leadhub_tags.id', $tagId));
-        }
-
-        if ($from = $request->input('from')) {
-            $query->where('created_at', '>=', $from);
-        }
-        if ($to = $request->input('to')) {
-            $query->where('created_at', '<=', $to);
-        }
-
-        if ($request->filled('followup')) {
-            switch ($request->string('followup')->toString()) {
-                case 'has':
-                    $query->whereHas('followups', fn (Builder $q) => $q->whereNull('completed_at'));
-                    break;
-                case 'today':
-                    $query->whereHas('followups', fn (Builder $q) => $q->dueToday());
-                    break;
-                case 'overdue':
-                    $query->whereHas('followups', fn (Builder $q) => $q->overdue());
-                    break;
-            }
-        }
-
-        if ($search = $request->string('q')->toString()) {
-            $query->search($search);
-        }
-
-        // Sorting
-        $sort = $request->input('sort', 'created_at');
-        $direction = $request->input('direction', 'desc') === 'asc' ? 'asc' : 'desc';
-        $allowedSorts = ['created_at', 'last_activity_at', 'status'];
-        if (! in_array($sort, $allowedSorts, true)) {
-            $sort = 'created_at';
-        }
-        $query->orderBy($sort, $direction);
-
-        $contacts = $query->paginate(25)->withQueryString();
+        $contacts = $this->contacts->paginate(
+            $filters,
+            perPage: 25,
+            page: (int) $request->input('page', 1),
+        )->withQueryString();
 
         return view('leadhub::contacts.index', [
             'contacts' => $contacts,
-            'filters' => $request->only(['status', 'source', 'tag', 'from', 'to', 'followup', 'q', 'archived']),
+            'filters' => array_filter([
+                'status' => $filters['status'],
+                'source' => $filters['source_form'],
+                'tag' => $filters['tag_id'],
+                'from' => $filters['from'],
+                'to' => $filters['to'],
+                'followup' => $filters['has_followup'],
+                'q' => $filters['search'],
+                'archived' => $filters['archived'] ? 1 : null,
+            ], fn ($v) => $v !== null && $v !== ''),
             'statuses' => (array) config('leadhub.statuses', []),
-            'tags' => Tag::query()->orderBy('name')->get(),
-            'sources' => \Goldnead\Leadhub\Models\FormMapping::query()
-                ->where('enabled', true)
-                ->pluck('form_handle')
-                ->all(),
+            'tags' => $this->tagsRepo->all(),
+            'sources' => $this->mappings->enabledHandles(),
         ]);
     }
 
-    public function show(Request $request, int $contactId)
+    public function show(Request $request, int|string $contactId)
     {
         abort_unless($request->user()?->hasPermission('view leadhub contacts'), 403);
 
-        $contact = Contact::query()
-            ->with(['tags', 'followups', 'notes'])
-            ->findOrFail($contactId);
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
 
-        $events = $contact->events()
-            ->paginate(20);
+        $events = $this->events->forContact(
+            $contact,
+            perPage: 20,
+            page: (int) $request->input('page', 1),
+        );
+
+        $activeFollowups = $contact->getRelation('followups') ?? collect();
+        $activeFollowup = $activeFollowups instanceof \Illuminate\Support\Collection
+            ? $activeFollowups->whereNull('completed_at')->sortBy('due_at')->first()
+            : null;
 
         return view('leadhub::contacts.show', [
             'contact' => $contact,
             'events' => $events,
-            'activeFollowup' => $contact->activeFollowup(),
+            'activeFollowup' => $activeFollowup,
             'statuses' => (array) config('leadhub.statuses', []),
-            'allTags' => Tag::query()->orderBy('name')->get(),
+            'allTags' => $this->tagsRepo->all(),
         ]);
     }
 
-    public function update(UpdateContactRequest $request, int $contactId)
+    public function update(UpdateContactRequest $request, int|string $contactId)
     {
-        $contact = Contact::query()->findOrFail($contactId);
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
 
         $oldStatus = $contact->status;
 
         $contact->fill($request->validated());
-        $contact->save();
+        $this->contacts->save($contact);
 
-        // Status change side-effect
         if ($contact->wasChanged('status')) {
             $this->timeline->recordStatusChanged($contact, $oldStatus, $contact->status);
-            event(new \Goldnead\Leadhub\Events\LeadHubStatusChanged(
+            event(new LeadHubStatusChanged(
                 $contact,
                 metadata: ['from' => $oldStatus, 'to' => $contact->status]
             ));
         }
 
-        // Tag sync from request
         if ($request->has('tag_ids')) {
-            $newTagIds = collect($request->input('tag_ids', []))->map('intval')->all();
-            $existingTagIds = $contact->tags->pluck('id')->all();
+            $newTagIds = collect($request->input('tag_ids', []))->map(fn ($id) => (string) $id)->all();
+            $existingTagIds = $this->tagsRepo->forContact($contact)->pluck('id')->map(fn ($id) => (string) $id)->all();
 
             $toAttach = array_diff($newTagIds, $existingTagIds);
             $toDetach = array_diff($existingTagIds, $newTagIds);
 
             foreach ($toAttach as $id) {
-                if ($tag = Tag::find($id)) {
+                if ($tag = $this->tagsRepo->find($id)) {
                     $this->tags->attach($contact, $tag);
                 }
             }
 
             foreach ($toDetach as $id) {
-                if ($tag = Tag::find($id)) {
+                if ($tag = $this->tagsRepo->find($id)) {
                     $this->tags->detach($contact, $tag);
                 }
             }
         }
 
         if ($request->expectsJson()) {
-            return response()->json([
-                'data' => $contact->fresh()->load('tags', 'followups'),
-            ]);
+            return response()->json(['data' => $this->contacts->find($contactId)]);
         }
 
         return redirect()
@@ -161,15 +143,16 @@ class ContactController extends Controller
             ->with('success', __('leadhub::contacts.flashes.updated'));
     }
 
-    public function destroy(Request $request, int $contactId)
+    public function destroy(Request $request, int|string $contactId)
     {
         abort_unless($request->user()?->hasPermission('delete leadhub contacts'), 403);
 
-        $contact = Contact::query()->findOrFail($contactId);
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
 
         event(new LeadHubContactDeleted($contact));
 
-        $contact->delete();
+        $this->contacts->delete($contact);
 
         if ($request->expectsJson()) {
             return response()->json(['data' => ['ok' => true]]);
@@ -180,27 +163,28 @@ class ContactController extends Controller
             ->with('success', __('leadhub::contacts.flashes.deleted'));
     }
 
-    public function archive(Request $request, int $contactId)
+    public function archive(Request $request, int|string $contactId)
     {
         abort_unless($request->user()?->hasPermission('archive leadhub contacts'), 403);
 
-        $contact = Contact::query()->findOrFail($contactId);
-        $contact->archived_at = now();
-        $contact->save();
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
 
+        $this->contacts->archive($contact);
         $this->timeline->recordContactArchived($contact);
         event(new LeadHubContactArchived($contact));
 
         return back()->with('success', __('leadhub::contacts.flashes.archived'));
     }
 
-    public function restore(Request $request, int $contactId)
+    public function restore(Request $request, int|string $contactId)
     {
         abort_unless($request->user()?->hasPermission('archive leadhub contacts'), 403);
 
-        $contact = Contact::query()->findOrFail($contactId);
-        $contact->archived_at = null;
-        $contact->save();
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
+
+        $this->contacts->restore($contact);
 
         return back()->with('success', __('leadhub::contacts.flashes.restored'));
     }

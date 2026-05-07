@@ -124,15 +124,69 @@ Assign them to roles in **CP → Users → Roles**.
 
 ## Architecture
 
-LeadHub uses **its own database tables** (`leadhub_*`) rather than Statamic collections, because:
+LeadHub ships with **two storage drivers**. Choose the one that fits your project:
 
-- timelines and filters need performant relational queries
-- email-based deduplication is simpler against a real index
-- future Pro features (webhooks, sync logs) need transactional shape
+### `eloquent` (default)
 
-Tables: `leadhub_contacts`, `leadhub_events`, `leadhub_notes`, `leadhub_tags`, `leadhub_contact_tag`, `leadhub_followups`, `leadhub_form_mappings`.
+Dedicated database tables: `leadhub_contacts`, `leadhub_events`, `leadhub_notes`, `leadhub_tags`, `leadhub_contact_tag`, `leadhub_followups`, `leadhub_form_mappings`.
 
-The original Statamic form submissions remain untouched — LeadHub stores only references and a redacted payload copy.
+- Best for any project with **>500 contacts** or **>10k timeline events**
+- Performant filtering, sorting, full-text search
+- Required for queued exports past the threshold
+- Standard Laravel migrations (`php artisan migrate`)
+
+### `flat` (Statamic-native)
+
+Stores leads as YAML files under `content/leadhub/`, with a Stache-style JSON index for fast lookups.
+
+```
+content/leadhub/
+├── contacts/
+│   └── {uuid}.yaml          # 1 file per contact (notes embedded, tag_ids inline)
+├── events/
+│   └── {uuid}.jsonl         # append-only timeline log per contact
+├── followups/
+│   └── {uuid}.jsonl         # append-only follow-up history per contact
+├── tags.yaml                # all tags
+└── form-mappings.yaml       # all form mappings
+
+storage/app/leadhub/index/   # JSON indexes — auto-rebuilt on file mtime drift
+├── contacts.json
+├── tags.json
+└── form_mappings.json
+```
+
+- True to Statamic's flat-file ethos
+- Git-versionable lead data
+- Zero database required
+- **Best for ≤500 contacts and ≤10k timeline events** — beyond that, performance suffers
+- Switch on with `LEADHUB_DRIVER=flat`
+
+### Switching drivers
+
+You can move existing data between drivers without losing anything:
+
+```bash
+# Migrate from database tables to YAML files:
+php artisan leadhub:storage:migrate --from=eloquent --to=flat
+
+# Or back the other way:
+php artisan leadhub:storage:migrate --from=flat --to=eloquent
+
+# Dry-run first to see what would move:
+php artisan leadhub:storage:migrate --from=eloquent --to=flat --dry-run
+```
+
+After switching, set `LEADHUB_DRIVER=flat` (or `=eloquent`) in your `.env` and clear caches.
+
+If you ever edit the flat-file YAML by hand, rebuild the indexes:
+
+```bash
+php artisan leadhub:stache:warm
+php artisan leadhub:stache:warm --clear   # full rebuild
+```
+
+The original Statamic form submissions remain untouched — LeadHub stores only references and a redacted payload copy, regardless of driver.
 
 ### How a submission becomes a contact
 
