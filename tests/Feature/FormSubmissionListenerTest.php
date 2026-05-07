@@ -166,6 +166,17 @@ it('attaches mapped tags to the contact during processing', function (): void {
 
     $this->listener->handle(new SubmissionCreated($submission));
 
+    // Re-run the mapper with the SAME inputs the listener would have used.
+    // If THIS produces the right tags but the contact has none, the bug is in
+    // attachMany. If THIS is also empty, the bug is in the mapper.
+    $reloadAfter = FormMapping::query()->where('form_handle', 'contact')->first();
+    $dtoFromMapper = (new \Goldnead\Leadhub\Services\SubmissionMapper)->map(
+        ['email' => 'jane@example.com', 'topics' => 'workshop, coaching'],
+        $reloadAfter,
+        '1700000000.0',
+    );
+    expect($dtoFromMapper->tags)->toEqualCanonicalizing(['lead', 'workshop', 'coaching']);
+
     $contact = Contact::first();
     $tagNames = $contact->tags()->pluck('name')->all();
 
