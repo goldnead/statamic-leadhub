@@ -28,4 +28,7 @@ return [
     'errors' => [
         'email_required_when_enabled' => 'You must select an email field when LeadHub is enabled for this form.',
     ],
+    'flashes' => [
+        'saved' => 'Form mapping saved.',
+    ],
 ];

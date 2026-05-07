@@ -28,4 +28,7 @@ return [
     'errors' => [
         'email_required_when_enabled' => 'Du musst ein E-Mail-Feld auswählen, wenn LeadHub für dieses Formular aktiv ist.',
     ],
+    'flashes' => [
+        'saved' => 'Formular-Zuordnung gespeichert.',
+    ],
 ];
