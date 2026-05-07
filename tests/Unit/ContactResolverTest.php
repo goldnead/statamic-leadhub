@@ -13,7 +13,7 @@ beforeEach(function (): void {
 });
 
 it('creates a new contact when no email match exists', function (): void {
-    Event::fake();
+    Event::fake([LeadHubContactCreated::class, LeadHubContactUpdated::class]);
 
     $dto = new ContactDto(
         email: 'jane@example.com',
@@ -56,6 +56,7 @@ it('does not overwrite existing non-empty fields by default', function (): void 
     $contact = Contact::factory()->create([
         'email_normalized' => 'jane@example.com',
         'first_name' => 'Jane',
+        'last_name' => null,            // empty — should be filled by the DTO
         'company' => 'Acme GmbH',
     ]);
 
@@ -106,7 +107,7 @@ it('overrides existing fields when config flag is true', function (): void {
 });
 
 it('dispatches LeadHubContactUpdated when fields actually change', function (): void {
-    Event::fake();
+    Event::fake([LeadHubContactCreated::class, LeadHubContactUpdated::class]);
 
     Contact::factory()->create([
         'email_normalized' => 'jane@example.com',

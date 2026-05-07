@@ -161,8 +161,8 @@ it('attaches mapped tags to the contact during processing', function (): void {
     $contact = Contact::first();
     $tagNames = $contact->tags()->pluck('name')->all();
 
-    expect($tagNames)->toContain('lead');
-    expect(count($tagNames))->toBe(3);
+    // Use canonicalizing equality so the failure diff shows what we actually got.
+    expect($tagNames)->toEqualCanonicalizing(['lead', 'workshop', 'coaching']);
 });
 
 it('records a submission_received timeline event', function (): void {

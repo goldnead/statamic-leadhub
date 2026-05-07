@@ -17,7 +17,7 @@ beforeEach(function (): void {
 });
 
 it('creates a follow-up for a contact', function (): void {
-    Event::fake();
+    Event::fake([LeadHubFollowupSet::class, LeadHubFollowupCompleted::class]);
 
     $contact = Contact::factory()->create();
     $followup = $this->service->set($contact, now()->addDays(3), 'Send proposal');
@@ -40,7 +40,7 @@ it('replaces an existing active follow-up when setting a new one', function (): 
 });
 
 it('completes a follow-up and emits an event', function (): void {
-    Event::fake();
+    Event::fake([LeadHubFollowupSet::class, LeadHubFollowupCompleted::class]);
 
     $contact = Contact::factory()->create();
     $followup = $this->service->set($contact, now()->addDays(2));
@@ -59,7 +59,7 @@ it('returns due_today follow-ups for active contacts only', function (): void {
     $this->service->set($activeContact, Carbon::today());
     $this->service->set($archivedContact, Carbon::today());
 
-    $due = $this->service->dueToday()->get();
+    $due = $this->service->dueToday();
 
     expect($due->count())->toBe(1);
     expect($due->first()->contact_id)->toBe($activeContact->id);
@@ -69,7 +69,7 @@ it('returns overdue follow-ups', function (): void {
     $contact = Contact::factory()->create();
     $this->service->set($contact, Carbon::yesterday()->subDay());
 
-    $overdue = $this->service->overdue()->get();
+    $overdue = $this->service->overdue();
 
     expect($overdue->count())->toBe(1);
 });
