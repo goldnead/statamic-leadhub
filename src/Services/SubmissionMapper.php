@@ -114,8 +114,17 @@ class SubmissionMapper
             }
         }
 
-        if (is_array($mapping->default_tags)) {
-            $tags = array_merge($tags, $mapping->default_tags);
+        // Accept default_tags as either an already-decoded array (the happy
+        // path with Eloquent's array cast) or a raw JSON string (defensive —
+        // some DB driver / cast combinations leak the unparsed JSON through).
+        $defaultTags = $mapping->default_tags;
+        if (is_string($defaultTags) && $defaultTags !== '') {
+            $decoded = json_decode($defaultTags, true);
+            $defaultTags = is_array($decoded) ? $decoded : [];
+        }
+
+        if (is_array($defaultTags)) {
+            $tags = array_merge($tags, $defaultTags);
         }
 
         $tags = array_filter(array_map('strval', $tags), fn ($tag) => $tag !== '');
