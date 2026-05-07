@@ -195,24 +195,23 @@ class ServiceProvider extends AddonServiceProvider
             );
         });
 
-        // Driver selection.
-        $driver = config('leadhub.storage.driver', 'eloquent');
+        // Driver selection — resolved lazily on each `app()` call so that
+        // config changes after `register()` (e.g. orchestra/testbench's
+        // defineEnvironment hook, or runtime config changes) take effect.
+        $bind = function (string $contract, string $eloquent, string $flat): void {
+            $this->app->bind($contract, function ($app) use ($eloquent, $flat) {
+                return config('leadhub.storage.driver', 'eloquent') === 'flat'
+                    ? $app->make($flat)
+                    : $app->make($eloquent);
+            });
+        };
 
-        if ($driver === 'flat') {
-            $this->app->bind(ContactRepository::class, FlatFileContactRepository::class);
-            $this->app->bind(EventRepository::class, FlatFileEventRepository::class);
-            $this->app->bind(NoteRepository::class, FlatFileNoteRepository::class);
-            $this->app->bind(FollowupRepository::class, FlatFileFollowupRepository::class);
-            $this->app->bind(TagRepository::class, FlatFileTagRepository::class);
-            $this->app->bind(FormMappingRepository::class, FlatFileFormMappingRepository::class);
-        } else {
-            $this->app->bind(ContactRepository::class, EloquentContactRepository::class);
-            $this->app->bind(EventRepository::class, EloquentEventRepository::class);
-            $this->app->bind(NoteRepository::class, EloquentNoteRepository::class);
-            $this->app->bind(FollowupRepository::class, EloquentFollowupRepository::class);
-            $this->app->bind(TagRepository::class, EloquentTagRepository::class);
-            $this->app->bind(FormMappingRepository::class, EloquentFormMappingRepository::class);
-        }
+        $bind(ContactRepository::class, EloquentContactRepository::class, FlatFileContactRepository::class);
+        $bind(EventRepository::class, EloquentEventRepository::class, FlatFileEventRepository::class);
+        $bind(NoteRepository::class, EloquentNoteRepository::class, FlatFileNoteRepository::class);
+        $bind(FollowupRepository::class, EloquentFollowupRepository::class, FlatFileFollowupRepository::class);
+        $bind(TagRepository::class, EloquentTagRepository::class, FlatFileTagRepository::class);
+        $bind(FormMappingRepository::class, EloquentFormMappingRepository::class, FlatFileFormMappingRepository::class);
     }
 
     protected function registerMigrations(): self
