@@ -240,6 +240,41 @@ vendor/bin/pest
 
 The test suite uses `orchestra/testbench` with an in-memory SQLite database — no project setup required.
 
+### End-to-end smoke test
+
+Pest covers the domain layer. To verify the full pipeline against a real Statamic install — auto-discovery, migrations, the `SubmissionCreated` listener, both drivers, and the `leadhub:storage:migrate` command — run the bundled smoke test:
+
+```bash
+./scripts/smoke-test.sh
+```
+
+In ~3–5 minutes the script:
+
+1. Installs a fresh Statamic v6 project at `/tmp/leadhub-smoketest-{ts}/`
+2. Wires this LeadHub repo as a Composer path repository
+3. Configures SQLite, runs migrations, publishes the config
+4. Creates a `contact` form (blueprint + form yaml)
+5. **Eloquent driver** — submits `Form::find('contact')->makeSubmission()->save()`, asserts the contact landed in the DB
+6. **Migration** — runs `php artisan leadhub:storage:migrate --from=eloquent --to=flat`, asserts YAML files appear under `content/leadhub/`
+7. **Flat driver** — flips `LEADHUB_DRIVER=flat`, warms the Stache, submits a second form, asserts both contacts are visible to the flat repository
+
+Configurable via env vars:
+
+```bash
+LEADHUB_PATH=/path/to/your/leadhub-clone   # default: parent dir of the script
+TEST_DIR=/somewhere/else                    # default: /tmp/leadhub-smoketest-{ts}
+STATAMIC_VERSION="^6.0"                     # default: ^6.0
+PHP_BIN=/usr/local/bin/php8.3               # default: php on PATH
+```
+
+The script exits non-zero on the first failed step and leaves the broken project in place so you can `cd` in and poke around. After the run you can open the CP with:
+
+```bash
+cd /tmp/leadhub-smoketest-{ts}
+php please make:user        # create yourself a CP user
+php artisan serve            # then visit http://127.0.0.1:8000/cp
+```
+
 ---
 
 ## Roadmap
