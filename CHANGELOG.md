@@ -30,6 +30,10 @@ The Control Panel is now built with Inertia + Vue 3 + Tailwind v4, using Statami
 - All Blade views under `resources/views/` (replaced by Vue SFCs).
 - `TimelineController` (the Show page now receives events as Inertia props with built-in pagination).
 
+### Fixed
+
+- **Translations actually load now.** The v0.2.2 attempt at registering the `leadhub::` namespace via `loadTranslationsFrom()` in `bootAddon()` silently failed because Statamic's boot resolves the translator service early — before our after-resolving callback fires — so the namespace was never added. v0.3 force-registers via `$translator->addNamespace()` directly, both eagerly and via `resolving()`. The CP now shows real text instead of raw `leadhub::nav.dashboard` keys.
+
 ### Upgrade notes
 
 If you upgrade from v0.2.x:
