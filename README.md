@@ -3,7 +3,7 @@
 > Turn Statamic form submissions into contacts, timelines, and follow-ups — directly inside your Control Panel.
 
 [![tests](https://github.com/goldnead/statamic-leadhub/actions/workflows/tests.yml/badge.svg)](https://github.com/goldnead/statamic-leadhub/actions/workflows/tests.yml)
-[![Statamic 5+](https://img.shields.io/badge/Statamic-5.0%20%7C%206.0-orange.svg)](https://statamic.com)
+[![Statamic 6](https://img.shields.io/badge/Statamic-6.0%2B-orange.svg)](https://statamic.com)
 [![PHP 8.2+](https://img.shields.io/badge/PHP-8.2%2B-blue.svg)](https://www.php.net/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -31,9 +31,10 @@ What it deliberately does **not** do (yet): webhooks, CRM connectors, UTM attrib
 ## Requirements
 
 - PHP **8.2+**
-- Statamic **5.0+** or **6.0+**
-- Laravel **10.x / 11.x / 12.x**
-- A SQL database (MySQL, PostgreSQL, SQLite)
+- Statamic **6.0+** (the v0.3 CP rewrite uses Inertia + Vue 3 — Statamic 5 is no longer supported; pin to `^0.2.x` if you need it)
+- Laravel **11.x / 12.x**
+- A SQL database (MySQL, PostgreSQL, SQLite) — only required for the eloquent driver
+- Node.js **18+** with npm — needed once to compile the addon's CP assets via your host project's Vite
 
 ---
 
