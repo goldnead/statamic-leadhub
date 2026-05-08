@@ -95,13 +95,28 @@ class ServiceProvider extends AddonServiceProvider
     {
         parent::register();
 
+        // Register the leadhub:: translation namespace eagerly. Using
+        // loadTranslationsFrom() alone is unreliable because Statamic's boot
+        // sequence resolves the translator early — before our after-resolving
+        // callback runs — so the namespace is silently never added.
+        // Force-adding via the translator instance (and via after-resolving
+        // for the case where it isn't resolved yet) covers both cases.
+        $langPath = __DIR__.'/../resources/lang';
+
+        $this->app->resolving('translator', function ($translator) use ($langPath) {
+            $translator->addNamespace('leadhub', $langPath);
+        });
+
+        if ($this->app->resolved('translator')) {
+            $this->app['translator']->addNamespace('leadhub', $langPath);
+        }
+
         $this->bindRepositories();
     }
 
     public function bootAddon(): void
     {
         $this
-            ->registerTranslations()   // must be first — Nav + Permissions reference __()
             ->registerMigrations()
             ->registerNavigation()
             ->registerPermissions()
@@ -111,8 +126,9 @@ class ServiceProvider extends AddonServiceProvider
 
     protected function registerTranslations(): self
     {
-        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'leadhub');
-
+        // Kept for backwards compatibility with the v0.2.2 method signature.
+        // The actual loadTranslationsFrom now happens in register() so the
+        // namespace is available everywhere before bootAddon() runs.
         $this->publishes([
             __DIR__.'/../resources/lang' => $this->app->langPath('vendor/leadhub'),
         ], 'leadhub-translations');
