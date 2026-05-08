@@ -41,8 +41,11 @@ What it deliberately does **not** do (yet): webhooks, CRM connectors, UTM attrib
 
 ```bash
 composer require goldnead/statamic-leadhub
-php artisan migrate
+php artisan migrate          # only needed for the eloquent driver (default)
+npm run build                # compiles LeadHub's CP assets via your host project's Vite
 ```
+
+The CP UI is built with **Inertia + Vue 3 + Tailwind v4**, matching Statamic 6's native control-panel patterns. Statamic's addon Vite tooling auto-picks the addon's entries (`resources/js/cp.js` and `resources/css/cp.css`) and bundles them when you run `npm run build` in your host project.
 
 Optional — publish the config to customize statuses, redaction rules, and feature flags:
 

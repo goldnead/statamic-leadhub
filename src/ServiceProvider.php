@@ -69,15 +69,22 @@ class ServiceProvider extends AddonServiceProvider
         'cp' => __DIR__.'/../routes/cp.php',
     ];
 
-    protected $viewNamespace = 'leadhub';
-
-    // We register translations manually in bootAddon() so the namespace is
-    // exactly `leadhub::` (matching what the views and Nav definition expect).
-    // Statamic's auto-registration would key them by the addon's slug, which
-    // depends on package metadata and would mismatch the view references.
+    // Translations are registered manually in registerTranslations() under the
+    // exact `leadhub` namespace so __('leadhub::nav.dashboard') etc. resolve.
     protected $translations = false;
 
     protected $config = true;
+
+    // Statamic 6 Vite entry points — compiled by `npm run build` in this
+    // package directory. Statamic auto-loads compiled assets from the
+    // configured public directory once they exist.
+    protected $vite = [
+        'input' => [
+            'resources/js/cp.js',
+            'resources/css/cp.css',
+        ],
+        'publicDirectory' => 'public',
+    ];
 
     protected $commands = [
         StacheWarmCommand::class,

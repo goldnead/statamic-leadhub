@@ -1,6 +1,12 @@
 /.github          export-ignore
 /tests            export-ignore
+/scripts          export-ignore
 /.gitattributes   export-ignore
 /.gitignore       export-ignore
 /phpunit.xml      export-ignore
 /MARKETPLACE.md   export-ignore
+
+# Keep package.json, vite.config.js, and resources/{js,css}/ shipped — the
+# host project's Vite picks them up via Statamic's addon vite tooling and
+# compiles the addon's assets during `npm run build`.
+/node_modules     export-ignore

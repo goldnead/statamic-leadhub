@@ -8,7 +8,6 @@ use Goldnead\Leadhub\Http\Controllers\Cp\FormMappingController;
 use Goldnead\Leadhub\Http\Controllers\Cp\NoteController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SettingsController;
 use Goldnead\Leadhub\Http\Controllers\Cp\TagController;
-use Goldnead\Leadhub\Http\Controllers\Cp\TimelineController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('leadhub')->name('leadhub.')->group(function () {
@@ -25,7 +24,6 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::post('/{contact}/archive', [ContactController::class, 'archive'])->name('archive');
         Route::post('/{contact}/restore', [ContactController::class, 'restore'])->name('restore');
 
-        Route::get('/{contact}/timeline', [TimelineController::class, 'index'])->name('timeline');
         Route::post('/{contact}/notes', [NoteController::class, 'store'])->name('notes.store');
         Route::post('/{contact}/followup', [FollowupController::class, 'store'])->name('followup.store');
     });

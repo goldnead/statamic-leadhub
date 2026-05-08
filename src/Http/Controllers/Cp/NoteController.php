@@ -30,10 +30,6 @@ class NoteController extends Controller
         $this->timeline->recordNoteAdded($contact, $body);
         event(new LeadHubNoteAdded($contact, metadata: ['note_id' => $note->id]));
 
-        if ($request->expectsJson()) {
-            return response()->json(['data' => $note], 201);
-        }
-
         return back()->with('success', __('leadhub::contacts.flashes.note_added'));
     }
 }
