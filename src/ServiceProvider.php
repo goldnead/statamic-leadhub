@@ -71,7 +71,11 @@ class ServiceProvider extends AddonServiceProvider
 
     protected $viewNamespace = 'leadhub';
 
-    protected $translations = true;
+    // We register translations manually in bootAddon() so the namespace is
+    // exactly `leadhub::` (matching what the views and Nav definition expect).
+    // Statamic's auto-registration would key them by the addon's slug, which
+    // depends on package metadata and would mismatch the view references.
+    protected $translations = false;
 
     protected $config = true;
 
@@ -90,11 +94,23 @@ class ServiceProvider extends AddonServiceProvider
     public function bootAddon(): void
     {
         $this
+            ->registerTranslations()   // must be first — Nav + Permissions reference __()
             ->registerMigrations()
             ->registerNavigation()
             ->registerPermissions()
             ->registerPolicies()
             ->registerPublishables();
+    }
+
+    protected function registerTranslations(): self
+    {
+        $this->loadTranslationsFrom(__DIR__.'/../resources/lang', 'leadhub');
+
+        $this->publishes([
+            __DIR__.'/../resources/lang' => $this->app->langPath('vendor/leadhub'),
+        ], 'leadhub-translations');
+
+        return $this;
     }
 
     /**
