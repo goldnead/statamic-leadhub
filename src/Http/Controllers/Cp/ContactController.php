@@ -58,7 +58,7 @@ class ContactController extends Controller
                 : null;
 
             return [
-                'id' => (string) $contact->id,
+                'id' => (string) $contact->uuid,
                 'display_name' => $contact->displayName(),
                 'email' => $contact->email,
                 'phone' => $contact->phone,
@@ -76,10 +76,10 @@ class ContactController extends Controller
                     'due_at' => $active->due_at?->format('Y-m-d'),
                     'is_overdue' => method_exists($active, 'isOverdue') && $active->isOverdue(),
                 ] : null,
-                'edit_url' => cp_route('leadhub.contacts.show', $contact->id),
-                'archive_url' => cp_route('leadhub.contacts.archive', $contact->id),
-                'restore_url' => cp_route('leadhub.contacts.restore', $contact->id),
-                'delete_url' => cp_route('leadhub.contacts.destroy', $contact->id),
+                'edit_url' => cp_route('leadhub.contacts.show', $contact->uuid),
+                'archive_url' => cp_route('leadhub.contacts.archive', $contact->uuid),
+                'restore_url' => cp_route('leadhub.contacts.restore', $contact->uuid),
+                'delete_url' => cp_route('leadhub.contacts.destroy', $contact->uuid),
                 'can_edit' => true,
                 'can_archive' => true,
                 'can_delete' => true,
@@ -125,7 +125,7 @@ class ContactController extends Controller
 
         $eventsPaginator = $this->events->forContact($contact, 20, (int) $request->input('page', 1));
         $events = collect($eventsPaginator->items())->map(fn ($e) => [
-            'id' => (string) ($e->id ?? $e->uuid),
+            'id' => (string) ($e->uuid),
             'type' => $e->type,
             'summary' => $e->summary,
             'payload' => $e->payload ?? [],
@@ -147,7 +147,7 @@ class ContactController extends Controller
 
         return Inertia::render('leadhub::Contacts/Show', [
             'contact' => [
-                'id' => (string) $contact->id,
+                'id' => (string) $contact->uuid,
                 'display_name' => $contact->displayName(),
                 'email' => $contact->email,
                 'phone' => $contact->phone,
@@ -163,12 +163,12 @@ class ContactController extends Controller
                 'created_at' => $contact->created_at?->format('Y-m-d'),
                 'last_activity_at' => $contact->last_activity_at?->diffForHumans(),
                 'archived_at' => $contact->archived_at?->format('Y-m-d'),
-                'update_url' => cp_route('leadhub.contacts.update', $contact->id),
-                'archive_url' => cp_route('leadhub.contacts.archive', $contact->id),
-                'restore_url' => cp_route('leadhub.contacts.restore', $contact->id),
-                'delete_url' => cp_route('leadhub.contacts.destroy', $contact->id),
-                'note_url' => cp_route('leadhub.contacts.notes.store', $contact->id),
-                'followup_url' => cp_route('leadhub.contacts.followup.store', $contact->id),
+                'update_url' => cp_route('leadhub.contacts.update', $contact->uuid),
+                'archive_url' => cp_route('leadhub.contacts.archive', $contact->uuid),
+                'restore_url' => cp_route('leadhub.contacts.restore', $contact->uuid),
+                'delete_url' => cp_route('leadhub.contacts.destroy', $contact->uuid),
+                'note_url' => cp_route('leadhub.contacts.notes.store', $contact->uuid),
+                'followup_url' => cp_route('leadhub.contacts.followup.store', $contact->uuid),
                 'redirect_url' => cp_route('leadhub.contacts.index'),
             ],
             'events' => [
@@ -180,13 +180,13 @@ class ContactController extends Controller
                 ],
             ],
             'activeFollowup' => $active ? [
-                'id' => (string) ($active->id ?? $active->uuid),
+                'id' => (string) ($active->uuid),
                 'due_at' => $active->due_at?->format('Y-m-d H:i'),
                 'due_at_iso' => $active->due_at?->toIso8601String(),
                 'note' => $active->note,
                 'is_overdue' => method_exists($active, 'isOverdue') && $active->isOverdue(),
-                'complete_url' => cp_route('leadhub.followups.complete', $active->id ?? $active->uuid),
-                'delete_url' => cp_route('leadhub.followups.destroy', $active->id ?? $active->uuid),
+                'complete_url' => cp_route('leadhub.followups.complete', $active->uuid),
+                'delete_url' => cp_route('leadhub.followups.destroy', $active->uuid),
             ] : null,
             'statuses' => $statuses,
             'allTags' => $allTags,

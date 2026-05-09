@@ -13,6 +13,10 @@ class EloquentTagRepository implements TagRepository
 {
     public function find(int|string $id): ?Tag
     {
+        if (is_string($id) && ! ctype_digit($id)) {
+            return Tag::query()->where('uuid', $id)->first();
+        }
+
         return Tag::query()->find($id);
     }
 

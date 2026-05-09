@@ -26,13 +26,13 @@ class FollowupController extends Controller
         $this->authorizeOrFail($request, 'view leadhub contacts');
 
         $shape = fn ($f) => [
-            'id' => (string) ($f->id ?? $f->uuid),
+            'id' => (string) ($f->uuid),
             'contact_name' => $f->contact?->displayName() ?? '—',
             'contact_url' => $f->contact ? cp_route('leadhub.contacts.show', $f->contact->id) : null,
             'due_at' => $f->due_at?->format('Y-m-d H:i'),
             'note' => $f->note,
-            'complete_url' => cp_route('leadhub.followups.complete', $f->id ?? $f->uuid),
-            'delete_url' => cp_route('leadhub.followups.destroy', $f->id ?? $f->uuid),
+            'complete_url' => cp_route('leadhub.followups.complete', $f->uuid),
+            'delete_url' => cp_route('leadhub.followups.destroy', $f->uuid),
         ];
 
         return Inertia::render('leadhub::Followups/Index', [

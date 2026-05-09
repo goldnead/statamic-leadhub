@@ -12,6 +12,13 @@ class EloquentContactRepository implements ContactRepository
 {
     public function find(int|string $id): ?Contact
     {
+        // Accept either the auto-increment int id or a UUID string.
+        // Routes pass UUIDs (so the flat-file driver can also resolve them);
+        // this method handles both forms transparently.
+        if (is_string($id) && ! ctype_digit($id)) {
+            return $this->findByUuid($id);
+        }
+
         return Contact::query()->find($id);
     }
 

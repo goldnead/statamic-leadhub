@@ -14,9 +14,8 @@
  * "control panel doesn't work" regressions in v0.2.x.
  */
 
-use Goldnead\Leadhub\Models\Contact;
-use Goldnead\Leadhub\Models\FormMapping;
-use Goldnead\Leadhub\Models\Tag;
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Statamic\Facades\User;
 
 beforeEach(function (): void {
@@ -57,10 +56,20 @@ it('renders the contacts index', function (): void {
 });
 
 it('renders the contact detail page', function (): void {
-    $contact = Contact::factory()->create();
+    $repo = app(ContactRepository::class);
+    $contact = $repo->create([
+        'email' => 'detail@example.com',
+        'email_normalized' => 'detail@example.com',
+        'first_name' => 'Detail',
+        'status' => 'new',
+    ]);
+
+    // Sanity: the same repo can find the contact we just created.
+    expect($repo->find($contact->uuid))
+        ->not->toBeNull("Repo can't find contact uuid={$contact->uuid} immediately after create");
 
     $response = $this->withHeaders(['X-Inertia' => 'true'])
-        ->get(cp_route('leadhub.contacts.show', $contact->id));
+        ->get(cp_route('leadhub.contacts.show', $contact->uuid));
 
     $response->assertStatus(200);
     expect(inertiaComponent($response))->toBe('leadhub::Contacts/Show');
@@ -83,7 +92,10 @@ it('renders the form mappings index', function (): void {
 });
 
 it('renders the tags index', function (): void {
-    Tag::factory()->count(2)->create();
+    // Same driver-aware creation as in the contact detail test.
+    $tags = app(TagRepository::class);
+    $tags->create(['name' => 'Lead']);
+    $tags->create(['name' => 'VIP']);
 
     $response = $this->withHeaders(['X-Inertia' => 'true'])
         ->get(cp_route('leadhub.tags.index'));

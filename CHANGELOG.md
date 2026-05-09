@@ -4,7 +4,20 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 ## [Unreleased]
 
-## [0.3.1] — 2026-05-08
+## [0.3.1] — 2026-05-09
+
+Two more real CP bugs caught by extending `CpRoutesTest` to actually run against both drivers (PHPUnit Sandbox skill). Both surfaced as 404s on the contact-detail page in flat mode.
+
+### Fixed
+
+- **Eloquent's int cast on the primary key destroyed UUIDs in flat-file mode.** When `FlatFileContactRepository::create()` writes `id = uuid` (string), the Contact model's default `$incrementing = true` meant Eloquent applied an int cast on `$contact->id`, so PHP truncated `"d9e2a599-…"` to `0`. URLs were then built as `/cp/leadhub/contacts/0`, the flat-file index had no key `"0"`, and the controller returned 404. Fixed by switching all controller-built URLs and prop ids to `$contact->uuid` (set in both drivers via `Model::booted()`) and making the eloquent repository's `find($id)` accept either an int id or a UUID string.
+- **`CpRoutesTest::it renders the contact detail page` failed against the flat driver** because the test created the contact via the eloquent factory (which writes to the in-memory SQLite) while the active driver looked in YAML. Switched to `app(ContactRepository::class)->create(...)` so the test creates through whichever driver the matrix is exercising.
+
+### Added
+
+- UUID-aware `find()` in `EloquentContactRepository`, `EloquentTagRepository`, and `EloquentFollowupRepository`. Routes now use the UUID (string) consistently across both drivers — the int auto-increment id is still in the DB but is no longer the address.
+
+## [0.3.1-pre] — 2026-05-08
 
 End-to-end CP HTTP smoke-tested for the first time. Four real production bugs found and fixed — none of which the domain-layer Pest suite would have caught.
 

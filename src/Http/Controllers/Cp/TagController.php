@@ -20,12 +20,12 @@ class TagController extends Controller
         $page = $this->tags->paginate(50, (int) $request->input('page', 1));
 
         $rows = collect($page->items())->map(fn ($tag) => [
-            'id' => (string) $tag->id,
+            'id' => (string) $tag->uuid,
             'name' => $tag->name,
             'slug' => $tag->slug,
             'color' => $tag->color,
             'contacts_count' => (int) ($tag->contacts_count ?? 0),
-            'delete_url' => cp_route('leadhub.tags.destroy', $tag->id),
+            'delete_url' => cp_route('leadhub.tags.destroy', $tag->uuid),
         ])->all();
 
         $columns = collect([

@@ -14,6 +14,10 @@ class EloquentFollowupRepository implements FollowupRepository
 {
     public function find(int|string $id): ?Followup
     {
+        if (is_string($id) && ! ctype_digit($id)) {
+            return Followup::query()->where('uuid', $id)->first();
+        }
+
         return Followup::query()->find($id);
     }
 

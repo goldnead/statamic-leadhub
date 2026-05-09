@@ -58,14 +58,14 @@ class DashboardController extends Controller
                 'created_at' => $event->created_at?->diffForHumans(),
             ])->all(),
             'followupsToday' => $this->followups->dueToday(5)->map(fn ($f) => [
-                'id' => (string) ($f->id ?? $f->uuid),
+                'id' => (string) ($f->uuid),
                 'contact_name' => $f->contact?->displayName() ?? '—',
                 'contact_url' => $f->contact ? cp_route('leadhub.contacts.show', $f->contact->id) : null,
                 'due_at' => $f->due_at?->format('H:i'),
                 'note' => $f->note,
             ])->all(),
             'followupsOverdue' => $this->followups->overdue(5)->map(fn ($f) => [
-                'id' => (string) ($f->id ?? $f->uuid),
+                'id' => (string) ($f->uuid),
                 'contact_name' => $f->contact?->displayName() ?? '—',
                 'contact_url' => $f->contact ? cp_route('leadhub.contacts.show', $f->contact->id) : null,
                 'due_at' => $f->due_at?->diffForHumans(),
