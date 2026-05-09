@@ -20,7 +20,7 @@ class FollowupController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->hasPermission('view leadhub contacts'), 403);
+        abort_unless($request->user()?->can('view leadhub contacts'), 403);
 
         return view('leadhub::followups.index', [
             'today' => $this->service->dueToday(),
@@ -50,7 +50,7 @@ class FollowupController extends Controller
 
     public function update(Request $request, int|string $followupId)
     {
-        abort_unless($request->user()?->hasPermission('edit leadhub contacts'), 403);
+        abort_unless($request->user()?->can('edit leadhub contacts'), 403);
 
         $followup = $this->followupsRepo->find($followupId);
         abort_unless($followup, 404);
@@ -71,7 +71,7 @@ class FollowupController extends Controller
 
     public function complete(Request $request, int|string $followupId)
     {
-        abort_unless($request->user()?->hasPermission('edit leadhub contacts'), 403);
+        abort_unless($request->user()?->can('edit leadhub contacts'), 403);
 
         $followup = $this->followupsRepo->find($followupId);
         abort_unless($followup, 404);
@@ -83,7 +83,7 @@ class FollowupController extends Controller
 
     public function destroy(Request $request, int|string $followupId)
     {
-        abort_unless($request->user()?->hasPermission('edit leadhub contacts'), 403);
+        abort_unless($request->user()?->can('edit leadhub contacts'), 403);
 
         $followup = $this->followupsRepo->find($followupId);
         abort_unless($followup, 404);

@@ -97,14 +97,8 @@ class ServiceProvider extends AddonServiceProvider
             ->registerPublishables();
     }
 
-    /**
-     * Bind repository interfaces to their concrete implementations
-     * based on the configured storage driver.
-     */
     protected function bindRepositories(): void
     {
-        // Eloquent driver: bind directly. Always available — used as a fallback
-        // and as the migration source/target.
         $this->app->bind(EloquentContactRepository::class);
         $this->app->bind(EloquentEventRepository::class);
         $this->app->bind(EloquentNoteRepository::class);
@@ -112,7 +106,6 @@ class ServiceProvider extends AddonServiceProvider
         $this->app->bind(EloquentTagRepository::class);
         $this->app->bind(EloquentFormMappingRepository::class);
 
-        // Flat-file driver: shared FileStore + per-entity Indexes.
         $this->app->singleton(FileStore::class, function ($app) {
             return new FileStore((string) config('leadhub.storage.flat.path', base_path('content/leadhub')));
         });
@@ -147,7 +140,6 @@ class ServiceProvider extends AddonServiceProvider
             );
         });
 
-        // Flat-file repositories — wired with their shared dependencies.
         $this->app->singleton(FlatFileTagRepository::class, function ($app) {
             return new FlatFileTagRepository(
                 $app->make(FileStore::class),
@@ -195,9 +187,6 @@ class ServiceProvider extends AddonServiceProvider
             );
         });
 
-        // Driver selection — resolved lazily on each `app()` call so that
-        // config changes after `register()` (e.g. orchestra/testbench's
-        // defineEnvironment hook, or runtime config changes) take effect.
         $bind = function (string $contract, string $eloquent, string $flat): void {
             $this->app->bind($contract, function ($app) use ($eloquent, $flat) {
                 return config('leadhub.storage.driver', 'eloquent') === 'flat'
@@ -216,7 +205,6 @@ class ServiceProvider extends AddonServiceProvider
 
     protected function registerMigrations(): self
     {
-        // Migrations only matter for the eloquent driver.
         if (config('leadhub.storage.driver', 'eloquent') === 'eloquent') {
             $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         }
@@ -253,33 +241,31 @@ class ServiceProvider extends AddonServiceProvider
 
     protected function registerPermissions(): self
     {
-        Permission::extend(function () {
-            Permission::group('leadhub', 'LeadHub', function () {
-                Permission::register('view leadhub')
-                    ->label(__('leadhub::permissions.view_leadhub'))
-                    ->children([
-                        Permission::make('view leadhub contacts')
-                            ->label(__('leadhub::permissions.view_contacts'))
-                            ->children([
-                                Permission::make('create leadhub contacts')
-                                    ->label(__('leadhub::permissions.create_contacts')),
-                                Permission::make('edit leadhub contacts')
-                                    ->label(__('leadhub::permissions.edit_contacts')),
-                                Permission::make('delete leadhub contacts')
-                                    ->label(__('leadhub::permissions.delete_contacts')),
-                                Permission::make('archive leadhub contacts')
-                                    ->label(__('leadhub::permissions.archive_contacts')),
-                                Permission::make('export leadhub contacts')
-                                    ->label(__('leadhub::permissions.export_contacts')),
-                            ]),
-                        Permission::make('manage leadhub tags')
-                            ->label(__('leadhub::permissions.manage_tags')),
-                        Permission::make('manage leadhub form mappings')
-                            ->label(__('leadhub::permissions.manage_form_mappings')),
-                        Permission::make('manage leadhub settings')
-                            ->label(__('leadhub::permissions.manage_settings')),
-                    ]);
-            });
+        Permission::group('leadhub', 'LeadHub', function () {
+            Permission::register('view leadhub')
+                ->label(__('leadhub::permissions.view_leadhub'))
+                ->children([
+                    Permission::make('view leadhub contacts')
+                        ->label(__('leadhub::permissions.view_contacts'))
+                        ->children([
+                            Permission::make('create leadhub contacts')
+                                ->label(__('leadhub::permissions.create_contacts')),
+                            Permission::make('edit leadhub contacts')
+                                ->label(__('leadhub::permissions.edit_contacts')),
+                            Permission::make('delete leadhub contacts')
+                                ->label(__('leadhub::permissions.delete_contacts')),
+                            Permission::make('archive leadhub contacts')
+                                ->label(__('leadhub::permissions.archive_contacts')),
+                            Permission::make('export leadhub contacts')
+                                ->label(__('leadhub::permissions.export_contacts')),
+                        ]),
+                    Permission::make('manage leadhub tags')
+                                ->label(__('leadhub::permissions.manage_tags')),
+                    Permission::make('manage leadhub form mappings')
+                                ->label(__('leadhub::permissions.manage_form_mappings')),
+                    Permission::make('manage leadhub settings')
+                                ->label(__('leadhub::permissions.manage_settings')),
+                ]);
         });
 
         return $this;

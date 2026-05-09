@@ -30,7 +30,7 @@ class ContactController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->hasPermission('view leadhub contacts'), 403);
+        abort_unless($request->user()?->can('view leadhub contacts'), 403);
 
         $filters = [
             'archived' => $request->boolean('archived'),
@@ -71,7 +71,7 @@ class ContactController extends Controller
 
     public function show(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->hasPermission('view leadhub contacts'), 403);
+        abort_unless($request->user()?->can('view leadhub contacts'), 403);
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);
@@ -145,7 +145,7 @@ class ContactController extends Controller
 
     public function destroy(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->hasPermission('delete leadhub contacts'), 403);
+        abort_unless($request->user()?->can('delete leadhub contacts'), 403);
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);
@@ -165,7 +165,7 @@ class ContactController extends Controller
 
     public function archive(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->hasPermission('archive leadhub contacts'), 403);
+        abort_unless($request->user()?->can('archive leadhub contacts'), 403);
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);
@@ -179,7 +179,7 @@ class ContactController extends Controller
 
     public function restore(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->hasPermission('archive leadhub contacts'), 403);
+        abort_unless($request->user()?->can('archive leadhub contacts'), 403);
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);

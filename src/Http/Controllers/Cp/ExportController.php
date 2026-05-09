@@ -13,7 +13,7 @@ class ExportController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless($request->user()?->hasPermission('export leadhub contacts'), 403);
+        abort_unless($request->user()?->can('export leadhub contacts'), 403);
 
         $filters = $request->only([
             'status', 'source', 'tag', 'from', 'to', 'followup', 'q', 'archived',

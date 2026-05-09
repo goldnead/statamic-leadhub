@@ -18,51 +18,51 @@ class LeadHubPolicy
 
     public function viewAny(?User $user): bool
     {
-        return $user?->hasPermission('view leadhub contacts') ?? false;
+        return $user?->can('view leadhub contacts') ?? false;
     }
 
     public function view(?User $user, Contact $contact): bool
     {
-        return $user?->hasPermission('view leadhub contacts') ?? false;
+        return $user?->can('view leadhub contacts') ?? false;
     }
 
     public function create(?User $user): bool
     {
-        return $user?->hasPermission('create leadhub contacts') ?? false;
+        return $user?->can('create leadhub contacts') ?? false;
     }
 
     public function update(?User $user, Contact $contact): bool
     {
-        return $user?->hasPermission('edit leadhub contacts') ?? false;
+        return $user?->can('edit leadhub contacts') ?? false;
     }
 
     public function delete(?User $user, Contact $contact): bool
     {
-        return $user?->hasPermission('delete leadhub contacts') ?? false;
+        return $user?->can('delete leadhub contacts') ?? false;
     }
 
     public function archive(?User $user, Contact $contact): bool
     {
-        return $user?->hasPermission('archive leadhub contacts') ?? false;
+        return $user?->can('archive leadhub contacts') ?? false;
     }
 
     public function export(?User $user): bool
     {
-        return $user?->hasPermission('export leadhub contacts') ?? false;
+        return $user?->can('export leadhub contacts') ?? false;
     }
 
     public function manageTags(?User $user): bool
     {
-        return $user?->hasPermission('manage leadhub tags') ?? false;
+        return $user?->can('manage leadhub tags') ?? false;
     }
 
     public function manageFormMappings(?User $user): bool
     {
-        return $user?->hasPermission('manage leadhub form mappings') ?? false;
+        return $user?->can('manage leadhub form mappings') ?? false;
     }
 
     public function manageSettings(?User $user): bool
     {
-        return $user?->hasPermission('manage leadhub settings') ?? false;
+        return $user?->can('manage leadhub settings') ?? false;
     }
 }

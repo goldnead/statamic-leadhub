@@ -16,7 +16,7 @@ class TimelineController extends Controller
 
     public function index(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->hasPermission('view leadhub contacts'), 403);
+        abort_unless($request->user()?->can('view leadhub contacts'), 403);
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);

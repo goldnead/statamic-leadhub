@@ -9,7 +9,7 @@ class UpdateFormMappingRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasPermission('manage leadhub form mappings') ?? false;
+        return $this->user()?->can('manage leadhub form mappings') ?? false;
     }
 
     public function rules(): array

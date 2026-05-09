@@ -13,7 +13,7 @@ class TagController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->hasPermission('manage leadhub tags'), 403);
+        abort_unless($request->user()?->can('manage leadhub tags'), 403);
 
         return view('leadhub::tags.index', [
             'tags' => $this->tags->paginate(50, (int) $request->input('page', 1)),
@@ -22,7 +22,7 @@ class TagController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless($request->user()?->hasPermission('manage leadhub tags'), 403);
+        abort_unless($request->user()?->can('manage leadhub tags'), 403);
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -39,7 +39,7 @@ class TagController extends Controller
 
     public function update(Request $request, int|string $tagId)
     {
-        abort_unless($request->user()?->hasPermission('manage leadhub tags'), 403);
+        abort_unless($request->user()?->can('manage leadhub tags'), 403);
 
         $tag = $this->tags->find($tagId);
         abort_unless($tag, 404);
@@ -56,7 +56,7 @@ class TagController extends Controller
 
     public function destroy(Request $request, int|string $tagId)
     {
-        abort_unless($request->user()?->hasPermission('manage leadhub tags'), 403);
+        abort_unless($request->user()?->can('manage leadhub tags'), 403);
 
         $tag = $this->tags->find($tagId);
         abort_unless($tag, 404);

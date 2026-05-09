@@ -8,7 +8,7 @@ class SettingsController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless($request->user()?->hasPermission('manage leadhub settings'), 403);
+        abort_unless($request->user()?->can('manage leadhub settings'), 403);
 
         return view('leadhub::settings', [
             'config' => config('leadhub'),

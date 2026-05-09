@@ -15,7 +15,7 @@ class FormMappingController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->hasPermission('manage leadhub form mappings'), 403);
+        abort_unless($request->user()?->can('manage leadhub form mappings'), 403);
 
         $statamicForms = collect(Form::all())->map(fn ($form) => [
             'handle' => $form->handle(),
@@ -40,7 +40,7 @@ class FormMappingController extends Controller
 
     public function edit(Request $request, string $formHandle)
     {
-        abort_unless($request->user()?->hasPermission('manage leadhub form mappings'), 403);
+        abort_unless($request->user()?->can('manage leadhub form mappings'), 403);
 
         $mapping = $this->mappings->firstOrCreate($formHandle);
 

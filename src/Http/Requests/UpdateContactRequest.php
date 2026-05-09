@@ -8,7 +8,7 @@ class UpdateContactRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasPermission('edit leadhub contacts') ?? false;
+        return $this->user()?->can('edit leadhub contacts') ?? false;
     }
 
     public function rules(): array

@@ -20,7 +20,7 @@ class DashboardController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->hasPermission('view leadhub'), 403);
+        abort_unless($request->user()?->can('view leadhub'), 403);
 
         $statuses = (array) config('leadhub.statuses', []);
 
