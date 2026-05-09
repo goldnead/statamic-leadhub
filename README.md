@@ -3,7 +3,7 @@
 > Turn Statamic form submissions into contacts, timelines, and follow-ups — directly inside your Control Panel.
 
 [![tests](https://github.com/goldnead/statamic-leadhub/actions/workflows/tests.yml/badge.svg)](https://github.com/goldnead/statamic-leadhub/actions/workflows/tests.yml)
-[![Statamic 5+](https://img.shields.io/badge/Statamic-5.0%20%7C%206.0-orange.svg)](https://statamic.com)
+[![Statamic 6](https://img.shields.io/badge/Statamic-6.0%2B-orange.svg)](https://statamic.com)
 [![PHP 8.2+](https://img.shields.io/badge/PHP-8.2%2B-blue.svg)](https://www.php.net/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -31,9 +31,10 @@ What it deliberately does **not** do (yet): webhooks, CRM connectors, UTM attrib
 ## Requirements
 
 - PHP **8.2+**
-- Statamic **5.0+** or **6.0+**
-- Laravel **10.x / 11.x / 12.x**
-- A SQL database (MySQL, PostgreSQL, SQLite)
+- Statamic **6.0+** (the v0.3 CP rewrite uses Inertia + Vue 3 — Statamic 5 is no longer supported; pin to `^0.2.x` if you need it)
+- Laravel **11.x / 12.x**
+- A SQL database (MySQL, PostgreSQL, SQLite) — only required for the eloquent driver
+- Node.js **18+** with npm — needed once to compile the addon's CP assets via your host project's Vite
 
 ---
 
@@ -41,8 +42,11 @@ What it deliberately does **not** do (yet): webhooks, CRM connectors, UTM attrib
 
 ```bash
 composer require goldnead/statamic-leadhub
-php artisan migrate
+php artisan migrate          # only needed for the eloquent driver (default)
+npm run build                # compiles LeadHub's CP assets via your host project's Vite
 ```
+
+The CP UI is built with **Inertia + Vue 3 + Tailwind v4**, matching Statamic 6's native control-panel patterns. Statamic's addon Vite tooling auto-picks the addon's entries (`resources/js/cp.js` and `resources/css/cp.css`) and bundles them when you run `npm run build` in your host project.
 
 Optional — publish the config to customize statuses, redaction rules, and feature flags:
 
@@ -239,6 +243,41 @@ vendor/bin/pest
 ```
 
 The test suite uses `orchestra/testbench` with an in-memory SQLite database — no project setup required.
+
+### End-to-end smoke test
+
+Pest covers the domain layer. To verify the full pipeline against a real Statamic install — auto-discovery, migrations, the `SubmissionCreated` listener, both drivers, and the `leadhub:storage:migrate` command — run the bundled smoke test:
+
+```bash
+./scripts/smoke-test.sh
+```
+
+In ~3–5 minutes the script:
+
+1. Installs a fresh Statamic v6 project at `/tmp/leadhub-smoketest-{ts}/`
+2. Wires this LeadHub repo as a Composer path repository
+3. Configures SQLite, runs migrations, publishes the config
+4. Creates a `contact` form (blueprint + form yaml)
+5. **Eloquent driver** — submits `Form::find('contact')->makeSubmission()->save()`, asserts the contact landed in the DB
+6. **Migration** — runs `php artisan leadhub:storage:migrate --from=eloquent --to=flat`, asserts YAML files appear under `content/leadhub/`
+7. **Flat driver** — flips `LEADHUB_DRIVER=flat`, warms the Stache, submits a second form, asserts both contacts are visible to the flat repository
+
+Configurable via env vars:
+
+```bash
+LEADHUB_PATH=/path/to/your/leadhub-clone   # default: parent dir of the script
+TEST_DIR=/somewhere/else                    # default: /tmp/leadhub-smoketest-{ts}
+STATAMIC_VERSION="^6.0"                     # default: ^6.0
+PHP_BIN=/usr/local/bin/php8.3               # default: php on PATH
+```
+
+The script exits non-zero on the first failed step and leaves the broken project in place so you can `cd` in and poke around. After the run you can open the CP with:
+
+```bash
+cd /tmp/leadhub-smoketest-{ts}
+php please make:user        # create yourself a CP user
+php artisan serve            # then visit http://127.0.0.1:8000/cp
+```
 
 ---
 

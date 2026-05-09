@@ -4,6 +4,46 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-05-08
+
+### Statamic 6-native CP rewrite
+
+The Control Panel is now built with Inertia + Vue 3 + Tailwind v4, using Statamic 6's native `@ui` design-system components throughout. v0.2.x's Blade layer fought the design system; v0.3.0 stops fighting.
+
+### Added
+
+- **Inertia + Vue 3 CP layer.** All 8 pages (Dashboard, Contacts/Index, Contacts/Show, Followups/Index, Forms/Index, Forms/Edit, Tags/Index, Settings) are now Vue Single-File Components under `resources/js/pages/`, registered via `Statamic.$inertia.register('leadhub::PageName', Component)` in `resources/js/cp.js`.
+- **Native `@ui` components everywhere.** Tables → `<Listing>`, forms → `<PublishForm>` with PHP-defined Blueprint tabs, inputs → `<Select>`/`<Combobox>`/`<DatePicker>`/`<Checkbox>`/`<Switch>`. No more custom `<select>` or hand-styled buttons.
+- **Form-mapping editor** is now a Blueprint-driven `<PublishForm>` with two tabs (General + Field Mapping). Field handles are auto-discovered from the Statamic form's blueprint and presented as `<Select>` options (no more typing handles by hand).
+- **Vite tooling.** Ships with `vite.config.js` + `package.json` so the host project's `npm run build` compiles the addon's CP assets.
+- **Tailwind v4 setup** with explicit `@layer addon-theme` / `@layer addon-utilities` ordering — addon styles never fight Statamic's CP design system.
+
+### Changed
+
+- All controllers return `Inertia::render('leadhub::PageName', [...props])` instead of `view(...)`.
+- Routes are unchanged; only the controller return type changed. Existing Pest tests pass.
+- Translations are still registered under the `leadhub::` namespace (the v0.2.2 fix).
+- Polled the new Statamic-6 patterns from the official `statamic/cms@6.x` source via the *Statamic 6 CP UI Patterns* skill (audited 2026-05).
+
+### Removed
+
+- All Blade views under `resources/views/` (replaced by Vue SFCs).
+- `TimelineController` (the Show page now receives events as Inertia props with built-in pagination).
+
+### Fixed
+
+- **Translations actually load now.** The v0.2.2 attempt at registering the `leadhub::` namespace via `loadTranslationsFrom()` in `bootAddon()` silently failed because Statamic's boot resolves the translator service early — before our after-resolving callback fires — so the namespace was never added. v0.3 force-registers via `$translator->addNamespace()` directly, both eagerly and via `resolving()`. The CP now shows real text instead of raw `leadhub::nav.dashboard` keys.
+
+### Upgrade notes
+
+If you upgrade from v0.2.x:
+
+1. `composer update goldnead/statamic-leadhub`
+2. `npm install && npm run build` in your host Statamic project
+3. `php artisan optimize:clear && php please stache:clear`
+
+No data migration required. The eloquent and flat-file drivers continue to work unchanged.
+
 ## [0.2.1] — 2026-05-07
 
 First green-CI release. v0.2.0 was structurally complete but had four bugs that only the new matrix surfaced — all four are fixed here.

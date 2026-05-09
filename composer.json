@@ -23,8 +23,9 @@
     },
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^10.0|^11.0|^12.0|^13.0",
-        "statamic/cms": "^5.0|^6.0",
+        "laravel/framework": "^11.0|^12.0",
+        "statamic/cms": "^6.0",
+        "inertiajs/inertia-laravel": "^1.0|^2.0",
         "symfony/yaml": "^6.0|^7.0"
     },
     "require-dev": {
@@ -46,7 +47,11 @@
     "extra": {
         "statamic": {
             "name": "LeadHub",
-            "description": "Turn Statamic form submissions into contacts, timelines, and follow-ups directly inside your Control Panel."
+            "description": "Turn Statamic form submissions into contacts, timelines, and follow-ups directly inside your Control Panel.",
+            "vite": {
+                "input": ["resources/js/cp.js", "resources/css/cp.css"],
+                "publicDirectory": "public"
+            }
         },
         "laravel": {
             "providers": [

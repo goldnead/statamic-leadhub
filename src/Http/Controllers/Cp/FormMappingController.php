@@ -4,7 +4,11 @@ namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
 use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Http\Requests\UpdateFormMappingRequest;
+use Goldnead\Leadhub\Models\FormMapping;
+use Goldnead\Leadhub\Support\FormMappingBlueprint;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Statamic\CP\Column;
 use Statamic\Facades\Form;
 
 class FormMappingController extends Controller
@@ -17,24 +21,37 @@ class FormMappingController extends Controller
     {
         abort_unless($request->user()?->can('manage leadhub form mappings'), 403);
 
-        $statamicForms = collect(Form::all())->map(fn ($form) => [
-            'handle' => $form->handle(),
-            'title' => $form->title() ?? $form->handle(),
-        ]);
-
-        $existingMappings = $this->mappings->all()->keyBy('form_handle');
-
-        // Auto-create empty mapping rows for any Statamic form without one.
-        foreach ($statamicForms as $f) {
-            if (! $existingMappings->has($f['handle'])) {
-                $mapping = $this->mappings->firstOrCreate($f['handle']);
-                $existingMappings->put($f['handle'], $mapping);
-            }
+        // Make sure every Statamic form has a mapping row (auto-bootstrapped).
+        $statamicForms = collect(Form::all());
+        foreach ($statamicForms as $form) {
+            $this->mappings->firstOrCreate($form->handle());
         }
 
-        return view('leadhub::forms.index', [
-            'forms' => $statamicForms,
-            'mappings' => $existingMappings,
+        $mappings = $this->mappings->all()->keyBy('form_handle');
+
+        $rows = $statamicForms->map(function ($form) use ($mappings) {
+            $mapping = $mappings->get($form->handle());
+
+            return [
+                'handle' => $form->handle(),
+                'title' => method_exists($form, 'title') ? ($form->title() ?? $form->handle()) : $form->handle(),
+                'enabled' => (bool) ($mapping?->enabled ?? false),
+                'email_field' => $mapping?->email_field,
+                'last_processed_at' => $mapping?->last_processed_at?->diffForHumans(),
+                'edit_url' => cp_route('leadhub.forms.edit', $form->handle()),
+            ];
+        })->values()->all();
+
+        $columns = collect([
+            Column::make('title')->label(__('Form'))->sortable(),
+            Column::make('enabled')->label(__('leadhub::forms.enabled')),
+            Column::make('email_field')->label(__('leadhub::forms.mapping.email_field')),
+            Column::make('last_processed_at')->label(__('leadhub::forms.last_processed')),
+        ])->map(fn ($c) => $c->toArray())->all();
+
+        return Inertia::render('leadhub::Forms/Index', [
+            'forms' => $rows,
+            'columns' => $columns,
         ]);
     }
 
@@ -43,19 +60,21 @@ class FormMappingController extends Controller
         abort_unless($request->user()?->can('manage leadhub form mappings'), 403);
 
         $mapping = $this->mappings->firstOrCreate($formHandle);
-
         $form = Form::find($formHandle);
         abort_unless($form, 404, "Statamic form [{$formHandle}] not found.");
 
-        $fields = $this->extractFormFields($form);
+        $blueprint = FormMappingBlueprint::build($form);
+        $values = $this->mappingToValues($mapping);
+        $fields = $blueprint->fields()->addValues($values)->preProcess();
 
-        return view('leadhub::forms.edit', [
-            'mapping' => $mapping,
-            'form' => $form,
+        return Inertia::render('leadhub::Forms/Edit', [
+            'title' => method_exists($form, 'title') ? ($form->title() ?? $formHandle) : $formHandle,
             'formHandle' => $formHandle,
-            'formTitle' => method_exists($form, 'title') ? ($form->title() ?? $formHandle) : $formHandle,
-            'fields' => $fields,
-            'statuses' => (array) config('leadhub.statuses', []),
+            'blueprint' => $blueprint->toPublishArray(),
+            'values' => $fields->values()->all(),
+            'meta' => $fields->meta(),
+            'submitUrl' => cp_route('leadhub.forms.update', $formHandle),
+            'indexUrl' => cp_route('leadhub.forms.index'),
         ]);
     }
 
@@ -69,33 +88,26 @@ class FormMappingController extends Controller
 
         $this->mappings->update($mapping, $data);
 
-        if ($request->expectsJson()) {
-            return response()->json(['data' => $this->mappings->findByHandle($formHandle)]);
-        }
-
-        return redirect()
-            ->route('statamic.cp.leadhub.forms.edit', $formHandle)
-            ->with('success', __('leadhub::forms.flashes.saved'));
+        return back()->with('success', __('leadhub::forms.flashes.saved'));
     }
 
-    protected function extractFormFields($form): array
+    protected function mappingToValues(FormMapping $mapping): array
     {
-        $fields = [];
-
-        try {
-            $blueprint = method_exists($form, 'blueprint') ? $form->blueprint() : null;
-
-            if ($blueprint && method_exists($blueprint, 'fields')) {
-                foreach ($blueprint->fields()->all() as $field) {
-                    $handle = $field->handle();
-                    $display = method_exists($field, 'display') ? ($field->display() ?: $handle) : $handle;
-                    $fields[$handle] = $display;
-                }
-            }
-        } catch (\Throwable) {
-            // Fall through to empty.
-        }
-
-        return $fields;
+        return [
+            'enabled' => (bool) $mapping->enabled,
+            'email_field' => $mapping->email_field,
+            'first_name_field' => $mapping->first_name_field,
+            'last_name_field' => $mapping->last_name_field,
+            'full_name_field' => $mapping->full_name_field,
+            'phone_field' => $mapping->phone_field,
+            'company_field' => $mapping->company_field,
+            'message_field' => $mapping->message_field,
+            'consent_field' => $mapping->consent_field,
+            'tags_field' => $mapping->tags_field,
+            'default_status' => $mapping->default_status ?: config('leadhub.default_status'),
+            'default_source' => $mapping->default_source,
+            'default_tags' => is_array($mapping->default_tags) ? $mapping->default_tags : [],
+            'attach_full_submission' => (bool) $mapping->attach_full_submission,
+        ];
     }
 }
