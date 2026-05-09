@@ -19,7 +19,7 @@ class FormMappingController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->can('manage leadhub form mappings'), 403);
+        $this->authorizeOrFail($request, 'manage leadhub form mappings');
 
         // Make sure every Statamic form has a mapping row (auto-bootstrapped).
         $statamicForms = collect(Form::all());
@@ -43,7 +43,7 @@ class FormMappingController extends Controller
         })->values()->all();
 
         $columns = collect([
-            Column::make('title')->label(__('Form'))->sortable(),
+            Column::make('title')->label(__('Form'))->sortable(true),
             Column::make('enabled')->label(__('leadhub::forms.enabled')),
             Column::make('email_field')->label(__('leadhub::forms.mapping.email_field')),
             Column::make('last_processed_at')->label(__('leadhub::forms.last_processed')),
@@ -57,7 +57,7 @@ class FormMappingController extends Controller
 
     public function edit(Request $request, string $formHandle)
     {
-        abort_unless($request->user()?->can('manage leadhub form mappings'), 403);
+        $this->authorizeOrFail($request, 'manage leadhub form mappings');
 
         $mapping = $this->mappings->firstOrCreate($formHandle);
         $form = Form::find($formHandle);

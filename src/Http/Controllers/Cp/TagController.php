@@ -15,7 +15,7 @@ class TagController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->can('manage leadhub tags'), 403);
+        $this->authorizeOrFail($request, 'manage leadhub tags');
 
         $page = $this->tags->paginate(50, (int) $request->input('page', 1));
 
@@ -29,7 +29,7 @@ class TagController extends Controller
         ])->all();
 
         $columns = collect([
-            Column::make('name')->label(__('leadhub::tags.name'))->sortable(),
+            Column::make('name')->label(__('leadhub::tags.name'))->sortable(true),
             Column::make('slug')->label(__('leadhub::tags.slug')),
             Column::make('color')->label(__('leadhub::tags.color')),
             Column::make('contacts_count')->label(__('leadhub::tags.contacts_count')),
@@ -45,7 +45,7 @@ class TagController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless($request->user()?->can('manage leadhub tags'), 403);
+        $this->authorizeOrFail($request, 'manage leadhub tags');
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -62,7 +62,7 @@ class TagController extends Controller
 
     public function update(Request $request, int|string $tagId)
     {
-        abort_unless($request->user()?->can('manage leadhub tags'), 403);
+        $this->authorizeOrFail($request, 'manage leadhub tags');
 
         $tag = $this->tags->find($tagId);
         abort_unless($tag, 404);
@@ -79,7 +79,7 @@ class TagController extends Controller
 
     public function destroy(Request $request, int|string $tagId)
     {
-        abort_unless($request->user()?->can('manage leadhub tags'), 403);
+        $this->authorizeOrFail($request, 'manage leadhub tags');
 
         $tag = $this->tags->find($tagId);
         abort_unless($tag, 404);

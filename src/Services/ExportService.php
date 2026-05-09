@@ -57,8 +57,8 @@ class ExportService
 
             foreach ($paginator->items() as $contact) {
                 /** @var Contact $contact */
-                $tags = $contact->getRelation('tags') ?? collect();
-                $followups = $contact->getRelation('followups') ?? collect();
+                $tags = $contact->relationLoaded('tags') ? $contact->getRelation('tags') : collect();
+                $followups = $contact->relationLoaded('followups') ? $contact->getRelation('followups') : collect();
                 $active = $followups instanceof \Illuminate\Support\Collection
                     ? $followups->whereNull('completed_at')->sortBy('due_at')->first()
                     : null;

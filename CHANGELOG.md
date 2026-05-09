@@ -4,6 +4,27 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-05-08
+
+End-to-end CP HTTP smoke-tested for the first time. Four real production bugs found and fixed — none of which the domain-layer Pest suite would have caught.
+
+### Fixed
+
+- **Super users couldn't access any LeadHub CP page.** Statamic 6.18's `Auth\File\User::hasPermission()` only checks the user's permissions collection — and for super users that collection contains the literal `'super'` permission, NOT the per-feature permissions. So `$user->hasPermission('view leadhub')` returned `false` for any admin (you!), causing 403 on every LeadHub page. v0.3.1 adds a super-status short-circuit in the controller base class. ([`Cp\Controller::authorizeOrFail`])
+- **`Column::sortable()` without an argument is a getter (returns `bool`)**, not a fluent setter — chaining `->sortable()->...` broke the column array build. Fixed in `ContactController`, `FormMappingController`, `TagController` by passing `sortable(true)` explicitly.
+- **`Eloquent::getRelation()` throws "Undefined array key" when the relation isn't loaded**, instead of returning null. Replaced unsafe `getRelation('foo') ?? collect()` with `relationLoaded('foo') ? getRelation('foo') : collect()` across `ContactController` and `ExportService`.
+- **CP routes weren't being mounted in the test environment** — Statamic registers them inside `Statamic::booted` callbacks that orchestra/testbench doesn't fire. `tests/TestCase::defineRoutes()` now mounts the addon routes manually under the `statamic.cp.` name prefix, matching production.
+
+### Added
+
+- **`tests/Feature/CpRoutesTest`** — 9 HTTP smoke tests that hit each CP page as an authenticated super user and assert: HTTP 200, Inertia headers correct, component identifier matches the registered Vue page. This is the test class that would have caught all four v0.3.0 bugs.
+- **Explicit `bootAddon()` call in `TestCase::setUp`** — Statamic's `Statamic::booted` callbacks don't fire under testbench, so without this the navigation, permissions, and route registration silently no-op in tests.
+- `Cp\Controller::authorizeOrFail($request, $permission)` and `Cp\Controller::userCan(...)` helpers — single source of truth for permission gates with super-user bypass.
+
+### Notes
+
+This is the first release verified by the *Statamic 6 PHPUnit Sandbox* skill — full PHP + Composer + PHPUnit run in the sandbox, including HTTP feature tests against real routes. **63/63 tests pass.** Highly recommend running `composer install && vendor/bin/pest` if you fork the addon — the suite is now fast (~2.5s) and catches real CP regressions.
+
 ## [0.3.0] — 2026-05-08
 
 ### Statamic 6-native CP rewrite

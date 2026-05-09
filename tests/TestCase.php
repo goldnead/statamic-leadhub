@@ -16,6 +16,16 @@ abstract class TestCase extends OrchestraTestCase
         parent::setUp();
 
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+        // Statamic's AddonServiceProvider runs bootAddon() inside
+        // Statamic::booted(...). orchestra/testbench doesn't fire those
+        // callbacks, so Nav, Permissions, and the rest of bootAddon never
+        // register. Force it so HTTP feature tests can actually hit the
+        // CP routes with the right ACLs in place.
+        $provider = $this->app->getProvider(ServiceProvider::class);
+        if ($provider) {
+            $provider->bootAddon();
+        }
     }
 
     protected function getPackageProviders($app): array
@@ -28,6 +38,9 @@ abstract class TestCase extends OrchestraTestCase
 
     protected function defineEnvironment($app): void
     {
+        // Required for any encrypted-cast model attributes; harmless otherwise.
+        $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
+
         $app['config']->set('database.default', 'sqlite');
         $app['config']->set('database.connections.sqlite', [
             'driver' => 'sqlite',
@@ -56,5 +69,18 @@ abstract class TestCase extends OrchestraTestCase
             'index_disk' => 'local',
             'index_path' => 'leadhub-test-'.getmypid().'/index',
         ]);
+    }
+
+    /**
+     * Statamic registers addon CP routes inside Statamic::booted callbacks
+     * that orchestra/testbench doesn't fire. For HTTP feature tests we mount
+     * them ourselves under the `statamic.cp.` name prefix and `/cp` URL prefix
+     * that production uses.
+     */
+    protected function defineRoutes($router): void
+    {
+        $router->name('statamic.cp.')
+            ->prefix('cp')
+            ->group(__DIR__.'/../routes/cp.php');
     }
 }

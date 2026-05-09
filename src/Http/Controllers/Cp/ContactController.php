@@ -33,7 +33,7 @@ class ContactController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->can('view leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'view leadhub contacts');
 
         $filters = [
             'archived' => $request->boolean('archived'),
@@ -52,7 +52,7 @@ class ContactController extends Controller
         $page = $this->contacts->paginate($filters, 25, (int) $request->input('page', 1));
 
         $rows = collect($page->items())->map(function (Contact $contact) use ($statuses) {
-            $followups = $contact->getRelation('followups') ?? collect();
+            $followups = $contact->relationLoaded('followups') ? $contact->getRelation('followups') : collect();
             $active = $followups instanceof \Illuminate\Support\Collection
                 ? $followups->whereNull('completed_at')->sortBy('due_at')->first()
                 : null;
@@ -65,7 +65,7 @@ class ContactController extends Controller
                 'company' => $contact->company,
                 'status' => $contact->status,
                 'status_label' => $statuses[$contact->status] ?? $contact->status,
-                'tags' => collect($contact->getRelation('tags') ?? [])->map(fn ($t) => [
+                'tags' => collect($contact->relationLoaded('tags') ? $contact->getRelation('tags')->all() : [])->map(fn ($t) => [
                     'id' => (string) $t->id,
                     'name' => $t->name,
                 ])->all(),
@@ -87,7 +87,7 @@ class ContactController extends Controller
         });
 
         $columns = collect([
-            Column::make('display_name')->label(__('leadhub::contacts.name'))->sortable(),
+            Column::make('display_name')->label(__('leadhub::contacts.name'))->sortable(true),
             Column::make('email')->label(__('leadhub::contacts.email')),
             Column::make('status')->label(__('leadhub::contacts.status')),
             Column::make('tags')->label(__('leadhub::contacts.tags')),
@@ -118,7 +118,7 @@ class ContactController extends Controller
 
     public function show(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->can('view leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'view leadhub contacts');
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);
@@ -133,7 +133,7 @@ class ContactController extends Controller
             'created_at' => $e->created_at?->diffForHumans(),
         ])->all();
 
-        $activeFollowups = $contact->getRelation('followups') ?? collect();
+        $activeFollowups = $contact->relationLoaded('followups') ? $contact->getRelation('followups') : collect();
         $active = $activeFollowups instanceof \Illuminate\Support\Collection
             ? $activeFollowups->whereNull('completed_at')->sortBy('due_at')->first()
             : null;
@@ -154,7 +154,7 @@ class ContactController extends Controller
                 'company' => $contact->company,
                 'status' => $contact->status,
                 'status_label' => $statuses[$contact->status] ?? $contact->status,
-                'tags' => collect($contact->getRelation('tags') ?? [])->map(fn ($t) => [
+                'tags' => collect($contact->relationLoaded('tags') ? $contact->getRelation('tags')->all() : [])->map(fn ($t) => [
                     'id' => (string) $t->id,
                     'name' => $t->name,
                 ])->all(),
@@ -235,7 +235,7 @@ class ContactController extends Controller
 
     public function destroy(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->can('delete leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'delete leadhub contacts');
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);
@@ -249,7 +249,7 @@ class ContactController extends Controller
 
     public function archive(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->can('archive leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'archive leadhub contacts');
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);
@@ -263,7 +263,7 @@ class ContactController extends Controller
 
     public function restore(Request $request, int|string $contactId)
     {
-        abort_unless($request->user()?->can('archive leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'archive leadhub contacts');
 
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);

@@ -23,7 +23,7 @@ class FollowupController extends Controller
 
     public function index(Request $request)
     {
-        abort_unless($request->user()?->can('view leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'view leadhub contacts');
 
         $shape = fn ($f) => [
             'id' => (string) ($f->id ?? $f->uuid),
@@ -61,7 +61,7 @@ class FollowupController extends Controller
 
     public function update(Request $request, int|string $followupId)
     {
-        abort_unless($request->user()?->can('edit leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'edit leadhub contacts');
 
         $followup = $this->followupsRepo->find($followupId);
         abort_unless($followup, 404);
@@ -78,7 +78,7 @@ class FollowupController extends Controller
 
     public function complete(Request $request, int|string $followupId)
     {
-        abort_unless($request->user()?->can('edit leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'edit leadhub contacts');
 
         $followup = $this->followupsRepo->find($followupId);
         abort_unless($followup, 404);
@@ -90,7 +90,7 @@ class FollowupController extends Controller
 
     public function destroy(Request $request, int|string $followupId)
     {
-        abort_unless($request->user()?->can('edit leadhub contacts'), 403);
+        $this->authorizeOrFail($request, 'edit leadhub contacts');
 
         $followup = $this->followupsRepo->find($followupId);
         abort_unless($followup, 404);

@@ -9,7 +9,7 @@ class SettingsController extends Controller
 {
     public function index(Request $request)
     {
-        abort_unless($request->user()?->can('manage leadhub settings'), 403);
+        $this->authorizeOrFail($request, 'manage leadhub settings');
 
         return Inertia::render('leadhub::Settings', [
             'config' => config('leadhub'),
