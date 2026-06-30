@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static array addTag(int|string $id, string $tag)
  * @method static array removeTag(int|string $id, string $tag)
  * @method static array changeStatus(int|string $id, string $status)
+ * @method static array optOut(int|string $id)
  * @method static array addNote(int|string $id, string $body, ?string $userId = null)
  * @method static array createFollowUp(int|string $id, array $data)
  * @method static array completeFollowUp(int|string $id, int|string $followUpId)

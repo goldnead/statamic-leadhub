@@ -49,6 +49,35 @@ class CrmSyncService
         return $results;
     }
 
+    /**
+     * Remove / unsubscribe a contact from every destination that supports it.
+     * Called when a contact opts out (do_not_contact) so external lists stay
+     * compliant.
+     *
+     * @return array<string, SyncResult>
+     */
+    public function removeContact(Contact $contact): array
+    {
+        $results = [];
+
+        foreach ($this->destinations->enabled() as $key => $destination) {
+            if (! $destination instanceof \Goldnead\Leadhub\Contracts\SupportsContactRemoval) {
+                continue;
+            }
+
+            try {
+                $result = $destination->remove($contact);
+            } catch (\Throwable $e) {
+                $result = SyncResult::fail($e->getMessage());
+            }
+
+            $this->record($contact, $key, $destination->driver(), 'removed', $result);
+            $results[$key] = $result;
+        }
+
+        return $results;
+    }
+
     protected function record(Contact $contact, string $key, string $driver, string $event, SyncResult $result): void
     {
         // Per-contact timeline event (both drivers).

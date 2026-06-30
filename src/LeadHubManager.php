@@ -161,6 +161,24 @@ class LeadHubManager
         return $this->present($this->reload($contact));
     }
 
+    /**
+     * Mark a contact as opted-out: sets do_not_contact and actively removes /
+     * unsubscribes them from any CRM destination that supports removal.
+     */
+    public function optOut(int|string $id): array
+    {
+        $contact = $this->mustFind($id);
+
+        if (! $contact->do_not_contact) {
+            $contact->do_not_contact = true;
+            $this->contacts->save($contact);
+        }
+
+        app(\Goldnead\Leadhub\Services\CrmSyncService::class)->removeContact($contact);
+
+        return $this->present($this->reload($contact));
+    }
+
     public function addNote(int|string $id, string $body, ?string $userId = null): array
     {
         $contact = $this->mustFind($id);
