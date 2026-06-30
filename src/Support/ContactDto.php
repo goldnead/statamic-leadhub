@@ -23,6 +23,8 @@ class ContactDto
         public ?string $defaultStatus = null,
         public array $rawSubmission = [],
         public ?string $submissionId = null,
+        /** Attribution column => value pairs (utm_source, referrer, …). */
+        public array $attribution = [],
     ) {
     }
 
@@ -37,7 +39,7 @@ class ContactDto
      */
     public function toContactAttributes(): array
     {
-        return array_filter([
+        return array_filter(array_merge([
             'email' => $this->email,
             'first_name' => $this->firstName,
             'last_name' => $this->lastName,
@@ -46,6 +48,6 @@ class ContactDto
             'company' => $this->company,
             'source' => $this->source,
             'source_form' => $this->sourceForm,
-        ], fn ($value) => $value !== null && $value !== '');
+        ], $this->attribution), fn ($value) => $value !== null && $value !== '');
     }
 }

@@ -119,6 +119,11 @@ function restore(row) {
                 <span class="text-xs text-gray-500">{{ row.source_form }}</span>
             </template>
 
+            <template #cell-owner_name="{ row }">
+                <span v-if="row.owner_name">{{ row.owner_name }}</span>
+                <span v-else class="text-2xs text-gray-400">—</span>
+            </template>
+
             <template #cell-last_activity_at="{ row }">
                 <span class="text-xs text-gray-500">{{ row.last_activity_at }}</span>
             </template>

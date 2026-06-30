@@ -4,6 +4,38 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 ## [Unreleased]
 
+### Added
+
+- **Lead assignment + e-mail notifications.** Assign an owner (any user with `view leadhub`) to a contact from the detail page; the change is timelined and the contacts list is filterable by `?mine`, `?assigned_to=<id>` and `?assigned_to=none`. Three opt-in Laravel notifications — new lead, lead assigned, and a scheduled daily follow-up digest (`leadhub:followups:digest`). Gated by `features.notifications`; recipients and digest time live under `notifications.*`. Sending is fail-safe.
+- **Marketing attribution.** When `features.attribution` is on, UTM parameters, referrer and landing page are captured from the originating submission onto the contact and shown in an Attribution panel. Field mapping is configurable via `attribution.fields`.
+- **CRM connectors + Sync log.** Push contacts to external systems on create / update / status change via pluggable drivers — `hubspot`, `brevo`, and a generic HMAC-signable `webhook` driver — declared under `crm.destinations` and gated by `features.crm_destinations`. Syncs run on the queue, are retried with backoff, and are recorded both on the contact timeline and in a dedicated **Sync log** CP page. Host apps can register custom drivers via `DestinationManager::extend()`. The flat-file driver degrades gracefully when the log table is absent.
+- **Outbound event surface + Webhook Manager bridge.** The full set of `LeadHub*` lifecycle events is a public integration point. When [goldnead/statamic-webhook-manager](https://github.com/goldnead/statamic-webhook-manager) is installed, LeadHub auto-registers all eleven events as webhook-manager triggers (e.g. `leadhub.status.changed`) and re-emits them as `TriggerDetected` — no glue code. The bridge (`src/Integrations/WebhookManager/`) is fail-safe, loads the addon's classes only when present, and is toggleable via `features.webhook_manager`. Without that addon, the built-in `webhook` CRM driver covers a direct JSON POST.
+
+## [1.0.0] — 2026-06-30
+
+First stable release. The addon now installs and runs cleanly on a current Statamic 6 project out of the box.
+
+### Fixed
+
+- **Installation failed on a fresh Statamic 6 project.** The default Statamic 6 skeleton now ships Laravel 13, but the framework constraint capped at `^11.0|^12.0`, so `composer require` could not resolve. Widened to `^11.0|^12.0|^13.0` (and `orchestra/testbench` to allow `^11.0` for the dev suite). Verified resolving against `laravel/framework v13.17` + `statamic/cms v6.23`.
+- **Every Control Panel page returned HTTP 500 (`Vite manifest not found`).** The compiled CP assets were never shipped — `public/build` was gitignored and there is no mechanism by which the host project's `npm run build` compiles an addon's entries. Adopted the official Statamic 6 addon Vite convention (`@statamic/cms/vite-plugin`, output to `resources/dist/`) and now **ship the compiled assets in the package**, which Statamic publishes to the host's `public/vendor/` on install. No end-user build step is required.
+- **Saving tags on the contact detail page threw a 500.** `ContactController::update()` filled the `tag_ids` array onto the contact model, which tried to persist a non-existent `tag_ids` column. Tags are now synced to the tag relation only (covered by a new regression test).
+- **The contact detail page never showed an active follow-up or the contact's tags.** It read them from eager-loaded relations, but `find()` (unlike `paginate()`) doesn't load relations — so the active follow-up always showed as "none" and tag checkboxes were never ticked. Both are now fetched through the driver-agnostic repositories.
+
+### Changed (UI)
+
+- The Control Panel styling now matches core Statamic pixel-for-pixel: the addon imports Statamic's Tailwind theme (previously it shipped the bare framework, so design tokens silently produced no CSS and a stray Preflight reset fought the CP). Dashboard, contact detail and follow-up pages were rebuilt on native `Panel`/`Card` composition.
+- Added a LeadHub addon icon and a matching funnel Control Panel nav icon.
+
+### Added
+
+- `scripts/setup-playground.sh` — builds a persistent, runnable Statamic 6 playground with the addon wired in as a path repository, for local CP testing and development.
+
+### Changed
+
+- Installation is now just `composer require` + `php artisan migrate` — the `npm run build` step (and the inaccurate "host Vite auto-picks the addon's entries" claim) has been removed from the docs.
+- Author contact details updated.
+
 ## [0.3.1] — 2026-05-09
 
 Two more real CP bugs caught by extending `CpRoutesTest` to actually run against both drivers (PHPUnit Sandbox skill). Both surfaced as 404s on the contact-detail page in flat mode.

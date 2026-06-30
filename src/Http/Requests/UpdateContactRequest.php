@@ -23,6 +23,7 @@ class UpdateContactRequest extends FormRequest
             'phone' => 'sometimes|nullable|string|max:255',
             'company' => 'sometimes|nullable|string|max:255',
             'status' => ['sometimes', 'string', 'in:'.implode(',', $statuses)],
+            'assigned_to' => 'sometimes|nullable|string',
             'consent' => 'sometimes|boolean',
             'tag_ids' => 'sometimes|array',
             'tag_ids.*' => 'integer|exists:leadhub_tags,id',

@@ -6,7 +6,11 @@
 /phpunit.xml      export-ignore
 /MARKETPLACE.md   export-ignore
 
-# Keep package.json, vite.config.js, and resources/{js,css}/ shipped — the
-# host project's Vite picks them up via Statamic's addon vite tooling and
-# compiles the addon's assets during `npm run build`.
+# The compiled Control Panel assets ship with the package under
+# resources/dist/ — Statamic publishes them to the host's public/ on install.
+# Keep the build sources (resources/{js,css}/, vite.config.js, package.json)
+# shipped too so the addon can be rebuilt from source; only exclude the
+# installed node_modules from the dist tarball.
 /node_modules     export-ignore
+/vendor           export-ignore
+/playground       export-ignore

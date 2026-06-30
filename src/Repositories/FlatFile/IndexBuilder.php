@@ -74,6 +74,7 @@ class IndexBuilder
                     'company' => $data['company'] ?? null,
                     'status' => $status,
                     'source_form' => $sourceForm,
+                    'assigned_to' => $data['assigned_to'] ?? null,
                     'archived_at' => $data['archived_at'] ?? null,
                     'created_at' => $data['created_at'] ?? null,
                     'last_activity_at' => $data['last_activity_at'] ?? null,

@@ -40,6 +40,8 @@ class SubmissionMapper
 
         $tags = $this->extractTags($data, $mapping);
 
+        $attribution = $this->extractAttribution($data);
+
         return new ContactDto(
             email: $email ? EmailNormalizer::normalize($email) === null ? null : trim((string) $email) : null,
             firstName: $this->cleanString($firstName),
@@ -55,7 +57,33 @@ class SubmissionMapper
             defaultStatus: $mapping->default_status ?: config('leadhub.default_status', 'new'),
             rawSubmission: $data,
             submissionId: $submissionId,
+            attribution: $attribution,
         );
+    }
+
+    /**
+     * Capture marketing attribution (UTM params, referrer, landing page) from
+     * conventionally-named submission fields. The website form populates these
+     * (typically hidden fields filled from the URL query + document.referrer).
+     * Returns a contact-column => value map, or [] when the feature is off.
+     *
+     * @return array<string, string>
+     */
+    protected function extractAttribution(array $data): array
+    {
+        if (! config('leadhub.features.attribution', false)) {
+            return [];
+        }
+
+        $out = [];
+        foreach ((array) config('leadhub.attribution.fields', []) as $column => $handle) {
+            $value = $this->cleanString($this->extract($data, $handle));
+            if ($value !== null) {
+                $out[$column] = $value;
+            }
+        }
+
+        return $out;
     }
 
     protected function extract(array $data, ?string $key): mixed

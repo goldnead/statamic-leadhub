@@ -328,6 +328,17 @@ class FlatFileContactRepository implements ContactRepository
                 return false;
             }
 
+            if (! empty($filters['assigned_to'])) {
+                $owner = $f['assigned_to'] ?? null;
+                if ($filters['assigned_to'] === 'none') {
+                    if (! empty($owner)) {
+                        return false;
+                    }
+                } elseif ((string) $owner !== (string) $filters['assigned_to']) {
+                    return false;
+                }
+            }
+
             if (! empty($filters['tag_id'])) {
                 $tagIds = (array) ($f['tag_ids'] ?? []);
                 if (! in_array((string) $filters['tag_id'], $tagIds, true)) {

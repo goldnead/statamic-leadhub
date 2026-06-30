@@ -75,6 +75,33 @@ it('renders the contact detail page', function (): void {
     expect(inertiaComponent($response))->toBe('leadhub::Contacts/Show');
 });
 
+it('updates a contact status and syncs tags without error', function (): void {
+    $repo = app(ContactRepository::class);
+    $tags = app(TagRepository::class);
+
+    $contact = $repo->create([
+        'email' => 'update@example.com',
+        'email_normalized' => 'update@example.com',
+        'first_name' => 'Update',
+        'status' => 'new',
+    ]);
+    $tag = $tags->create(['name' => 'Hot']);
+
+    $response = $this->withHeaders(['X-Inertia' => 'true'])
+        ->patch(cp_route('leadhub.contacts.update', $contact->uuid), [
+            'status' => 'qualified',
+            'tag_ids' => [$tag->id],
+        ]);
+
+    // A successful update redirects back — it must not 500 (tag_ids is not a
+    // column on the contact; it is synced to the tag relation).
+    expect($response->getStatusCode())->toBeIn([200, 302, 303]);
+
+    $fresh = $repo->find($contact->uuid);
+    expect($fresh->status)->toBe('qualified');
+    expect($tags->forContact($fresh)->pluck('name')->all())->toContain('Hot');
+});
+
 it('renders the followups index', function (): void {
     $response = $this->withHeaders(['X-Inertia' => 'true'])
         ->get(cp_route('leadhub.followups.index'));
@@ -130,4 +157,33 @@ it('blocks users without view-leadhub permission', function (): void {
         ->get(cp_route('leadhub.dashboard'));
 
     expect($response->getStatusCode())->toBeIn([302, 401, 403]);
+});
+
+it('assigns an owner to a contact via the update route', function (): void {
+    $repo = app(ContactRepository::class);
+    $owner = User::make()->email('rep2@example.com')->makeSuper();
+    $owner->save();
+
+    $contact = $repo->create([
+        'email' => 'assign@example.com',
+        'email_normalized' => 'assign@example.com',
+        'first_name' => 'Assign',
+        'status' => 'new',
+    ]);
+
+    $response = $this->withHeaders(['X-Inertia' => 'true'])
+        ->patch(cp_route('leadhub.contacts.update', $contact->uuid), [
+            'assigned_to' => (string) $owner->id(),
+        ]);
+
+    expect($response->getStatusCode())->toBeIn([200, 302, 303]);
+    expect($repo->find($contact->uuid)->assigned_to)->toBe((string) $owner->id());
+});
+
+it('renders the sync log page', function (): void {
+    $response = $this->withHeaders(['X-Inertia' => 'true'])
+        ->get(cp_route('leadhub.sync-log'));
+
+    $response->assertStatus(200);
+    expect(inertiaComponent($response))->toBe('leadhub::SyncLog');
 });

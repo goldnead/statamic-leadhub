@@ -8,4 +8,5 @@ return [
     'forms' => 'Formulare',
     'tags' => 'Tags',
     'settings' => 'Einstellungen',
+    'sync_log' => 'Sync-Log',
 ];

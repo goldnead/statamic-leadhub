@@ -1,17 +1,18 @@
 /**
  * LeadHub — Statamic 6 CP styles.
  *
- * Tailwind v4 with explicit layer ordering. Statamic's own layers
- * (base, components, utilities, ui, ui-states) run after addon-theme
- * and addon-utilities, so rules here never need to fight CP styles.
+ * Import Statamic's own Tailwind theme (design tokens + utilities + UI styles)
+ * rather than the bare framework. This gives the addon Statamic's exact design
+ * tokens — colours (content-bg, content-border, gray scale), spacing, the
+ * `max-w-page` width, `text-2xs`, etc. — so the markup matches the native
+ * Control Panel pixel-for-pixel. It deliberately omits Tailwind's Preflight so
+ * the addon never re-applies a CSS reset on top of the CP's own base styles.
  */
 
-@import "tailwindcss";
+@import "@statamic/cms/tailwind.css";
 
 @source "../js/**/*.{vue,js}";
 @source "../views/**/*.blade.php";
-
-@custom-variant dark (&:where(.dark, .dark *));
 
 @layer addon-theme {
     /* Reserved for LeadHub theme tokens (CSS variables). Nothing yet. */

@@ -67,6 +67,18 @@ class TimelineService
         );
     }
 
+    public function recordAssigned(Contact $contact, ?string $ownerLabel): Event
+    {
+        return $this->record(
+            $contact,
+            Event::TYPE_CONTACT_ASSIGNED,
+            $ownerLabel
+                ? __('leadhub::timeline.assigned', ['owner' => $ownerLabel])
+                : __('leadhub::timeline.unassigned'),
+            ['owner' => $ownerLabel],
+        );
+    }
+
     public function recordNoteAdded(Contact $contact, string $body): Event
     {
         return $this->record(

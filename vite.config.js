@@ -1,43 +1,27 @@
 import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import tailwindcss from '@tailwindcss/vite';
 import laravel from 'laravel-vite-plugin';
-import path from 'node:path';
+import tailwindcss from '@tailwindcss/vite';
+import statamic from '@statamic/cms/vite-plugin';
 
 export default defineConfig({
     plugins: [
         laravel({
-            hotFile: 'public/hot',
-            publicDirectory: 'public',
             input: [
                 'resources/js/cp.js',
                 'resources/css/cp.css',
             ],
+            // Statamic's AddonServiceProvider publishes the compiled assets from
+            // <publicDirectory>/build — the same directory configured on the
+            // ServiceProvider's $vite property. laravel-vite-plugin emits the
+            // manifest flat at resources/dist/build/manifest.json, where the
+            // Laravel/Statamic Vite tag looks for it.
+            publicDirectory: 'resources/dist',
             refresh: true,
         }),
-        vue({
-            template: {
-                transformAssetUrls: {
-                    base: null,
-                    includeAbsolute: false,
-                },
-            },
-        }),
+        // Externalises `vue` to the CP's runtime build and registers the Vue
+        // plugin, so the addon's @statamic/cms/* imports resolve against the
+        // host Control Panel instead of being re-bundled.
+        statamic(),
         tailwindcss(),
     ],
-
-    resolve: {
-        alias: {
-            '@statamic/cms': path.resolve(__dirname, '../../statamic/cms/resources/js'),
-        },
-    },
-
-    build: {
-        outDir: 'public',
-        emptyOutDir: false,
-        manifest: true,
-        rollupOptions: {
-            external: ['@statamic/cms', '@statamic/cms/inertia', '@statamic/cms/ui'],
-        },
-    },
 });

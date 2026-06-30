@@ -14,7 +14,7 @@
     "authors": [
         {
             "name": "goldnead",
-            "email": "hello@example.com"
+            "email": "info@adriangoldner.com"
         }
     ],
     "support": {
@@ -23,13 +23,13 @@
     },
     "require": {
         "php": "^8.2",
-        "laravel/framework": "^11.0|^12.0",
+        "laravel/framework": "^11.0|^12.0|^13.0",
         "statamic/cms": "^6.0",
         "inertiajs/inertia-laravel": "^1.0|^2.0",
         "symfony/yaml": "^6.0|^7.0"
     },
     "require-dev": {
-        "orchestra/testbench": "^8.0|^9.0|^10.0",
+        "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0",
         "pestphp/pest": "^2.0|^3.0",
         "pestphp/pest-plugin-laravel": "^2.0|^3.0"
     },

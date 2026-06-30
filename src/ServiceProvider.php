@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub;
 
+use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
@@ -21,7 +22,11 @@ use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
+use Goldnead\Leadhub\Crm\DestinationManager;
+use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
+use Goldnead\Leadhub\Listeners\DispatchCrmSync;
+use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Policies\LeadHubPolicy;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentContactRepository;
@@ -52,10 +57,17 @@ class ServiceProvider extends AddonServiceProvider
         SubmissionCreated::class => [
             CreateOrUpdateLeadFromSubmission::class,
         ],
-        LeadHubContactCreated::class => [],
-        LeadHubContactUpdated::class => [],
+        LeadHubContactCreated::class => [
+            SendNewLeadNotification::class,
+            DispatchCrmSync::class,
+        ],
+        LeadHubContactUpdated::class => [
+            DispatchCrmSync::class,
+        ],
         LeadHubSubmissionAttached::class => [],
-        LeadHubStatusChanged::class => [],
+        LeadHubStatusChanged::class => [
+            DispatchCrmSync::class,
+        ],
         LeadHubTagAdded::class => [],
         LeadHubTagRemoved::class => [],
         LeadHubNoteAdded::class => [],
@@ -75,20 +87,22 @@ class ServiceProvider extends AddonServiceProvider
 
     protected $config = true;
 
-    // Statamic 6 Vite entry points — compiled by `npm run build` in this
-    // package directory. Statamic auto-loads compiled assets from the
-    // configured public directory once they exist.
+    // Statamic 6 Vite entry points. The compiled assets are shipped with the
+    // package under resources/dist/build/ (built via `npm run build` in this
+    // package directory). On install Statamic publishes them from there to the
+    // host's public/vendor/<package>/build/ and serves them in the CP.
     protected $vite = [
         'input' => [
             'resources/js/cp.js',
             'resources/css/cp.css',
         ],
-        'publicDirectory' => 'public',
+        'publicDirectory' => 'resources/dist',
     ];
 
     protected $commands = [
         StacheWarmCommand::class,
         StorageMigrateCommand::class,
+        SendFollowupDigestCommand::class,
     ];
 
     public function register(): void
@@ -112,6 +126,9 @@ class ServiceProvider extends AddonServiceProvider
         }
 
         $this->bindRepositories();
+
+        // CRM destinations — singleton so other addons can extend() it.
+        $this->app->singleton(DestinationManager::class);
     }
 
     public function bootAddon(): void
@@ -121,7 +138,39 @@ class ServiceProvider extends AddonServiceProvider
             ->registerNavigation()
             ->registerPermissions()
             ->registerPolicies()
+            ->registerSchedule()
+            ->registerWebhookManagerBridge()
+            ->bootCommands()
             ->registerPublishables();
+    }
+
+    /**
+     * Wire LeadHub's lifecycle events into goldnead/statamic-webhook-manager
+     * when that addon is installed. No-op otherwise.
+     */
+    protected function registerWebhookManagerBridge(): self
+    {
+        $this->app->make(WebhookManagerBridge::class)
+            ->boot($this->app->make('events'));
+
+        return $this;
+    }
+
+    /**
+     * Schedule the daily follow-up digest (when notifications are enabled).
+     */
+    protected function registerSchedule(): self
+    {
+        $this->app->booted(function () {
+            $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
+            $time = (string) config('leadhub.notifications.digest.time', '08:00');
+            $schedule->command('leadhub:followups:digest')
+                ->dailyAt($time)
+                ->onOneServer()
+                ->name('leadhub-followup-digest');
+        });
+
+        return $this;
     }
 
     protected function registerTranslations(): self
@@ -268,7 +317,7 @@ class ServiceProvider extends AddonServiceProvider
         Nav::extend(function ($nav) {
             $nav->create('LeadHub')
                 ->section('Tools')
-                ->icon('list')
+                ->icon('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5.5H20.5L14 13V17.5L10 19.5V13Z"/></svg>')
                 ->route('leadhub.dashboard')
                 ->can('view leadhub')
                 ->children([
@@ -284,6 +333,8 @@ class ServiceProvider extends AddonServiceProvider
                         ->route('leadhub.tags.index'),
                     $nav->item(__('leadhub::nav.settings'))
                         ->route('leadhub.settings'),
+                    $nav->item(__('leadhub::nav.sync_log'))
+                        ->route('leadhub.sync-log'),
                 ]);
         });
 

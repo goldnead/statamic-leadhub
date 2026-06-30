@@ -62,3 +62,29 @@ jobs:
 
       - name: Run Pest test suite
         run: vendor/bin/pest --colors=always
+
+  webhook-manager-integration:
+    name: Webhook Manager integration (live both-addons path)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, dom, fileinfo, sqlite, pdo_sqlite, gd
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-progress --no-interaction
+
+      # Pulls in goldnead/statamic-webhook-manager and runs ONLY the Integration
+      # suite (the default suite above runs with the addon absent, proving the
+      # no-op-when-absent contract). The script works on a throwaway copy, so it
+      # never mutates the committed composer.json/lock.
+      - name: Run live webhook-manager integration suite
+        run: scripts/test-webhook-manager.sh
