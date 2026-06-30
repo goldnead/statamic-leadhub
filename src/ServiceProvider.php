@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub;
 
+use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
@@ -14,11 +15,13 @@ use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactDeleted;
+use Goldnead\Leadhub\Events\LeadHubContactsMerged;
 use Goldnead\Leadhub\Events\LeadHubContactUpdated;
 use Goldnead\Leadhub\Events\LeadHubFollowupCompleted;
 use Goldnead\Leadhub\Events\LeadHubFollowupSet;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
+use Goldnead\Leadhub\Events\LeadHubSourceIngested;
 use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
@@ -26,6 +29,7 @@ use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
+use Goldnead\Leadhub\Listeners\ScoreContactOnActivity;
 use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Policies\LeadHubPolicy;
@@ -64,7 +68,13 @@ class ServiceProvider extends AddonServiceProvider
         LeadHubContactUpdated::class => [
             DispatchCrmSync::class,
         ],
-        LeadHubSubmissionAttached::class => [],
+        LeadHubSubmissionAttached::class => [
+            ScoreContactOnActivity::class,
+        ],
+        LeadHubSourceIngested::class => [
+            ScoreContactOnActivity::class,
+        ],
+        LeadHubContactsMerged::class => [],
         LeadHubStatusChanged::class => [
             DispatchCrmSync::class,
         ],
@@ -73,6 +83,7 @@ class ServiceProvider extends AddonServiceProvider
         LeadHubNoteAdded::class => [],
         LeadHubFollowupSet::class => [],
         LeadHubFollowupCompleted::class => [],
+        \Goldnead\Leadhub\Events\LeadHubFollowupDue::class => [],
         LeadHubContactArchived::class => [],
         LeadHubContactDeleted::class => [],
     ];
@@ -103,6 +114,7 @@ class ServiceProvider extends AddonServiceProvider
         StacheWarmCommand::class,
         StorageMigrateCommand::class,
         SendFollowupDigestCommand::class,
+        FireDueFollowupsCommand::class,
     ];
 
     public function register(): void
@@ -129,6 +141,11 @@ class ServiceProvider extends AddonServiceProvider
 
         // CRM destinations — singleton so other addons can extend() it.
         $this->app->singleton(DestinationManager::class);
+
+        // Ingestion service + public manager facade target. Singletons so that
+        // host-app source projectors registered at boot persist for the request.
+        $this->app->singleton(\Goldnead\Leadhub\Services\IngestionService::class);
+        $this->app->singleton(LeadHubManager::class);
     }
 
     public function bootAddon(): void
@@ -168,6 +185,12 @@ class ServiceProvider extends AddonServiceProvider
                 ->dailyAt($time)
                 ->onOneServer()
                 ->name('leadhub-followup-digest');
+
+            // Fire LeadHubFollowupDue events for automations / webhooks.
+            $schedule->command('leadhub:followups:due')
+                ->dailyAt($time)
+                ->onOneServer()
+                ->name('leadhub-followups-due');
         });
 
         return $this;
@@ -315,27 +338,47 @@ class ServiceProvider extends AddonServiceProvider
     protected function registerNavigation(): self
     {
         Nav::extend(function ($nav) {
+            $items = [
+                $nav->item(__('leadhub::nav.dashboard'))
+                    ->route('leadhub.dashboard'),
+                $nav->item(__('leadhub::nav.contacts'))
+                    ->route('leadhub.contacts.index'),
+            ];
+
+            // CRM-core sections — only shown when their feature flag is on
+            // (and, implicitly, the eloquent driver is in use).
+            if (config('leadhub.features.pipelines', false)) {
+                $items[] = $nav->item(__('leadhub::nav.pipelines'))
+                    ->route('leadhub.pipelines.board');
+            }
+            if (config('leadhub.features.tasks', false)) {
+                $items[] = $nav->item(__('leadhub::nav.tasks'))
+                    ->route('leadhub.tasks.index');
+            }
+            if (config('leadhub.features.companies', false)) {
+                $items[] = $nav->item(__('leadhub::nav.companies'))
+                    ->route('leadhub.companies.index');
+            }
+
+            $items = array_merge($items, [
+                $nav->item(__('leadhub::nav.followups'))
+                    ->route('leadhub.followups.index'),
+                $nav->item(__('leadhub::nav.forms'))
+                    ->route('leadhub.forms.index'),
+                $nav->item(__('leadhub::nav.tags'))
+                    ->route('leadhub.tags.index'),
+                $nav->item(__('leadhub::nav.settings'))
+                    ->route('leadhub.settings'),
+                $nav->item(__('leadhub::nav.sync_log'))
+                    ->route('leadhub.sync-log'),
+            ]);
+
             $nav->create('LeadHub')
                 ->section('Tools')
                 ->icon('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5.5H20.5L14 13V17.5L10 19.5V13Z"/></svg>')
                 ->route('leadhub.dashboard')
                 ->can('view leadhub')
-                ->children([
-                    $nav->item(__('leadhub::nav.dashboard'))
-                        ->route('leadhub.dashboard'),
-                    $nav->item(__('leadhub::nav.contacts'))
-                        ->route('leadhub.contacts.index'),
-                    $nav->item(__('leadhub::nav.followups'))
-                        ->route('leadhub.followups.index'),
-                    $nav->item(__('leadhub::nav.forms'))
-                        ->route('leadhub.forms.index'),
-                    $nav->item(__('leadhub::nav.tags'))
-                        ->route('leadhub.tags.index'),
-                    $nav->item(__('leadhub::nav.settings'))
-                        ->route('leadhub.settings'),
-                    $nav->item(__('leadhub::nav.sync_log'))
-                        ->route('leadhub.sync-log'),
-                ]);
+                ->children($items);
         });
 
         return $this;

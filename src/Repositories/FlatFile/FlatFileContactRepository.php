@@ -50,6 +50,15 @@ class FlatFileContactRepository implements ContactRepository
         return $id ? $this->find($id) : null;
     }
 
+    public function findByPhoneNormalized(string $phoneNormalized): ?Contact
+    {
+        $this->builder->ensureFreshContacts($this->index);
+
+        $id = $this->index->lookup('phone_normalized', $phoneNormalized);
+
+        return $id ? $this->find($id) : null;
+    }
+
     public function create(array $attributes): Contact
     {
         $uuid = $attributes['uuid'] ?? (string) Str::uuid();

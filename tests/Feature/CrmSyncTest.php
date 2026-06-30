@@ -85,3 +85,16 @@ it('queues a sync job when a contact is created', function (): void {
         fn ($job) => $job->contactUuid === (string) $contact->uuid && $job->event === 'created',
     );
 });
+
+it('does not push contacts that are flagged do_not_contact', function (): void {
+    Http::fake(['hooks.test/*' => Http::response(['ok' => true], 200)]);
+
+    $contact = aContact('optout@example.com');
+    $contact->do_not_contact = true;
+    app(ContactRepository::class)->save($contact);
+
+    $results = app(CrmSyncService::class)->syncContact($contact, 'created');
+
+    expect($results)->toBe([]);
+    Http::assertNothingSent();
+});

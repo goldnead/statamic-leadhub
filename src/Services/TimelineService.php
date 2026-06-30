@@ -33,6 +33,37 @@ class TimelineService
         );
     }
 
+    /**
+     * Record a timeline event coming from an external source (purchase,
+     * booking, login, inbound webhook, …). Honours payload redaction and
+     * carries the source/dedupe/occurred_at metadata.
+     */
+    public function recordSource(
+        Contact $contact,
+        string $type,
+        ?string $summary = null,
+        array $payload = [],
+        ?string $sourceType = null,
+        int|string|null $sourceId = null,
+        ?string $dedupeKey = null,
+        ?\DateTimeInterface $occurredAt = null,
+        ?string $actorType = null,
+        ?string $actorId = null,
+    ): Event {
+        $resolved = $this->resolveActor($actorType, $actorId);
+
+        return $this->events->recordSource($contact, $type, [
+            'summary' => $summary,
+            'payload' => $this->redactPayload($payload),
+            'actor_type' => $resolved['type'],
+            'actor_id' => $resolved['id'],
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
+            'dedupe_key' => $dedupeKey,
+            'occurred_at' => $occurredAt,
+        ]);
+    }
+
     public function recordContactCreated(Contact $contact): Event
     {
         return $this->record(

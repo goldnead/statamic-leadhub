@@ -28,6 +28,11 @@ class CrmSyncService
      */
     public function syncContact(Contact $contact, string $event): array
     {
+        // Compliance: never push opted-out contacts to external CRMs.
+        if ($contact->do_not_contact) {
+            return [];
+        }
+
         $results = [];
 
         foreach ($this->destinations->for($event) as $key => $destination) {
@@ -38,6 +43,35 @@ class CrmSyncService
             }
 
             $this->record($contact, $key, $destination->driver(), $event, $result);
+            $results[$key] = $result;
+        }
+
+        return $results;
+    }
+
+    /**
+     * Remove / unsubscribe a contact from every destination that supports it.
+     * Called when a contact opts out (do_not_contact) so external lists stay
+     * compliant.
+     *
+     * @return array<string, SyncResult>
+     */
+    public function removeContact(Contact $contact): array
+    {
+        $results = [];
+
+        foreach ($this->destinations->enabled() as $key => $destination) {
+            if (! $destination instanceof \Goldnead\Leadhub\Contracts\SupportsContactRemoval) {
+                continue;
+            }
+
+            try {
+                $result = $destination->remove($contact);
+            } catch (\Throwable $e) {
+                $result = SyncResult::fail($e->getMessage());
+            }
+
+            $this->record($contact, $key, $destination->driver(), 'removed', $result);
             $results[$key] = $result;
         }
 

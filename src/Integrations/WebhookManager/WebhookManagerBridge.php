@@ -48,6 +48,9 @@ class WebhookManagerBridge
         LeadHubNoteAdded::class => ['leadhub.note.added', 'LeadHub — note added'],
         LeadHubContactArchived::class => ['leadhub.contact.archived', 'LeadHub — contact archived'],
         LeadHubContactDeleted::class => ['leadhub.contact.deleted', 'LeadHub — contact deleted'],
+        \Goldnead\Leadhub\Events\LeadHubSourceIngested::class => ['leadhub.source.ingested', 'LeadHub — source ingested'],
+        \Goldnead\Leadhub\Events\LeadHubContactsMerged::class => ['leadhub.contacts.merged', 'LeadHub — contacts merged'],
+        \Goldnead\Leadhub\Events\LeadHubFollowupDue::class => ['leadhub.followup.due', 'LeadHub — follow-up due'],
     ];
 
     /**

@@ -18,6 +18,17 @@ interface EventRepository
         ?string $actorId = null,
     ): Event;
 
+    /**
+     * Record a timeline event that originated from an external source
+     * (purchase, booking, login, inbound webhook, …).
+     *
+     * @param  array{summary?:?string,payload?:array,actor_type?:?string,actor_id?:?string,source_type?:?string,source_id?:?string,dedupe_key?:?string,occurred_at?:?\DateTimeInterface}  $attributes
+     */
+    public function recordSource(Contact $contact, string $type, array $attributes = []): Event;
+
+    /** Look up an event by its idempotency key (null when not stored / unsupported). */
+    public function findByDedupeKey(string $dedupeKey): ?Event;
+
     public function find(int|string $id): ?Event;
 
     /**

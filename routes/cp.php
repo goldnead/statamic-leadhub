@@ -1,8 +1,11 @@
 <?php
 
+use Goldnead\Leadhub\Http\Controllers\Cp\CompanyController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ContactController;
 use Goldnead\Leadhub\Http\Controllers\Cp\DashboardController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ExportController;
+use Goldnead\Leadhub\Http\Controllers\Cp\PipelineController;
+use Goldnead\Leadhub\Http\Controllers\Cp\TaskController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FollowupController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FormMappingController;
 use Goldnead\Leadhub\Http\Controllers\Cp\NoteController;
@@ -50,6 +53,27 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::post('/', [TagController::class, 'store'])->name('store');
         Route::patch('/{tag}', [TagController::class, 'update'])->name('update');
         Route::delete('/{tag}', [TagController::class, 'destroy'])->name('destroy');
+    });
+
+    // Companies (CRM-core, eloquent)
+    Route::prefix('companies')->name('companies.')->group(function () {
+        Route::get('/', [CompanyController::class, 'index'])->name('index');
+        Route::get('/{company}', [CompanyController::class, 'show'])->name('show');
+    });
+
+    // Tasks (CRM-core, eloquent)
+    Route::prefix('tasks')->name('tasks.')->group(function () {
+        Route::get('/', [TaskController::class, 'index'])->name('index');
+        Route::post('/{task}/complete', [TaskController::class, 'complete'])->name('complete');
+    });
+
+    // Pipelines / opportunities (CRM-core, eloquent)
+    Route::prefix('pipelines')->name('pipelines.')->group(function () {
+        Route::get('/', [PipelineController::class, 'board'])->name('board');
+        Route::get('/manage', [PipelineController::class, 'manage'])->name('manage');
+        Route::post('/', [PipelineController::class, 'store'])->name('store');
+        Route::post('/opportunities/{opportunity}/move', [PipelineController::class, 'move'])->name('move');
+        Route::get('/{pipeline}', [PipelineController::class, 'board'])->whereNumber('pipeline')->name('board.show');
     });
 
     // Settings
