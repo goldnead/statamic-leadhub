@@ -33,9 +33,13 @@ export default defineConfig({
     },
 
     build: {
-        outDir: 'public',
+        // laravel-vite-plugin manages the output location (public/build) and
+        // emits the manifest flat at public/build/manifest.json — which is
+        // where Statamic's AddonServiceProvider publishes from and where the
+        // Laravel/Statamic Vite tag looks for it. Setting `manifest: true`
+        // explicitly would force Vite's own `.vite/manifest.json` location and
+        // break Statamic's lookup, so we deliberately leave it to the plugin.
         emptyOutDir: false,
-        manifest: true,
         rollupOptions: {
             external: ['@statamic/cms', '@statamic/cms/inertia', '@statamic/cms/ui'],
         },
