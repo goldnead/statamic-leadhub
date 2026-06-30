@@ -5,6 +5,7 @@ namespace Goldnead\Leadhub\Http\Controllers\Cp;
 use Goldnead\Leadhub\Models\Company;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Statamic\CP\Column;
 
 class CompanyController extends Controller
 {
@@ -13,29 +14,32 @@ class CompanyController extends Controller
         $this->authorizeOrFail($request, 'view leadhub');
         abort_unless(config('leadhub.features.companies', false), 404);
 
-        $companies = Company::query()
+        $page = Company::query()
             ->search($request->string('search')->toString() ?: null)
             ->withCount('contacts')
             ->orderBy('name')
-            ->paginate(25)
-            ->through(fn (Company $company) => [
-                'id' => $company->id,
-                'name' => $company->name,
-                'domain' => $company->domain,
-                'industry' => $company->industry,
-                'contacts_count' => $company->contacts_count,
-                'url' => cp_route('leadhub.companies.show', $company->id),
-            ]);
+            ->paginate(25, ['*'], 'page', (int) $request->input('page', 1));
+
+        $rows = collect($page->items())->map(fn (Company $company) => [
+            'id' => (string) $company->id,
+            'name' => $company->name,
+            'domain' => $company->domain,
+            'industry' => $company->industry,
+            'contacts_count' => (int) $company->contacts_count,
+            'url' => cp_route('leadhub.companies.show', $company->id),
+        ])->all();
+
+        $columns = collect([
+            Column::make('name')->label(__('leadhub::companies.singular'))->sortable(true),
+            Column::make('domain')->label(__('Domain')),
+            Column::make('industry')->label(__('Industry')),
+            Column::make('contacts_count')->label(__('Contacts')),
+        ])->map(fn ($c) => $c->toArray())->all();
 
         return Inertia::render('leadhub::Companies/Index', [
-            'companies' => $companies,
-            'columns' => [
-                ['label' => __('leadhub::companies.singular'), 'field' => 'name'],
-                ['label' => __('Domain'), 'field' => 'domain'],
-                ['label' => __('Industry'), 'field' => 'industry'],
-                ['label' => __('Contacts'), 'field' => 'contacts_count'],
-            ],
-            'filters' => ['search' => $request->string('search')->toString()],
+            'companies' => $rows,
+            'columns' => $columns,
+            'filters' => array_filter(['search' => $request->string('search')->toString()], fn ($v) => $v !== null && $v !== ''),
         ]);
     }
 

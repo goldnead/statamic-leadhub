@@ -2,7 +2,7 @@
 import { Head, router } from '@statamic/cms/inertia';
 import { Header, Panel, Badge, Button } from '@statamic/cms/ui';
 
-const props = defineProps(['pipeline', 'pipelines', 'columns', 'canManage']);
+const props = defineProps(['pipeline', 'pipelines', 'columns', 'manageUrl', 'canConfigure', 'canManage']);
 
 function switchPipeline(url) {
     router.visit(url);
@@ -24,7 +24,7 @@ function money(value) {
     <div class="max-w-full mx-auto">
         <Header :title="__('Pipelines')" icon="chart-pie">
             <template #actions>
-                <div class="flex gap-1">
+                <div class="flex gap-1 items-center">
                     <Button
                         v-for="p in pipelines"
                         :key="p.id"
@@ -32,6 +32,14 @@ function money(value) {
                         size="sm"
                         :variant="p.id === pipeline.id ? 'primary' : 'ghost'"
                         @click="switchPipeline(p.url)"
+                    />
+                    <Button
+                        v-if="canConfigure"
+                        :text="__('Manage')"
+                        icon="cog"
+                        size="sm"
+                        variant="ghost"
+                        @click="switchPipeline(manageUrl)"
                     />
                 </div>
             </template>

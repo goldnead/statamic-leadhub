@@ -70,8 +70,10 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
     // Pipelines / opportunities (CRM-core, eloquent)
     Route::prefix('pipelines')->name('pipelines.')->group(function () {
         Route::get('/', [PipelineController::class, 'board'])->name('board');
-        Route::get('/{pipeline}', [PipelineController::class, 'board'])->name('board.show');
+        Route::get('/manage', [PipelineController::class, 'manage'])->name('manage');
+        Route::post('/', [PipelineController::class, 'store'])->name('store');
         Route::post('/opportunities/{opportunity}/move', [PipelineController::class, 'move'])->name('move');
+        Route::get('/{pipeline}', [PipelineController::class, 'board'])->whereNumber('pipeline')->name('board.show');
     });
 
     // Settings

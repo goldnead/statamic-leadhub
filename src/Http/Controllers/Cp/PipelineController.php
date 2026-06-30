@@ -61,8 +61,57 @@ class PipelineController extends Controller
                 'url' => cp_route('leadhub.pipelines.board.show', $p->id),
             ])->all(),
             'columns' => $columns,
+            'manageUrl' => cp_route('leadhub.pipelines.manage'),
+            'canConfigure' => $this->userCan($request, 'manage leadhub settings'),
             'canManage' => $this->userCan($request, 'edit leadhub contacts'),
         ]);
+    }
+
+    /** Pipeline management: list pipelines + their stages. */
+    public function manage(Request $request)
+    {
+        $this->authorizeOrFail($request, 'manage leadhub settings');
+        abort_unless(config('leadhub.features.pipelines', false), 404);
+
+        $pipelines = Pipeline::query()->with('stages')->orderBy('sort_order')->get()
+            ->map(fn (Pipeline $p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'slug' => $p->slug,
+                'is_active' => (bool) $p->is_active,
+                'board_url' => cp_route('leadhub.pipelines.board.show', $p->id),
+                'stages' => $p->stages->map(fn ($s) => [
+                    'name' => $s->name,
+                    'slug' => $s->slug,
+                    'is_terminal' => (bool) $s->is_terminal,
+                    'terminal_outcome' => $s->terminal_outcome,
+                ])->all(),
+            ])->all();
+
+        return Inertia::render('leadhub::Pipelines/Manage', [
+            'pipelines' => $pipelines,
+            'storeUrl' => cp_route('leadhub.pipelines.store'),
+            'canManage' => $this->userCan($request, 'manage leadhub settings'),
+        ]);
+    }
+
+    /** Create a pipeline with stages. */
+    public function store(Request $request)
+    {
+        $this->authorizeOrFail($request, 'manage leadhub settings');
+        abort_unless(config('leadhub.features.pipelines', false), 404);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'stages' => ['required', 'array', 'min:1'],
+            'stages.*.name' => ['required', 'string', 'max:255'],
+            'stages.*.is_terminal' => ['nullable', 'boolean'],
+            'stages.*.terminal_outcome' => ['nullable', 'in:won,lost'],
+        ]);
+
+        \Goldnead\Leadhub\Facades\LeadHub::createPipeline($validated['name'], $validated['stages']);
+
+        return back()->with('success', __('leadhub::pipelines.created'));
     }
 
     public function move(Request $request, int|string $opportunity)

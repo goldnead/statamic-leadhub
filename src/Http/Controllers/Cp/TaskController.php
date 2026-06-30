@@ -6,6 +6,7 @@ use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Services\TaskService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Statamic\CP\Column;
 
 class TaskController extends Controller
 {
@@ -25,30 +26,33 @@ class TaskController extends Controller
             default => $query->open(),
         };
 
-        $tasks = $query->orderByRaw('due_at is null, due_at asc')
-            ->paginate(25)
-            ->through(fn (Task $task) => [
-                'id' => $task->id,
-                'title' => $task->title,
-                'status' => $task->status,
-                'priority' => $task->priority,
-                'due_at' => $task->due_at?->format('Y-m-d H:i'),
-                'is_overdue' => $task->isOverdue(),
-                'assignee_id' => $task->assignee_id,
-                'contact_name' => $task->contact?->displayName(),
-                'contact_url' => $task->contact ? cp_route('leadhub.contacts.show', $task->contact->id) : null,
-                'complete_url' => cp_route('leadhub.tasks.complete', $task->id),
-            ]);
+        $page = $query->orderByRaw('due_at is null, due_at asc')
+            ->paginate(25, ['*'], 'page', (int) $request->input('page', 1));
+
+        $rows = collect($page->items())->map(fn (Task $task) => [
+            'id' => (string) $task->id,
+            'title' => $task->title,
+            'status' => $task->status,
+            'priority' => $task->priority,
+            'due_at' => $task->due_at?->format('Y-m-d H:i'),
+            'is_overdue' => $task->isOverdue(),
+            'assignee_id' => $task->assignee_id,
+            'contact_name' => $task->contact?->displayName(),
+            'contact_url' => $task->contact ? cp_route('leadhub.contacts.show', $task->contact->id) : null,
+            'complete_url' => cp_route('leadhub.tasks.complete', $task->id),
+        ])->all();
+
+        $columns = collect([
+            Column::make('title')->label(__('Title'))->sortable(false),
+            Column::make('contact_name')->label(__('Contact')),
+            Column::make('priority')->label(__('Priority')),
+            Column::make('due_at')->label(__('Due')),
+        ])->map(fn ($c) => $c->toArray())->all();
 
         return Inertia::render('leadhub::Tasks/Index', [
-            'tasks' => $tasks,
+            'tasks' => $rows,
             'filter' => $filter,
-            'columns' => [
-                ['label' => __('Title'), 'field' => 'title'],
-                ['label' => __('Contact'), 'field' => 'contact_name'],
-                ['label' => __('Priority'), 'field' => 'priority'],
-                ['label' => __('Due'), 'field' => 'due_at'],
-            ],
+            'columns' => $columns,
             'canManage' => $this->userCan($request, 'edit leadhub contacts'),
         ]);
     }

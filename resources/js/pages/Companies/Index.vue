@@ -1,15 +1,11 @@
 <script setup>
-import { Head, router } from '@statamic/cms/inertia';
+import { Head, Link, router } from '@statamic/cms/inertia';
 import { Header, Listing, Badge } from '@statamic/cms/ui';
 
 defineProps(['companies', 'columns', 'filters']);
 
 function reloadPage() {
     router.reload({ preserveScroll: true });
-}
-
-function open(row) {
-    router.visit(row.url);
 }
 </script>
 
@@ -24,16 +20,13 @@ function open(row) {
         </p>
 
         <Listing
-            :items="companies.data"
+            :items="companies"
             :columns="columns"
-            :meta="companies"
             preferences-prefix="leadhub.companies"
             @refreshing="reloadPage"
         >
             <template #cell-name="{ row }">
-                <button class="font-medium text-left hover:text-blue-600" @click="open(row)">
-                    {{ row.name }}
-                </button>
+                <Link :href="row.url" class="font-medium hover:underline">{{ row.name }}</Link>
             </template>
 
             <template #cell-domain="{ row }">

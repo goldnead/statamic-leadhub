@@ -59,3 +59,23 @@ it('renders the pipeline board when a pipeline exists', function (): void {
     $response->assertStatus(200);
     expect(inertiaComponentName($response))->toBe('leadhub::Pipelines/Board');
 });
+
+it('renders the pipeline management screen', function (): void {
+    $response = $this->withHeaders(['X-Inertia' => 'true'])->get(cp_route('leadhub.pipelines.manage'));
+
+    $response->assertStatus(200);
+    expect(inertiaComponentName($response))->toBe('leadhub::Pipelines/Manage');
+});
+
+it('creates a pipeline with stages from the management screen', function (): void {
+    $this->post(cp_route('leadhub.pipelines.store'), [
+        'name' => 'Onboarding',
+        'stages' => [
+            ['name' => 'Kickoff', 'is_terminal' => false],
+            ['name' => 'Live', 'is_terminal' => true, 'terminal_outcome' => 'won'],
+        ],
+    ])->assertRedirect();
+
+    expect(Goldnead\Leadhub\Models\Pipeline::where('slug', 'onboarding')->exists())->toBeTrue();
+    expect(Goldnead\Leadhub\Models\Pipeline::where('slug', 'onboarding')->first()->stages()->count())->toBe(2);
+});

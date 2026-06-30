@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub;
 
+use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
@@ -82,6 +83,7 @@ class ServiceProvider extends AddonServiceProvider
         LeadHubNoteAdded::class => [],
         LeadHubFollowupSet::class => [],
         LeadHubFollowupCompleted::class => [],
+        \Goldnead\Leadhub\Events\LeadHubFollowupDue::class => [],
         LeadHubContactArchived::class => [],
         LeadHubContactDeleted::class => [],
     ];
@@ -112,6 +114,7 @@ class ServiceProvider extends AddonServiceProvider
         StacheWarmCommand::class,
         StorageMigrateCommand::class,
         SendFollowupDigestCommand::class,
+        FireDueFollowupsCommand::class,
     ];
 
     public function register(): void
@@ -182,6 +185,12 @@ class ServiceProvider extends AddonServiceProvider
                 ->dailyAt($time)
                 ->onOneServer()
                 ->name('leadhub-followup-digest');
+
+            // Fire LeadHubFollowupDue events for automations / webhooks.
+            $schedule->command('leadhub:followups:due')
+                ->dailyAt($time)
+                ->onOneServer()
+                ->name('leadhub-followups-due');
         });
 
         return $this;

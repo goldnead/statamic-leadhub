@@ -46,9 +46,8 @@ function complete(row) {
         </div>
 
         <Listing
-            :items="tasks.data"
+            :items="tasks"
             :columns="columns"
-            :meta="tasks"
             preferences-prefix="leadhub.tasks"
             @refreshing="reloadPage"
         >
