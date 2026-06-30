@@ -101,6 +101,11 @@ return [
         'webhooks' => false,
         'crm_destinations' => false,
         'attribution' => true,
+
+        // Auto-wire LeadHub's lifecycle events into the optional
+        // goldnead/statamic-webhook-manager addon when it is installed. Has no
+        // effect unless that addon is present; set to false to opt out.
+        'webhook_manager' => true,
     ],
 
     /*

@@ -375,17 +375,27 @@ Each event carries `$contact`, optional `$actor` (the acting user, if any), and 
 
 ### Pairing with goldnead/statamic-webhook-manager
 
-[goldnead/statamic-webhook-manager](https://github.com/goldnead/statamic-webhook-manager) is an event-driven outbound-webhook addon: you map an event class to a target URL in the CP and it handles delivery, retries and logging. Because LeadHub's events are public, you point the webhook manager straight at them — no glue code, no duplicated webhook logic in LeadHub:
+[goldnead/statamic-webhook-manager](https://github.com/goldnead/statamic-webhook-manager) is an event-driven outbound-webhook addon: you pick a **trigger** in the CP, point it at a URL, and it handles payload templating, auth (HMAC / bearer / basic), retries, delivery logging and replay.
+
+**Install both addons and it just works** — no glue code. When LeadHub boots and detects the webhook manager, it automatically registers every lifecycle event as a webhook-manager trigger:
 
 ```
-LeadHubContactCreated  ─┐
-LeadHubStatusChanged   ─┼─►  webhook-manager  ─►  your endpoint / Zapier / Make
-LeadHubFollowupSet     ─┘
+leadhub.contact.created      leadhub.followup.set         leadhub.tag.added
+leadhub.contact.updated      leadhub.followup.completed   leadhub.tag.removed
+leadhub.status.changed       leadhub.note.added           leadhub.contact.archived
+leadhub.submission.attached  leadhub.contact.deleted
 ```
 
-Register the LeadHub events you care about in the webhook manager's configuration (it subscribes to any dispatched event class), and each will deliver the contact payload to your configured destinations.
+Each fires a `TriggerDetected` event carrying the contact as the payload (plus `actor`, `metadata` and the event handle), so you create a webhook in **Webhook Manager → Webhooks**, choose e.g. *"LeadHub — status changed"* as the trigger, and you're done:
 
-> **If you don't run a separate webhook addon**, LeadHub's built-in [`webhook` CRM driver](#crm-connectors--sync-log) covers the common case directly — an HMAC-signed JSON POST on create / update / status change, with a Sync log. Use the webhook manager when you want CP-managed routing across many event types; use the built-in driver when you just need contacts pushed to a URL.
+```
+LeadHubStatusChanged ─► LeadHub bridge ─► WebhookManager::registerTrigger
+                                          + TriggerDetected ─► your endpoint / Zapier / Make
+```
+
+The bridge is wrapped fail-safe — a webhook-manager error is logged and never breaks the LeadHub pipeline. Opt out any time with `'features' => ['webhook_manager' => false]` in `config/leadhub.php`. Under the hood it lives in `src/Integrations/WebhookManager/` and only loads the addon's classes once they're present, so LeadHub never depends on the webhook manager.
+
+> **If you don't run a separate webhook addon**, LeadHub's built-in [`webhook` CRM driver](#crm-connectors--sync-log) covers the common case directly — an HMAC-signed JSON POST on create / update / status change, with a Sync log. Use the webhook manager when you want CP-managed routing, templating and replay across many event types; use the built-in driver when you just need contacts pushed to a URL.
 
 ### Rolling your own listener
 

@@ -23,6 +23,7 @@ use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
 use Goldnead\Leadhub\Crm\DestinationManager;
+use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
 use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
@@ -138,8 +139,21 @@ class ServiceProvider extends AddonServiceProvider
             ->registerPermissions()
             ->registerPolicies()
             ->registerSchedule()
+            ->registerWebhookManagerBridge()
             ->bootCommands()
             ->registerPublishables();
+    }
+
+    /**
+     * Wire LeadHub's lifecycle events into goldnead/statamic-webhook-manager
+     * when that addon is installed. No-op otherwise.
+     */
+    protected function registerWebhookManagerBridge(): self
+    {
+        $this->app->make(WebhookManagerBridge::class)
+            ->boot($this->app->make('events'));
+
+        return $this;
     }
 
     /**
