@@ -4,6 +4,24 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-06-30
+
+First stable release. The addon now installs and runs cleanly on a current Statamic 6 project out of the box.
+
+### Fixed
+
+- **Installation failed on a fresh Statamic 6 project.** The default Statamic 6 skeleton now ships Laravel 13, but the framework constraint capped at `^11.0|^12.0`, so `composer require` could not resolve. Widened to `^11.0|^12.0|^13.0` (and `orchestra/testbench` to allow `^11.0` for the dev suite). Verified resolving against `laravel/framework v13.17` + `statamic/cms v6.23`.
+- **Every Control Panel page returned HTTP 500 (`Vite manifest not found`).** The compiled CP assets were never shipped — `public/build` was gitignored and there is no mechanism by which the host project's `npm run build` compiles an addon's entries. Adopted the official Statamic 6 addon Vite convention (`@statamic/cms/vite-plugin`, output to `resources/dist/`) and now **ship the compiled assets in the package**, which Statamic publishes to the host's `public/vendor/` on install. No end-user build step is required.
+
+### Added
+
+- `scripts/setup-playground.sh` — builds a persistent, runnable Statamic 6 playground with the addon wired in as a path repository, for local CP testing and development.
+
+### Changed
+
+- Installation is now just `composer require` + `php artisan migrate` — the `npm run build` step (and the inaccurate "host Vite auto-picks the addon's entries" claim) has been removed from the docs.
+- Author contact details updated.
+
 ## [0.3.1] — 2026-05-09
 
 Two more real CP bugs caught by extending `CpRoutesTest` to actually run against both drivers (PHPUnit Sandbox skill). Both surfaced as 404s on the contact-detail page in flat mode.
