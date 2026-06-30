@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
-import { Header, Panel, Button, Badge, Icon, EmptyStateMenu, EmptyStateItem } from '@statamic/cms/ui';
+import { Header, Panel, Card, Button, Badge, Text, Icon, EmptyStateMenu, EmptyStateItem } from '@statamic/cms/ui';
 
 const props = defineProps([
     'overdue',          // [{ id, contact_name, contact_url, due_at, note, complete_url, delete_url }]
@@ -48,51 +48,57 @@ function complete(f) {
         <div v-else class="space-y-6">
             <!-- Overdue -->
             <Panel v-if="overdue.length > 0" :heading="`${__('Overdue')} (${overdue.length})`">
-                <ul class="divide-y divide-content-border">
-                    <li v-for="f in overdue" :key="f.id" class="px-4 py-3 flex items-center justify-between gap-4">
-                        <div class="min-w-0">
-                            <Link :href="f.contact_url" class="font-medium hover:underline">{{ f.contact_name }}</Link>
-                            <div class="text-xs mt-0.5">
-                                <Badge color="red" :text="f.due_at" />
+                <Card>
+                    <ul class="-my-3 divide-y divide-content-border">
+                        <li v-for="f in overdue" :key="f.id" class="py-3 flex items-center justify-between gap-4">
+                            <div class="min-w-0">
+                                <Link :href="f.contact_url" class="font-medium hover:underline">{{ f.contact_name }}</Link>
+                                <div class="mt-1">
+                                    <Badge color="red" :text="f.due_at" />
+                                </div>
+                                <Text v-if="f.note" size="sm" variant="subtle" class="mt-1 block">{{ f.note }}</Text>
                             </div>
-                            <p v-if="f.note" class="text-sm text-gray-700 dark:text-gray-300 mt-1">{{ f.note }}</p>
-                        </div>
-                        <Button :text="__('Mark as done')" size="sm" variant="default" @click="complete(f)" />
-                    </li>
-                </ul>
+                            <Button :text="__('Mark as done')" size="sm" variant="default" @click="complete(f)" />
+                        </li>
+                    </ul>
+                </Card>
             </Panel>
 
             <!-- Today -->
             <Panel :heading="`${__('Due today')} (${today.length})`">
-                <div v-if="today.length === 0" class="px-4 py-6 text-sm text-gray-500 text-center">
-                    {{ __('No follow-ups due today.') }}
-                </div>
-                <ul v-else class="divide-y divide-content-border">
-                    <li v-for="f in today" :key="f.id" class="px-4 py-3 flex items-center justify-between gap-4">
-                        <div class="min-w-0">
-                            <Link :href="f.contact_url" class="font-medium hover:underline">{{ f.contact_name }}</Link>
-                            <div class="text-xs text-gray-500 mt-0.5">{{ f.due_at }}</div>
-                            <p v-if="f.note" class="text-sm text-gray-700 dark:text-gray-300 mt-1">{{ f.note }}</p>
-                        </div>
-                        <Button :text="__('Mark as done')" size="sm" variant="default" @click="complete(f)" />
-                    </li>
-                </ul>
+                <Card>
+                    <div v-if="today.length === 0" class="py-6 text-sm text-gray-500 text-center">
+                        {{ __('No follow-ups due today.') }}
+                    </div>
+                    <ul v-else class="-my-3 divide-y divide-content-border">
+                        <li v-for="f in today" :key="f.id" class="py-3 flex items-center justify-between gap-4">
+                            <div class="min-w-0">
+                                <Link :href="f.contact_url" class="font-medium hover:underline">{{ f.contact_name }}</Link>
+                                <Text size="xs" variant="subtle" class="mt-0.5 block">{{ f.due_at }}</Text>
+                                <Text v-if="f.note" size="sm" variant="subtle" class="mt-1 block">{{ f.note }}</Text>
+                            </div>
+                            <Button :text="__('Mark as done')" size="sm" variant="default" @click="complete(f)" />
+                        </li>
+                    </ul>
+                </Card>
             </Panel>
 
             <!-- Upcoming -->
             <Panel :heading="`${__('Upcoming')} (${upcoming.length})`">
-                <div v-if="upcoming.length === 0" class="px-4 py-6 text-sm text-gray-500 text-center">
-                    {{ __('No upcoming follow-ups.') }}
-                </div>
-                <ul v-else class="divide-y divide-content-border">
-                    <li v-for="f in upcoming" :key="f.id" class="px-4 py-3 flex items-center justify-between gap-4">
-                        <div class="min-w-0">
-                            <Link :href="f.contact_url" class="font-medium hover:underline">{{ f.contact_name }}</Link>
-                            <div class="text-xs text-gray-500 mt-0.5">{{ f.due_at }}</div>
-                            <p v-if="f.note" class="text-sm text-gray-700 dark:text-gray-300 mt-1">{{ f.note }}</p>
-                        </div>
-                    </li>
-                </ul>
+                <Card>
+                    <div v-if="upcoming.length === 0" class="py-6 text-sm text-gray-500 text-center">
+                        {{ __('No upcoming follow-ups.') }}
+                    </div>
+                    <ul v-else class="-my-3 divide-y divide-content-border">
+                        <li v-for="f in upcoming" :key="f.id" class="py-3 flex items-center justify-between gap-4">
+                            <div class="min-w-0">
+                                <Link :href="f.contact_url" class="font-medium hover:underline">{{ f.contact_name }}</Link>
+                                <Text size="xs" variant="subtle" class="mt-0.5 block">{{ f.due_at }}</Text>
+                                <Text v-if="f.note" size="sm" variant="subtle" class="mt-1 block">{{ f.note }}</Text>
+                            </div>
+                        </li>
+                    </ul>
+                </Card>
             </Panel>
         </div>
     </div>
