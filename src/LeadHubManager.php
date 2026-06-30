@@ -209,6 +209,46 @@ class LeadHubManager
         return $this->present($this->reload($contact));
     }
 
+    // -- Tasks --------------------------------------------------------------
+
+    /**
+     * Create a task, optionally bound to a contact (by id/uuid).
+     *
+     * @param  array{title:string,description?:string,priority?:string,due_at?:string,assignee_id?:string,opportunity_id?:int,created_by?:string}  $attributes
+     */
+    public function createTask(array $attributes, int|string|null $contactId = null): array
+    {
+        $contact = $contactId !== null ? $this->mustFind($contactId) : null;
+
+        $task = app(\Goldnead\Leadhub\Services\TaskService::class)->create($attributes, $contact);
+
+        return $this->presentTask($task);
+    }
+
+    public function completeTask(int|string $taskId, ?string $completedBy = null): array
+    {
+        $task = \Goldnead\Leadhub\Models\Task::query()->findOrFail($taskId);
+        $completed = app(\Goldnead\Leadhub\Services\TaskService::class)->complete($task, $completedBy);
+
+        return $this->presentTask($completed);
+    }
+
+    protected function presentTask(\Goldnead\Leadhub\Models\Task $task): array
+    {
+        return [
+            'id' => $task->id,
+            'uuid' => $task->uuid,
+            'contact_id' => $task->contact_id,
+            'opportunity_id' => $task->opportunity_id,
+            'title' => $task->title,
+            'status' => $task->status,
+            'priority' => $task->priority,
+            'due_at' => optional($task->due_at)->toIso8601String(),
+            'assignee_id' => $task->assignee_id,
+            'completed_at' => optional($task->completed_at)->toIso8601String(),
+        ];
+    }
+
     // -- Companies ----------------------------------------------------------
 
     /**
