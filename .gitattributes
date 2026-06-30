@@ -6,6 +6,7 @@
 /.devcontainer    export-ignore
 /phpunit.xml      export-ignore
 /MARKETPLACE.md   export-ignore
+/resources/marketing export-ignore
 
 # The compiled Control Panel assets ship with the package under
 # resources/dist/ — Statamic publishes them to the host's public/ on install.
