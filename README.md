@@ -23,8 +23,12 @@ It is **not** a full CRM. It's the missing layer between your website forms and 
 - **Per-form mapping** — toggle LeadHub per form, map each form's fields to contact fields
 - **Filterable list + CSV export** — find leads fast, export filtered subsets
 - **Dashboard** — KPIs, latest activity, due/overdue follow-ups
+- **Lead assignment + notifications** — assign an owner to each lead; e-mail your team on new leads, assignments, and a daily follow-up digest
+- **Marketing attribution** — capture UTM parameters, referrer and landing page on the originating submission
+- **CRM connectors** — push contacts to HubSpot, Brevo or any webhook (Zapier / Make / n8n) on create, update or status change, with a per-attempt **Sync log**
+- **Outbound events** — eleven domain events covering the full contact lifecycle, ready for [goldnead/statamic-webhook-manager](#webhooks--outbound-integrations) or your own listeners
 
-What it deliberately does **not** do (yet): webhooks, CRM connectors, UTM attribution, lead scoring, bidirectional sync. See [open questions](#roadmap).
+What it deliberately does **not** do (yet): lead scoring, manual contact merge UI, bidirectional CRM sync. See [the roadmap](#roadmap).
 
 ---
 
@@ -124,8 +128,142 @@ Assign them to roles in **CP → Users → Roles**.
 'store_full_submission_payload'              // attach raw submission to timeline
 'timeline_payload_redaction'                 // sensitive keys redacted before storage
 'exports.queue_threshold'                    // when to push CSV exports onto the queue
-'features.*'                                 // toggle MVP features
+'features.*'                                 // toggle features (notifications, attribution, crm_destinations)
+'notifications.*'                            // recipient e-mails, digest time (see Lead assignment)
+'attribution.fields'                         // which submission fields map to UTM / referrer / landing page
+'crm.destinations'                           // HubSpot / Brevo / webhook targets (see CRM connectors)
 ```
+
+---
+
+## Lead assignment & notifications
+
+Assign an owner to any lead and keep your team in the loop by e-mail.
+
+- **Owner** — pick an assignee on the contact detail page (any user with `view leadhub`). The change is recorded on the timeline. Filter the contacts list by `?assigned_to=<id>`, `?assigned_to=none`, or `?mine`.
+- **Notifications** — three Laravel notifications, all opt-in:
+  - **New lead** — fired when a contact is first created
+  - **Lead assigned** — fired when a lead gets an owner
+  - **Daily follow-up digest** — a once-a-day summary of due / overdue follow-ups
+
+Enable the feature and set recipients in `config/leadhub.php` (or via env):
+
+```php
+'features' => [
+    'notifications' => true,
+],
+
+'notifications' => [
+    'emails' => env('LEADHUB_NOTIFY_EMAILS'),   // comma-separated team inbox(es)
+    'digest' => [
+        'enabled' => true,
+        'time'    => '08:00',                   // server time, daily
+    ],
+],
+```
+
+The digest is wired into the Laravel scheduler automatically. Make sure your app runs the scheduler (`php artisan schedule:work`, or a cron entry calling `schedule:run`). You can also trigger it manually:
+
+```bash
+php artisan leadhub:followups:digest
+```
+
+> Assigning leads to different team members means more than one CP user, which requires **Statamic Pro** (`STATAMIC_PRO_ENABLED=true`).
+
+Notifications use Laravel's mail channel, so they respect your existing `MAIL_*` config. Sending is fail-safe — a mailer error is logged and never blocks the lead pipeline.
+
+---
+
+## Marketing attribution
+
+When `features.attribution` is on, LeadHub captures campaign context from the originating form submission and stores it on the contact:
+
+| Contact field   | Default submission source |
+| --------------- | ------------------------- |
+| `utm_source`    | `utm_source`              |
+| `utm_medium`    | `utm_medium`              |
+| `utm_campaign`  | `utm_campaign`            |
+| `utm_term`      | `utm_term`                |
+| `utm_content`   | `utm_content`             |
+| `referrer`      | `referrer`                |
+| `landing_page`  | `landing_page`            |
+
+Capture works automatically as long as those values reach the submission — typically by adding hidden fields to your form populated from the query string / `document.referrer`. Remap any field name in `config/leadhub.php`:
+
+```php
+'features' => [
+    'attribution' => true,
+],
+
+'attribution' => [
+    'fields' => [
+        'utm_source'   => 'utm_source',
+        'landing_page' => 'landing_page',
+        // 'utm_campaign' => 'campaign',   // ← map your own field name
+    ],
+],
+```
+
+The captured values appear in an **Attribution** panel on the contact detail page and are included in CRM payloads and exports.
+
+---
+
+## CRM connectors & sync log
+
+Push contacts to external systems when they're **created**, **updated**, or their **status changes**. Turn the feature on, then declare one or more destinations:
+
+```php
+'features' => [
+    'crm_destinations' => true,
+],
+
+'crm' => [
+    'destinations' => [
+        'hubspot' => [
+            'driver'   => 'hubspot',
+            'enabled'  => true,
+            'token'    => env('LEADHUB_HUBSPOT_TOKEN'),  // private-app token
+            'triggers' => ['created', 'status_changed'],
+        ],
+        'brevo' => [
+            'driver'   => 'brevo',
+            'enabled'  => true,
+            'api_key'  => env('LEADHUB_BREVO_KEY'),
+            'list_id'  => env('LEADHUB_BREVO_LIST'),      // optional
+        ],
+        'zapier' => [
+            'driver'   => 'webhook',
+            'enabled'  => true,
+            'url'      => env('LEADHUB_WEBHOOK_URL'),
+            'secret'   => env('LEADHUB_WEBHOOK_SECRET'),  // optional HMAC signing
+        ],
+    ],
+],
+```
+
+**Built-in drivers**
+
+- **`hubspot`** — upserts a contact via the HubSpot CRM v3 API (creates, or patches the existing contact on a 409 conflict).
+- **`brevo`** — upserts a contact via the Brevo (Sendinblue) API, optionally adding it to a list.
+- **`webhook`** — POSTs the normalized contact as JSON to any URL (Zapier, Make, n8n, or a webhook addon). When a `secret` is set, the body is signed and sent as `X-LeadHub-Signature: sha256=<hmac>`.
+
+**`triggers`** controls which lifecycle events a destination listens for — any of `created`, `updated`, `status_changed`. Omit it to listen for all three.
+
+**Custom drivers.** Register your own destination from a service provider:
+
+```php
+use Goldnead\Leadhub\Crm\DestinationManager;
+
+app(DestinationManager::class)->extend('salesforce', function (string $key, array $config) {
+    return new \App\Leadhub\SalesforceDestination($key, $config);
+});
+```
+
+Each destination implements `Goldnead\Leadhub\Contracts\CrmDestination` (`driver(): string` and `push(Contact): SyncResult`).
+
+**Sync log.** Every attempt runs on the queue and is recorded twice: once on the contact's timeline, and once in a dedicated log surfaced under **LeadHub → Sync log** (contact, destination, event, status, HTTP code, message, timestamp). Failed jobs retry with backoff. On the flat-file driver the dedicated log table is skipped gracefully — the timeline entry is still written.
+
+> Syncs are queued, so configure a real queue worker (`QUEUE_CONNECTION` ≠ `sync`) in production for non-blocking pushes.
 
 ---
 
@@ -206,18 +344,20 @@ Statamic form submission
             ├── ContactResolver → find by email_normalized OR create new
             ├── TimelineService → record submission_received event
             ├── TagService → attach mapped + default tags
-            └── Internal event: LeadHubSubmissionAttached (for future webhooks/sync)
+            └── Fires LeadHubContactCreated / LeadHubSubmissionAttached
+                (→ notifications, CRM sync, webhooks, your listeners)
 ```
 
 The listener is **fail-safe**: any exception is caught and logged. A LeadHub error never breaks the original form submission flow.
 
 ---
 
-## Internal events
+## Webhooks & outbound integrations
 
-Hook into LeadHub from your own code:
+LeadHub doesn't ship its own webhook-sending UI — instead it fires a complete set of plain Laravel events across the contact lifecycle. That makes it a first-class **event source** for any webhook addon, queue, or listener you already run.
 
 ```php
+// namespace Goldnead\Leadhub\Events
 LeadHubContactCreated
 LeadHubContactUpdated
 LeadHubSubmissionAttached
@@ -231,7 +371,33 @@ LeadHubContactArchived
 LeadHubContactDeleted
 ```
 
-Each event carries `$contact`, optional `$actor`, and optional `$metadata`.
+Each event carries `$contact`, optional `$actor` (the acting user, if any), and optional `$metadata`.
+
+### Pairing with goldnead/statamic-webhook-manager
+
+[goldnead/statamic-webhook-manager](https://github.com/goldnead/statamic-webhook-manager) is an event-driven outbound-webhook addon: you map an event class to a target URL in the CP and it handles delivery, retries and logging. Because LeadHub's events are public, you point the webhook manager straight at them — no glue code, no duplicated webhook logic in LeadHub:
+
+```
+LeadHubContactCreated  ─┐
+LeadHubStatusChanged   ─┼─►  webhook-manager  ─►  your endpoint / Zapier / Make
+LeadHubFollowupSet     ─┘
+```
+
+Register the LeadHub events you care about in the webhook manager's configuration (it subscribes to any dispatched event class), and each will deliver the contact payload to your configured destinations.
+
+> **If you don't run a separate webhook addon**, LeadHub's built-in [`webhook` CRM driver](#crm-connectors--sync-log) covers the common case directly — an HMAC-signed JSON POST on create / update / status change, with a Sync log. Use the webhook manager when you want CP-managed routing across many event types; use the built-in driver when you just need contacts pushed to a URL.
+
+### Rolling your own listener
+
+```php
+use Goldnead\Leadhub\Events\LeadHubStatusChanged;
+use Illuminate\Support\Facades\Event;
+
+Event::listen(LeadHubStatusChanged::class, function (LeadHubStatusChanged $event) {
+    // $event->contact, $event->actor, $event->metadata
+    MyExternalSystem::sync($event->contact);
+});
+```
 
 ---
 
@@ -297,10 +463,12 @@ php artisan serve            # then visit http://127.0.0.1:8000/cp
 
 ## Roadmap
 
-The MVP is intentionally narrow. The architecture is prepared for, but does not yet ship:
+Shipped beyond the core MVP: lead assignment + e-mail notifications, marketing attribution, CRM connectors (HubSpot / Brevo / webhook) with a sync log, and a full outbound event surface.
 
-- **Pro:** UTM attribution, webhook events, sync logs
-- **CRM connectors:** HubSpot, Pipedrive, Brevo, ActiveCampaign
+Still on the table, not yet shipped:
+
+- **More CRM connectors:** Pipedrive, ActiveCampaign, Salesforce (custom drivers are already supported via `DestinationManager::extend()`)
+- **Bidirectional sync** — pull status / owner changes back from the CRM
 - **Later:** rule-based lead scoring, manual contact merge UI, GDPR anonymization
 
 Have a use case? Open an issue.
