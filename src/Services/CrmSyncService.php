@@ -28,6 +28,11 @@ class CrmSyncService
      */
     public function syncContact(Contact $contact, string $event): array
     {
+        // Compliance: never push opted-out contacts to external CRMs.
+        if ($contact->do_not_contact) {
+            return [];
+        }
+
         $results = [];
 
         foreach ($this->destinations->for($event) as $key => $destination) {
