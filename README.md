@@ -35,12 +35,13 @@ LeadHub can grow from a lead-capture layer into a lightweight CRM. These modules
 - **Generic ingestion API** (`features.ingestion`) — `LeadHub::ingest()` turns *any* source (purchases, bookings, logins, inbound webhooks) into contacts + timeline entries, deduplicated by email/phone and idempotent via a `dedupe_key`. Register a `SourceProjector` to auto-map your own models.
 - **Companies** (`features.companies`) — B2B company records, deduplicated by domain/name, linked to contacts with a primary flag.
 - **Tasks** (`features.tasks`) — multiple tasks per contact with priority, assignee and due date (beyond the single next-action follow-up).
-- **Pipelines & opportunities** (`features.pipelines`) — multi-pipeline deal tracking with stages, terminal won/lost outcomes, value/confidence, full stage-transition history and a **Kanban board** in the CP.
+- **Pipelines & opportunities** (`features.pipelines`) — multi-pipeline deal tracking with stages, terminal won/lost outcomes, value/confidence, full stage-transition history, a **Kanban board** and a **pipeline-management** screen in the CP.
 - **Contact merge** (`features.merge`) — `LeadHub::merge()` re-parents a duplicate's timeline/notes/tasks/opportunities onto a survivor.
 - **Lead scoring** (`features.scoring`) — accumulate an `engagement_score` per activity type.
-- **Public API** — a stable `Goldnead\Leadhub\Facades\LeadHub` facade (used by [statamic-automations](#automations) and [statamic-webhook-manager](#webhooks--outbound-integrations) to read and write leads).
+- **Consent / opt-out** — `do_not_contact` is honoured by every CRM connector; `LeadHub::optOut()` also actively removes the contact from supported destinations (e.g. a Brevo list).
+- **Public API** — a stable `Goldnead\Leadhub\Facades\LeadHub` facade (used by [statamic-automations](#automations) and [statamic-webhook-manager](#webhooks--outbound-integrations) to read and write leads, ingest external sources, and drive triggers).
 
-What it deliberately does **not** do (yet): bidirectional CRM sync, a pipeline-management UI (pipelines are seeded via `LeadHub::createPipeline()` / config). See [the roadmap](#roadmap).
+What it deliberately does **not** do (yet): bidirectional CRM *pull* sync. See [the roadmap](#roadmap).
 
 ---
 
