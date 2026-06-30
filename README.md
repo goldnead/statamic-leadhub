@@ -32,9 +32,8 @@ What it deliberately does **not** do (yet): webhooks, CRM connectors, UTM attrib
 
 - PHP **8.2+**
 - Statamic **6.0+** (the v0.3 CP rewrite uses Inertia + Vue 3 — Statamic 5 is no longer supported; pin to `^0.2.x` if you need it)
-- Laravel **11.x / 12.x**
+- Laravel **11.x / 12.x / 13.x**
 - A SQL database (MySQL, PostgreSQL, SQLite) — only required for the eloquent driver
-- Node.js **18+** with npm — needed once to compile the addon's CP assets via your host project's Vite
 
 ---
 
@@ -43,10 +42,13 @@ What it deliberately does **not** do (yet): webhooks, CRM connectors, UTM attrib
 ```bash
 composer require goldnead/statamic-leadhub
 php artisan migrate          # only needed for the eloquent driver (default)
-npm run build                # compiles LeadHub's CP assets via your host project's Vite
 ```
 
-The CP UI is built with **Inertia + Vue 3 + Tailwind v4**, matching Statamic 6's native control-panel patterns. Statamic's addon Vite tooling auto-picks the addon's entries (`resources/js/cp.js` and `resources/css/cp.css`) and bundles them when you run `npm run build` in your host project.
+That's it — **no front-end build step is required**. LeadHub ships its compiled Control Panel assets (Inertia + Vue 3 + Tailwind v4) under `resources/dist/`, and Statamic publishes them to your `public/vendor/` automatically on install. If you ever need to (re)publish them manually:
+
+```bash
+php artisan vendor:publish --tag=statamic-leadhub --force
+```
 
 Optional — publish the config to customize statuses, redaction rules, and feature flags:
 
@@ -243,6 +245,18 @@ vendor/bin/pest
 ```
 
 The test suite uses `orchestra/testbench` with an in-memory SQLite database — no project setup required.
+
+### Building the Control Panel assets
+
+End users never need this — the compiled assets are committed under `resources/dist/`. But if you change anything in `resources/js/` or `resources/css/`, rebuild and commit:
+
+```bash
+composer install        # provides the @statamic/cms file dependency the build needs
+npm install
+npm run build           # → resources/dist/build/
+```
+
+For a live dev loop against a real Statamic install, use `scripts/setup-playground.sh` (see below) and run `npm run dev` in the repo root.
 
 ### End-to-end smoke test
 

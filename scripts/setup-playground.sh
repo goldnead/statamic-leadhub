@@ -149,14 +149,22 @@ cd "$PLAYGROUND_DIR"
 # from the ADDON directory (its vite.config.js externalises @statamic/cms, so
 # @statamic/cms need not be installed). --legacy-peer-deps avoids npm trying to
 # fetch the @statamic/cms peer (a PHP package, not on the npm registry).
-step "Compiling addon CP assets"
-( cd "$ADDON_DIR"
-  npm install --legacy-peer-deps --no-audit --no-fund 2>&1 | tail -2
-  npm run build 2>&1 | tail -6 )
-if [ -f "$ADDON_DIR/public/build/manifest.json" ]; then
-    ok "Addon assets compiled → public/build/manifest.json"
+step "Publishing addon CP assets"
+# The addon ships its compiled CP assets under resources/dist/build/ (committed).
+# We just publish them into the playground. If they're missing (e.g. a fresh
+# checkout before a build), compile them the Statamic-6 way first — this needs
+# the addon's own Composer deps (for the @statamic/cms file dependency).
+if [ ! -f "$ADDON_DIR/resources/dist/build/manifest.json" ]; then
+    warn "resources/dist/build/manifest.json missing — building from source"
+    ( cd "$ADDON_DIR"
+      [ -d vendor/statamic/cms ] || "$COMPOSER_BIN" install --no-interaction --prefer-dist 2>&1 | tail -2
+      npm install --no-audit --no-fund 2>&1 | tail -2
+      npm run build 2>&1 | tail -6 )
+fi
+if [ -f "$ADDON_DIR/resources/dist/build/manifest.json" ]; then
+    ok "Addon assets present → resources/dist/build/manifest.json"
 else
-    warn "Expected public/build/manifest.json not found — CP may render unstyled"
+    warn "resources/dist/build/manifest.json still missing — CP may 500 on asset load"
 fi
 # Publish into the playground so Statamic serves them from public/vendor/...
 "$PHP_BIN" artisan vendor:publish --tag=statamic-leadhub --force --no-interaction 2>&1 | tail -1

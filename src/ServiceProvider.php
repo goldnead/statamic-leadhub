@@ -75,15 +75,16 @@ class ServiceProvider extends AddonServiceProvider
 
     protected $config = true;
 
-    // Statamic 6 Vite entry points — compiled by `npm run build` in this
-    // package directory. Statamic auto-loads compiled assets from the
-    // configured public directory once they exist.
+    // Statamic 6 Vite entry points. The compiled assets are shipped with the
+    // package under resources/dist/build/ (built via `npm run build` in this
+    // package directory). On install Statamic publishes them from there to the
+    // host's public/vendor/<package>/build/ and serves them in the CP.
     protected $vite = [
         'input' => [
             'resources/js/cp.js',
             'resources/css/cp.css',
         ],
-        'publicDirectory' => 'public',
+        'publicDirectory' => 'resources/dist',
     ];
 
     protected $commands = [
