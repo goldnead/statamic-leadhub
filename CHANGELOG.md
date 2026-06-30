@@ -4,16 +4,33 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 ## [Unreleased]
 
-### Added
+_Nothing yet._
 
+## [1.0.0] — 2026-06-30
+
+First stable release — the complete LeadHub feature set on Statamic 6, installable with `composer require` + `php artisan migrate` out of the box.
+
+### Added — core
+
+- **Contacts, timeline & follow-ups.** Statamic form submissions become contacts: repeated inquiries are merged by e-mail, every submission and note is recorded on a per-contact timeline, and simple follow-ups can be set, listed and completed. Contacts carry statuses, tags and notes, and are filterable and searchable in the Control Panel, with a dashboard of KPIs, due follow-ups and latest activity.
+- **Public API — `LeadHub` facade + ingestion.** A documented facade (`Goldnead\Leadhub\Facades\LeadHub` → `LeadHubManager`) is the supported entry point for host apps. A generic ingestion API (`SourceEvent` + `IngestionService`) lets any source — not just Statamic forms — create or update a contact and append a timeline entry; a `dedupe_key` makes ingestion idempotent so the same event can be replayed safely.
+- **Dual storage drivers.** Every repository is contract-backed with two interchangeable drivers: `eloquent` (default, database) and `flat` (Statamic-native YAML files). Switch with `leadhub:storage:migrate` (with `--dry-run`); the public API is driver-agnostic.
+- **Granular CP permissions and a native funnel nav icon.**
+
+### Added — CRM-core modules (opt-in, behind feature flags)
+
+- **Lead scoring & contact merge.** A configurable scoring service ranks contacts by activity; a merge service consolidates duplicate contacts (and their timelines) safely.
+- **Companies.** Contacts resolve to companies (`CompanyResolver`), giving an organisation-level view over individual leads.
+- **Tasks.** Lightweight task records tied to contacts, managed in the CP.
+- **Pipelines, stages & opportunities.** A Kanban board over configurable pipelines/stages, with opportunities that move between stages; stage transitions are recorded, and `leadhub:followups:fire-due` fires due follow-ups.
 - **Lead assignment + e-mail notifications.** Assign an owner (any user with `view leadhub`) to a contact from the detail page; the change is timelined and the contacts list is filterable by `?mine`, `?assigned_to=<id>` and `?assigned_to=none`. Three opt-in Laravel notifications — new lead, lead assigned, and a scheduled daily follow-up digest (`leadhub:followups:digest`). Gated by `features.notifications`; recipients and digest time live under `notifications.*`. Sending is fail-safe.
 - **Marketing attribution.** When `features.attribution` is on, UTM parameters, referrer and landing page are captured from the originating submission onto the contact and shown in an Attribution panel. Field mapping is configurable via `attribution.fields`.
 - **CRM connectors + Sync log.** Push contacts to external systems on create / update / status change via pluggable drivers — `hubspot`, `brevo`, and a generic HMAC-signable `webhook` driver — declared under `crm.destinations` and gated by `features.crm_destinations`. Syncs run on the queue, are retried with backoff, and are recorded both on the contact timeline and in a dedicated **Sync log** CP page. Host apps can register custom drivers via `DestinationManager::extend()`. The flat-file driver degrades gracefully when the log table is absent.
 - **Outbound event surface + Webhook Manager bridge.** The full set of `LeadHub*` lifecycle events is a public integration point. When [goldnead/statamic-webhook-manager](https://github.com/goldnead/statamic-webhook-manager) is installed, LeadHub auto-registers all eleven events as webhook-manager triggers (e.g. `leadhub.status.changed`) and re-emits them as `TriggerDetected` — no glue code. The bridge (`src/Integrations/WebhookManager/`) is fail-safe, loads the addon's classes only when present, and is toggleable via `features.webhook_manager`. Without that addon, the built-in `webhook` CRM driver covers a direct JSON POST.
 
-## [1.0.0] — 2026-06-30
+### Added — tooling
 
-First stable release. The addon now installs and runs cleanly on a current Statamic 6 project out of the box.
+- `scripts/setup-playground.sh` — builds a persistent, runnable Statamic 6 playground with the addon wired in as a path repository, for local CP testing and development.
 
 ### Fixed
 
@@ -26,10 +43,6 @@ First stable release. The addon now installs and runs cleanly on a current Stata
 
 - The Control Panel styling now matches core Statamic pixel-for-pixel: the addon imports Statamic's Tailwind theme (previously it shipped the bare framework, so design tokens silently produced no CSS and a stray Preflight reset fought the CP). Dashboard, contact detail and follow-up pages were rebuilt on native `Panel`/`Card` composition.
 - Added a LeadHub addon icon and a matching funnel Control Panel nav icon.
-
-### Added
-
-- `scripts/setup-playground.sh` — builds a persistent, runnable Statamic 6 playground with the addon wired in as a path repository, for local CP testing and development.
 
 ### Changed
 
