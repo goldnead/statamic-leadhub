@@ -209,6 +209,52 @@ class LeadHubManager
         return $this->present($this->reload($contact));
     }
 
+    // -- Companies ----------------------------------------------------------
+
+    /**
+     * Create (or dedupe to an existing) company and return it as an array.
+     */
+    public function createCompany(array $attributes): array
+    {
+        [$company] = app(\Goldnead\Leadhub\Services\CompanyResolver::class)->resolveOrCreate($attributes);
+
+        return $this->presentCompany($company);
+    }
+
+    /**
+     * Link a company to a contact. $company may be an existing company id or an
+     * array of company attributes (which will be resolved/created).
+     */
+    public function linkCompany(int|string $contactId, int|string|array $company, ?string $label = null, bool $primary = false): array
+    {
+        $contact = $this->mustFind($contactId);
+        $resolver = app(\Goldnead\Leadhub\Services\CompanyResolver::class);
+
+        if (is_array($company)) {
+            [$companyModel] = $resolver->resolveOrCreate($company);
+        } else {
+            $companyModel = \Goldnead\Leadhub\Models\Company::query()->findOrFail($company);
+        }
+
+        $resolver->link($contact, $companyModel, $label, $primary);
+
+        return $this->presentCompany($companyModel);
+    }
+
+    protected function presentCompany(\Goldnead\Leadhub\Models\Company $company): array
+    {
+        return [
+            'id' => $company->id,
+            'uuid' => $company->uuid,
+            'name' => $company->name,
+            'domain' => $company->domain,
+            'website' => $company->website,
+            'industry' => $company->industry,
+            'employee_range' => $company->employee_range,
+            'status' => $company->status,
+        ];
+    }
+
     /**
      * Merge a duplicate contact into a surviving one. Both are resolved by
      * id/uuid. Returns the surviving contact.

@@ -106,6 +106,16 @@ class Contact extends Model
         )->withTimestamps();
     }
 
+    public function companies(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Company::class,
+            'leadhub_contact_company',
+            'contact_id',
+            'company_id'
+        )->withPivot(['relationship_label', 'is_primary'])->withTimestamps();
+    }
+
     /** The surviving contact this one was merged into (if any). */
     public function mergedInto(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
