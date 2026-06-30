@@ -100,7 +100,33 @@ return [
         'csv_export' => true,
         'webhooks' => false,
         'crm_destinations' => false,
-        'attribution' => false,
+        'attribution' => true,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Attribution (UTM) Capture
+    |--------------------------------------------------------------------------
+    |
+    | When features.attribution is enabled, these submission field handles are
+    | captured onto the contact (first-touch — never overwritten by later
+    | submissions). Point your public form's hidden fields at the same handles
+    | (populated from the URL query string and document.referrer).
+    |
+    | Map: contact column => submission field handle.
+    |
+    */
+
+    'attribution' => [
+        'fields' => [
+            'utm_source' => 'utm_source',
+            'utm_medium' => 'utm_medium',
+            'utm_campaign' => 'utm_campaign',
+            'utm_term' => 'utm_term',
+            'utm_content' => 'utm_content',
+            'referrer' => 'referrer',
+            'landing_page' => 'landing_page',
+        ],
     ],
 
     /*

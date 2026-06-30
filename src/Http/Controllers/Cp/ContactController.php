@@ -139,6 +139,27 @@ class ContactController extends Controller
         // relying on relationLoaded() here would always miss active follow-ups.
         $active = $this->followups->activeForOne($contact);
 
+        // Attribution (UTM / referrer / landing page) — only the populated
+        // fields, and only when the feature is enabled.
+        $attribution = [];
+        if (config('leadhub.features.attribution', false)) {
+            $attributionLabels = [
+                'utm_source' => __('leadhub::attribution.utm_source'),
+                'utm_medium' => __('leadhub::attribution.utm_medium'),
+                'utm_campaign' => __('leadhub::attribution.utm_campaign'),
+                'utm_term' => __('leadhub::attribution.utm_term'),
+                'utm_content' => __('leadhub::attribution.utm_content'),
+                'referrer' => __('leadhub::attribution.referrer'),
+                'landing_page' => __('leadhub::attribution.landing_page'),
+            ];
+            foreach ($attributionLabels as $column => $label) {
+                $value = $contact->getAttribute($column);
+                if ($value !== null && $value !== '') {
+                    $attribution[] = ['label' => $label, 'value' => (string) $value];
+                }
+            }
+        }
+
         $statuses = (array) config('leadhub.statuses', []);
         $allTags = $this->tagsRepo->all()->map(fn ($t) => [
             'id' => (string) $t->id,
@@ -160,6 +181,7 @@ class ContactController extends Controller
                     'name' => $t->name,
                 ])->values()->all(),
                 'source_form' => $contact->source_form,
+                'attribution' => $attribution,
                 'consent' => (bool) $contact->consent,
                 'created_at' => $contact->created_at?->format('Y-m-d'),
                 'last_activity_at' => $contact->last_activity_at?->diffForHumans(),

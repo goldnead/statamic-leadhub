@@ -224,6 +224,18 @@ function tagOptions() {
                     </Card>
                 </Panel>
 
+                <!-- Attribution -->
+                <Panel v-if="contact.attribution && contact.attribution.length" :heading="__('Attribution')">
+                    <Card>
+                        <dl class="text-sm space-y-1.5">
+                            <div v-for="row in contact.attribution" :key="row.label" class="flex gap-2">
+                                <dt class="text-gray-500 w-24 shrink-0">{{ row.label }}</dt>
+                                <dd class="min-w-0 truncate" :title="row.value">{{ row.value }}</dd>
+                            </div>
+                        </dl>
+                    </Card>
+                </Panel>
+
                 <!-- Danger zone -->
                 <Panel :heading="__('Actions')">
                     <Card>

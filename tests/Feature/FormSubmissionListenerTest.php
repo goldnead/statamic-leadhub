@@ -197,3 +197,56 @@ it('updates last_processed_at on the mapping', function (): void {
 
     expect($mapping->fresh()->last_processed_at)->not->toBeNull();
 });
+
+it('captures attribution (UTM/referrer) when the feature is enabled', function (): void {
+    config()->set('leadhub.features.attribution', true);
+
+    FormMapping::factory()->create([
+        'form_handle' => 'contact',
+        'enabled' => true,
+        'email_field' => 'email',
+    ]);
+
+    $submission = fakeStatamicSubmission('contact', [
+        'email' => 'utm@example.com',
+        'utm_source' => 'google',
+        'utm_medium' => 'cpc',
+        'utm_campaign' => 'spring',
+        'referrer' => 'https://google.com/',
+        'landing_page' => 'https://site.test/lp',
+    ]);
+    $this->listener->handle(new SubmissionCreated($submission));
+
+    $contact = Contact::where('email', 'utm@example.com')->first();
+    expect($contact)->not->toBeNull();
+    expect($contact->utm_source)->toBe('google');
+    expect($contact->utm_medium)->toBe('cpc');
+    expect($contact->utm_campaign)->toBe('spring');
+    expect($contact->referrer)->toBe('https://google.com/');
+    expect($contact->landing_page)->toBe('https://site.test/lp');
+});
+
+it('keeps first-touch attribution across repeat submissions', function (): void {
+    config()->set('leadhub.features.attribution', true);
+    FormMapping::factory()->create(['form_handle' => 'contact', 'enabled' => true, 'email_field' => 'email']);
+
+    $this->listener->handle(new SubmissionCreated(fakeStatamicSubmission('contact', [
+        'email' => 'ft@example.com', 'utm_source' => 'newsletter',
+    ])));
+    $this->listener->handle(new SubmissionCreated(fakeStatamicSubmission('contact', [
+        'email' => 'ft@example.com', 'utm_source' => 'google',
+    ])));
+
+    expect(Contact::where('email', 'ft@example.com')->first()->utm_source)->toBe('newsletter');
+});
+
+it('ignores attribution when the feature is disabled', function (): void {
+    config()->set('leadhub.features.attribution', false);
+    FormMapping::factory()->create(['form_handle' => 'contact', 'enabled' => true, 'email_field' => 'email']);
+
+    $this->listener->handle(new SubmissionCreated(fakeStatamicSubmission('contact', [
+        'email' => 'noutm@example.com', 'utm_source' => 'google',
+    ])));
+
+    expect(Contact::where('email', 'noutm@example.com')->first()->utm_source)->toBeNull();
+});
