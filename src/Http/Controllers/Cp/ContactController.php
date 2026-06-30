@@ -4,6 +4,7 @@ namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
+use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
@@ -25,6 +26,7 @@ class ContactController extends Controller
         protected EventRepository $events,
         protected NoteRepository $notes,
         protected TagRepository $tagsRepo,
+        protected FollowupRepository $followups,
         protected FormMappingRepository $mappings,
         protected TimelineService $timeline,
         protected TagService $tags,
@@ -133,10 +135,9 @@ class ContactController extends Controller
             'created_at' => $e->created_at?->diffForHumans(),
         ])->all();
 
-        $activeFollowups = $contact->relationLoaded('followups') ? $contact->getRelation('followups') : collect();
-        $active = $activeFollowups instanceof \Illuminate\Support\Collection
-            ? $activeFollowups->whereNull('completed_at')->sortBy('due_at')->first()
-            : null;
+        // Fetch via the repository — find() doesn't eager-load relations, so
+        // relying on relationLoaded() here would always miss active follow-ups.
+        $active = $this->followups->activeForOne($contact);
 
         $statuses = (array) config('leadhub.statuses', []);
         $allTags = $this->tagsRepo->all()->map(fn ($t) => [
@@ -154,10 +155,10 @@ class ContactController extends Controller
                 'company' => $contact->company,
                 'status' => $contact->status,
                 'status_label' => $statuses[$contact->status] ?? $contact->status,
-                'tags' => collect($contact->relationLoaded('tags') ? $contact->getRelation('tags')->all() : [])->map(fn ($t) => [
+                'tags' => $this->tagsRepo->forContact($contact)->map(fn ($t) => [
                     'id' => (string) $t->id,
                     'name' => $t->name,
-                ])->all(),
+                ])->values()->all(),
                 'source_form' => $contact->source_form,
                 'consent' => (bool) $contact->consent,
                 'created_at' => $contact->created_at?->format('Y-m-d'),
