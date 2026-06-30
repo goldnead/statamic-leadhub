@@ -8,4 +8,5 @@ return [
     'forms' => 'Forms',
     'tags' => 'Tags',
     'settings' => 'Settings',
+    'sync_log' => 'Sync log',
 ];

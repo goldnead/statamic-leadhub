@@ -7,6 +7,7 @@ use Goldnead\Leadhub\Http\Controllers\Cp\FollowupController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FormMappingController;
 use Goldnead\Leadhub\Http\Controllers\Cp\NoteController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SettingsController;
+use Goldnead\Leadhub\Http\Controllers\Cp\SyncLogController;
 use Goldnead\Leadhub\Http\Controllers\Cp\TagController;
 use Illuminate\Support\Facades\Route;
 
@@ -53,6 +54,9 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+
+    // CRM sync log
+    Route::get('/sync-log', [SyncLogController::class, 'index'])->name('sync-log');
 
     // Export
     Route::post('/export', [ExportController::class, 'store'])->name('export');

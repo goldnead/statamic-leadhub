@@ -179,3 +179,11 @@ it('assigns an owner to a contact via the update route', function (): void {
     expect($response->getStatusCode())->toBeIn([200, 302, 303]);
     expect($repo->find($contact->uuid)->assigned_to)->toBe((string) $owner->id());
 });
+
+it('renders the sync log page', function (): void {
+    $response = $this->withHeaders(['X-Inertia' => 'true'])
+        ->get(cp_route('leadhub.sync-log'));
+
+    $response->assertStatus(200);
+    expect(inertiaComponent($response))->toBe('leadhub::SyncLog');
+});

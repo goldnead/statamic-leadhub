@@ -170,6 +170,45 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | CRM Destinations
+    |--------------------------------------------------------------------------
+    |
+    | Push contacts to external systems when they are created / updated / their
+    | status changes (enable features.crm_destinations first). Each destination
+    | has a driver (hubspot, brevo, webhook — or your own via
+    | DestinationManager::extend()), credentials, and the triggers it listens
+    | for. Syncs run on the queue and are logged under LeadHub → Sync log.
+    |
+    | The `webhook` driver POSTs the contact as JSON to any URL (Zapier, Make,
+    | n8n, or a webhook addon), optionally HMAC-signed.
+    |
+    */
+
+    'crm' => [
+        'destinations' => [
+            // 'hubspot' => [
+            //     'driver' => 'hubspot',
+            //     'enabled' => true,
+            //     'token' => env('LEADHUB_HUBSPOT_TOKEN'),
+            //     'triggers' => ['created', 'status_changed'],
+            // ],
+            // 'brevo' => [
+            //     'driver' => 'brevo',
+            //     'enabled' => true,
+            //     'api_key' => env('LEADHUB_BREVO_KEY'),
+            //     'list_id' => env('LEADHUB_BREVO_LIST'),
+            // ],
+            // 'zapier' => [
+            //     'driver' => 'webhook',
+            //     'enabled' => true,
+            //     'url' => env('LEADHUB_WEBHOOK_URL'),
+            //     'secret' => env('LEADHUB_WEBHOOK_SECRET'),
+            // ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Email Normalization
     |--------------------------------------------------------------------------
     |

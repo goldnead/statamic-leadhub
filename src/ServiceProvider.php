@@ -22,7 +22,9 @@ use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
+use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
+use Goldnead\Leadhub\Listeners\DispatchCrmSync;
 use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Policies\LeadHubPolicy;
@@ -56,10 +58,15 @@ class ServiceProvider extends AddonServiceProvider
         ],
         LeadHubContactCreated::class => [
             SendNewLeadNotification::class,
+            DispatchCrmSync::class,
         ],
-        LeadHubContactUpdated::class => [],
+        LeadHubContactUpdated::class => [
+            DispatchCrmSync::class,
+        ],
         LeadHubSubmissionAttached::class => [],
-        LeadHubStatusChanged::class => [],
+        LeadHubStatusChanged::class => [
+            DispatchCrmSync::class,
+        ],
         LeadHubTagAdded::class => [],
         LeadHubTagRemoved::class => [],
         LeadHubNoteAdded::class => [],
@@ -118,6 +125,9 @@ class ServiceProvider extends AddonServiceProvider
         }
 
         $this->bindRepositories();
+
+        // CRM destinations — singleton so other addons can extend() it.
+        $this->app->singleton(DestinationManager::class);
     }
 
     public function bootAddon(): void
@@ -309,6 +319,8 @@ class ServiceProvider extends AddonServiceProvider
                         ->route('leadhub.tags.index'),
                     $nav->item(__('leadhub::nav.settings'))
                         ->route('leadhub.settings'),
+                    $nav->item(__('leadhub::nav.sync_log'))
+                        ->route('leadhub.sync-log'),
                 ]);
         });
 
