@@ -28,6 +28,16 @@ class ContactResolver
         $normalized = EmailNormalizer::normalize($dto->email);
         $existing = $this->contacts->findByEmailNormalized($normalized);
 
+        // Secondary dedup by normalized phone — catches the same person
+        // reaching out under a different email address.
+        if (! $existing && $dto->phone) {
+            $phoneNormalized = \Goldnead\Leadhub\Support\PhoneNormalizer::normalize($dto->phone);
+
+            if ($phoneNormalized) {
+                $existing = $this->contacts->findByPhoneNormalized($phoneNormalized);
+            }
+        }
+
         if ($existing) {
             $this->updateExisting($existing, $dto);
 

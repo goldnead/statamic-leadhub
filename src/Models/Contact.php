@@ -4,6 +4,7 @@ namespace Goldnead\Leadhub\Models;
 
 use Goldnead\Leadhub\Database\Factories\ContactFactory;
 use Goldnead\Leadhub\Support\EmailNormalizer;
+use Goldnead\Leadhub\Support\PhoneNormalizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,7 +23,11 @@ class Contact extends Model
     protected $casts = [
         'consent' => 'boolean',
         'consent_at' => 'datetime',
+        'do_not_contact' => 'boolean',
+        'engagement_score' => 'integer',
+        'metadata_json' => 'array',
         'last_activity_at' => 'datetime',
+        'last_seen_at' => 'datetime',
         'archived_at' => 'datetime',
     ];
 
@@ -36,11 +41,19 @@ class Contact extends Model
             if ($contact->email && empty($contact->email_normalized)) {
                 $contact->email_normalized = EmailNormalizer::normalize($contact->email);
             }
+
+            if ($contact->phone && empty($contact->phone_normalized)) {
+                $contact->phone_normalized = PhoneNormalizer::normalize($contact->phone);
+            }
         });
 
         static::updating(function (self $contact): void {
             if ($contact->isDirty('email') && $contact->email) {
                 $contact->email_normalized = EmailNormalizer::normalize($contact->email);
+            }
+
+            if ($contact->isDirty('phone')) {
+                $contact->phone_normalized = PhoneNormalizer::normalize($contact->phone);
             }
         });
     }
@@ -91,6 +104,35 @@ class Contact extends Model
             'contact_id',
             'tag_id'
         )->withTimestamps();
+    }
+
+    /** The surviving contact this one was merged into (if any). */
+    public function mergedInto(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'merged_into_contact_id');
+    }
+
+    /** Contacts that were merged into this one. */
+    public function mergedContacts(): HasMany
+    {
+        return $this->hasMany(self::class, 'merged_into_contact_id');
+    }
+
+    public function isMerged(): bool
+    {
+        return ! is_null($this->merged_into_contact_id);
+    }
+
+    /** Only contacts that have not been merged away. */
+    public function scopeUnmerged(Builder $query): Builder
+    {
+        return $query->whereNull('merged_into_contact_id');
+    }
+
+    /** Contacts that are reachable (not opted out). */
+    public function scopeContactable(Builder $query): Builder
+    {
+        return $query->where('do_not_contact', false);
     }
 
     public function activeFollowup()

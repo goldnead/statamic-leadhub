@@ -209,6 +209,20 @@ class LeadHubManager
         return $this->present($this->reload($contact));
     }
 
+    /**
+     * Merge a duplicate contact into a surviving one. Both are resolved by
+     * id/uuid. Returns the surviving contact.
+     */
+    public function merge(int|string $loserId, int|string $winnerId): array
+    {
+        $loser = $this->mustFind($loserId);
+        $winner = $this->mustFind($winnerId);
+
+        $merged = app(\Goldnead\Leadhub\Services\ContactMergeService::class)->merge($loser, $winner);
+
+        return $this->present($merged);
+    }
+
     // -- Ingestion ----------------------------------------------------------
 
     /** Ingest a generic source event (purchase, booking, login, webhook, …). */

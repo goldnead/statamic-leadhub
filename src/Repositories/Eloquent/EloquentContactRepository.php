@@ -34,6 +34,13 @@ class EloquentContactRepository implements ContactRepository
             ->first();
     }
 
+    public function findByPhoneNormalized(string $phoneNormalized): ?Contact
+    {
+        return Contact::query()
+            ->where('phone_normalized', $phoneNormalized)
+            ->first();
+    }
+
     public function create(array $attributes): Contact
     {
         return Contact::query()->create($attributes);

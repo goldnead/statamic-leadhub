@@ -14,6 +14,8 @@ interface ContactRepository
 
     public function findByEmailNormalized(string $emailNormalized): ?Contact;
 
+    public function findByPhoneNormalized(string $phoneNormalized): ?Contact;
+
     public function create(array $attributes): Contact;
 
     public function save(Contact $contact): Contact;

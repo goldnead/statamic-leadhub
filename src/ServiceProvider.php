@@ -14,6 +14,7 @@ use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactDeleted;
+use Goldnead\Leadhub\Events\LeadHubContactsMerged;
 use Goldnead\Leadhub\Events\LeadHubContactUpdated;
 use Goldnead\Leadhub\Events\LeadHubFollowupCompleted;
 use Goldnead\Leadhub\Events\LeadHubFollowupSet;
@@ -27,6 +28,7 @@ use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
+use Goldnead\Leadhub\Listeners\ScoreContactOnActivity;
 use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Policies\LeadHubPolicy;
@@ -65,8 +67,13 @@ class ServiceProvider extends AddonServiceProvider
         LeadHubContactUpdated::class => [
             DispatchCrmSync::class,
         ],
-        LeadHubSubmissionAttached::class => [],
-        LeadHubSourceIngested::class => [],
+        LeadHubSubmissionAttached::class => [
+            ScoreContactOnActivity::class,
+        ],
+        LeadHubSourceIngested::class => [
+            ScoreContactOnActivity::class,
+        ],
+        LeadHubContactsMerged::class => [],
         LeadHubStatusChanged::class => [
             DispatchCrmSync::class,
         ],

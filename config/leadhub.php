@@ -106,6 +106,36 @@ return [
         // goldnead/statamic-webhook-manager addon when it is installed. Has no
         // effect unless that addon is present; set to false to opt out.
         'webhook_manager' => true,
+
+        // CRM-core modules (eloquent driver only). All default off so existing
+        // installs keep the lightweight lead-capture behaviour until opted in.
+        'ingestion' => true,
+        'scoring' => false,
+        'merge' => true,
+        'companies' => false,
+        'tasks' => false,
+        'pipelines' => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lead Scoring
+    |--------------------------------------------------------------------------
+    |
+    | When features.scoring is enabled, each scored activity adds points to a
+    | contact's engagement_score. Map an activity/event type to a point value;
+    | anything not listed uses the `default`.
+    |
+    */
+
+    'scoring' => [
+        'default' => 1,
+        'events' => [
+            'submission_received' => 2,
+            'LeadHubSubmissionAttached' => 2,
+            'purchase.completed' => 10,
+            'booking.confirmed' => 5,
+        ],
     ],
 
     /*
