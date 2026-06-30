@@ -158,3 +158,24 @@ it('blocks users without view-leadhub permission', function (): void {
 
     expect($response->getStatusCode())->toBeIn([302, 401, 403]);
 });
+
+it('assigns an owner to a contact via the update route', function (): void {
+    $repo = app(ContactRepository::class);
+    $owner = User::make()->email('rep2@example.com')->makeSuper();
+    $owner->save();
+
+    $contact = $repo->create([
+        'email' => 'assign@example.com',
+        'email_normalized' => 'assign@example.com',
+        'first_name' => 'Assign',
+        'status' => 'new',
+    ]);
+
+    $response = $this->withHeaders(['X-Inertia' => 'true'])
+        ->patch(cp_route('leadhub.contacts.update', $contact->uuid), [
+            'assigned_to' => (string) $owner->id(),
+        ]);
+
+    expect($response->getStatusCode())->toBeIn([200, 302, 303]);
+    expect($repo->find($contact->uuid)->assigned_to)->toBe((string) $owner->id());
+});

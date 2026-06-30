@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
     Header, Panel, Card, Button, Badge, Text, Field, Label, Select, Textarea, Input,
@@ -17,6 +17,7 @@ const props = defineProps([
                         //   complete_url, delete_url } | null
     'statuses',         // { key: label }
     'allTags',          // [{ id, name, slug }]
+    'assignableUsers',  // [{ value, label }]
     'canArchive',
     'canDelete',
 ]);
@@ -26,10 +27,20 @@ const followupDueAt = ref('');
 const followupNote = ref('');
 const tagIds = ref(props.contact.tags.map(t => String(t.id)));
 const status = ref(props.contact.status);
+const assignedTo = ref(props.contact.assigned_to || '');
 const showDeleteConfirm = ref(false);
+
+const ownerOptions = computed(() => [
+    { value: '', label: __('Unassigned') },
+    ...(props.assignableUsers || []),
+]);
 
 function changeStatus() {
     router.patch(props.contact.update_url, { status: status.value }, { preserveScroll: true });
+}
+
+function changeOwner() {
+    router.patch(props.contact.update_url, { assigned_to: assignedTo.value || null }, { preserveScroll: true });
 }
 
 function saveTags() {
@@ -167,6 +178,19 @@ function tagOptions() {
 
             <!-- Sidebar -->
             <aside class="space-y-4">
+                <!-- Owner -->
+                <Panel :heading="__('Owner')">
+                    <Card>
+                        <Select
+                            v-model="assignedTo"
+                            :options="ownerOptions"
+                            :placeholder="__('Unassigned')"
+                            class="w-full"
+                            @update:model-value="changeOwner"
+                        />
+                    </Card>
+                </Panel>
+
                 <!-- Active follow-up -->
                 <Panel :heading="__('Active follow-up')">
                     <Card>

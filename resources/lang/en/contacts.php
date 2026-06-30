@@ -11,6 +11,7 @@ return [
     'status' => 'Status',
     'tags' => 'Tags',
     'source' => 'Source',
+    'owner' => 'Owner',
     'last_activity' => 'Last activity',
     'followup' => 'Follow-up',
     'created_at' => 'Created',

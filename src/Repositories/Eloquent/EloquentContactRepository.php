@@ -87,6 +87,12 @@ class EloquentContactRepository implements ContactRepository
             $query->whereHas('tags', fn (Builder $q) => $q->where('leadhub_tags.id', $filters['tag_id']));
         }
 
+        if (! empty($filters['assigned_to'])) {
+            $filters['assigned_to'] === 'none'
+                ? $query->whereNull('assigned_to')
+                : $query->where('assigned_to', $filters['assigned_to']);
+        }
+
         if (! empty($filters['from'])) {
             $query->where('created_at', '>=', $filters['from']);
         }

@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub;
 
+use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
@@ -22,6 +23,7 @@ use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
+use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Policies\LeadHubPolicy;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentContactRepository;
@@ -52,7 +54,9 @@ class ServiceProvider extends AddonServiceProvider
         SubmissionCreated::class => [
             CreateOrUpdateLeadFromSubmission::class,
         ],
-        LeadHubContactCreated::class => [],
+        LeadHubContactCreated::class => [
+            SendNewLeadNotification::class,
+        ],
         LeadHubContactUpdated::class => [],
         LeadHubSubmissionAttached::class => [],
         LeadHubStatusChanged::class => [],
@@ -90,6 +94,7 @@ class ServiceProvider extends AddonServiceProvider
     protected $commands = [
         StacheWarmCommand::class,
         StorageMigrateCommand::class,
+        SendFollowupDigestCommand::class,
     ];
 
     public function register(): void
@@ -122,7 +127,26 @@ class ServiceProvider extends AddonServiceProvider
             ->registerNavigation()
             ->registerPermissions()
             ->registerPolicies()
+            ->registerSchedule()
+            ->bootCommands()
             ->registerPublishables();
+    }
+
+    /**
+     * Schedule the daily follow-up digest (when notifications are enabled).
+     */
+    protected function registerSchedule(): self
+    {
+        $this->app->booted(function () {
+            $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
+            $time = (string) config('leadhub.notifications.digest.time', '08:00');
+            $schedule->command('leadhub:followups:digest')
+                ->dailyAt($time)
+                ->onOneServer()
+                ->name('leadhub-followup-digest');
+        });
+
+        return $this;
     }
 
     protected function registerTranslations(): self

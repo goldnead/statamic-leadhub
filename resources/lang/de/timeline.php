@@ -17,6 +17,8 @@ return [
     'crm_sync_failed' => 'CRM-Sync zu :destination fehlgeschlagen',
     'contact_archived' => 'Kontakt archiviert',
     'contact_deleted' => 'Kontakt gelöscht',
+    'assigned' => 'Zugewiesen an :owner',
+    'unassigned' => 'Zuweisung entfernt',
     'actor_system' => 'System',
     'actor_user' => 'Benutzer',
 ];

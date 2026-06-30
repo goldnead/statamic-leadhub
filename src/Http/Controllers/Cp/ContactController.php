@@ -13,8 +13,10 @@ use Goldnead\Leadhub\Events\LeadHubContactDeleted;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Http\Requests\UpdateContactRequest;
 use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Services\LeadHubNotifier;
 use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
+use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Statamic\CP\Column;
@@ -30,6 +32,8 @@ class ContactController extends Controller
         protected FormMappingRepository $mappings,
         protected TimelineService $timeline,
         protected TagService $tags,
+        protected UserDirectory $users,
+        protected LeadHubNotifier $notifier,
     ) {
     }
 
@@ -46,14 +50,21 @@ class ContactController extends Controller
             'to' => $request->input('to'),
             'has_followup' => $request->string('followup')->toString() ?: null,
             'search' => $request->string('q')->toString() ?: null,
+            // ?mine=1 scopes to the current user; ?assigned_to=ID to a specific
+            // owner; ?assigned_to=none to unassigned leads.
+            'assigned_to' => $request->boolean('mine')
+                ? (string) ($request->user()?->id() ?? '')
+                : ($request->string('assigned_to')->toString() ?: null),
             'sort' => $request->input('sort', 'created_at'),
             'direction' => $request->input('direction', 'desc'),
         ];
 
         $statuses = (array) config('leadhub.statuses', []);
+        $assignableUsers = $this->users->assignable();
+        $ownerLabels = collect($assignableUsers)->pluck('label', 'value')->all();
         $page = $this->contacts->paginate($filters, 25, (int) $request->input('page', 1));
 
-        $rows = collect($page->items())->map(function (Contact $contact) use ($statuses) {
+        $rows = collect($page->items())->map(function (Contact $contact) use ($statuses, $ownerLabels) {
             $followups = $contact->relationLoaded('followups') ? $contact->getRelation('followups') : collect();
             $active = $followups instanceof \Illuminate\Support\Collection
                 ? $followups->whereNull('completed_at')->sortBy('due_at')->first()
@@ -72,6 +83,7 @@ class ContactController extends Controller
                     'name' => $t->name,
                 ])->all(),
                 'source_form' => $contact->source_form,
+                'owner_name' => $ownerLabels[(string) ($contact->assigned_to ?? '')] ?? null,
                 'last_activity_at' => $contact->last_activity_at?->diffForHumans(),
                 'archived_at' => $contact->archived_at?->toIso8601String(),
                 'active_followup' => $active ? [
@@ -94,6 +106,7 @@ class ContactController extends Controller
             Column::make('status')->label(__('leadhub::contacts.status')),
             Column::make('tags')->label(__('leadhub::contacts.tags')),
             Column::make('source_form')->label(__('leadhub::contacts.source')),
+            Column::make('owner_name')->label(__('leadhub::contacts.owner')),
             Column::make('last_activity_at')->label(__('leadhub::contacts.last_activity')),
             Column::make('active_followup')->label(__('leadhub::contacts.followup')),
         ])->map(fn ($c) => $c->toArray())->all();
@@ -103,6 +116,7 @@ class ContactController extends Controller
             'columns' => $columns,
             'filters' => array_filter($filters, fn ($v) => $v !== null && $v !== ''),
             'statuses' => $statuses,
+            'assignableUsers' => $assignableUsers,
             'tagOptions' => $this->tagsRepo->all()->map(fn ($t) => [
                 'value' => (string) $t->id,
                 'label' => $t->name,
@@ -176,6 +190,8 @@ class ContactController extends Controller
                 'company' => $contact->company,
                 'status' => $contact->status,
                 'status_label' => $statuses[$contact->status] ?? $contact->status,
+                'assigned_to' => (string) ($contact->assigned_to ?? ''),
+                'owner_name' => $this->users->label($contact->assigned_to),
                 'tags' => $this->tagsRepo->forContact($contact)->map(fn ($t) => [
                     'id' => (string) $t->id,
                     'name' => $t->name,
@@ -194,6 +210,7 @@ class ContactController extends Controller
                 'followup_url' => cp_route('leadhub.contacts.followup.store', $contact->uuid),
                 'redirect_url' => cp_route('leadhub.contacts.index'),
             ],
+            'assignableUsers' => $this->users->assignable(),
             'events' => [
                 'data' => $events,
                 'meta' => [
@@ -223,20 +240,34 @@ class ContactController extends Controller
         $contact = $this->contacts->find($contactId);
         abort_unless($contact, 404);
 
+        // Capture old values BEFORE filling — the flat-file driver re-syncs the
+        // model on save(), so wasChanged() can't be relied on across drivers.
         $oldStatus = $contact->status;
+        $oldAssigned = $contact->assigned_to;
 
         // tag_ids is not a column on the contact — it's synced to the tag
         // relation below. Filling it onto the model would try to persist a
         // non-existent column.
         $contact->fill(collect($request->validated())->except('tag_ids')->all());
+
+        $statusChanged = $oldStatus !== $contact->status;
+        $assignmentChanged = $oldAssigned !== $contact->assigned_to;
+
         $this->contacts->save($contact);
 
-        if ($contact->wasChanged('status')) {
+        if ($statusChanged) {
             $this->timeline->recordStatusChanged($contact, $oldStatus, $contact->status);
             event(new LeadHubStatusChanged(
                 $contact,
                 metadata: ['from' => $oldStatus, 'to' => $contact->status]
             ));
+        }
+
+        if ($assignmentChanged) {
+            $this->timeline->recordAssigned($contact, $this->users->label($contact->assigned_to));
+            if (! empty($contact->assigned_to)) {
+                $this->notifier->assigned($contact);
+            }
         }
 
         if ($request->has('tag_ids')) {

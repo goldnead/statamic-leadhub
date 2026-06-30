@@ -11,6 +11,7 @@ return [
     'status' => 'Status',
     'tags' => 'Tags',
     'source' => 'Quelle',
+    'owner' => 'Verantwortlich',
     'last_activity' => 'Letzte Aktivität',
     'followup' => 'Follow-up',
     'created_at' => 'Erstellt',

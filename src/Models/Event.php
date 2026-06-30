@@ -26,6 +26,7 @@ class Event extends Model
     public const TYPE_SUBMISSION_RECEIVED = 'submission_received';
     public const TYPE_NOTE_ADDED = 'note_added';
     public const TYPE_STATUS_CHANGED = 'status_changed';
+    public const TYPE_CONTACT_ASSIGNED = 'contact_assigned';
     public const TYPE_TAG_ADDED = 'tag_added';
     public const TYPE_TAG_REMOVED = 'tag_removed';
     public const TYPE_FOLLOWUP_SET = 'followup_set';

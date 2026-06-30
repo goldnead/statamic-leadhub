@@ -131,6 +131,45 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Notifications
+    |--------------------------------------------------------------------------
+    |
+    | E-mail alerts for new leads, assignment, and a daily follow-up digest.
+    |
+    | - recipients: who gets the "new lead" alert for UNassigned leads
+    |   (assigned leads always notify their owner). Comma-separated emails.
+    | - digest: a daily e-mail per owner listing their due + overdue follow-ups.
+    |   Schedule it by running Laravel's scheduler (php artisan schedule:run).
+    |
+    */
+
+    'notifications' => [
+        'enabled' => env('LEADHUB_NOTIFICATIONS', true),
+
+        // Notify on a brand-new lead.
+        'new_lead' => true,
+        // Notify the owner when a lead is assigned to them.
+        'on_assignment' => true,
+
+        // Default recipients (emails) for new, unassigned leads.
+        'recipients' => array_filter(array_map(
+            'trim',
+            explode(',', (string) env('LEADHUB_NOTIFY_EMAILS', ''))
+        )),
+
+        'digest' => [
+            'enabled' => true,
+            'time' => env('LEADHUB_DIGEST_TIME', '08:00'),
+            // Who receives follow-ups for UNassigned contacts in the digest.
+            'fallback_recipients' => array_filter(array_map(
+                'trim',
+                explode(',', (string) env('LEADHUB_DIGEST_EMAILS', ''))
+            )),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Email Normalization
     |--------------------------------------------------------------------------
     |
