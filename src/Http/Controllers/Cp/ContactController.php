@@ -203,7 +203,10 @@ class ContactController extends Controller
 
         $oldStatus = $contact->status;
 
-        $contact->fill($request->validated());
+        // tag_ids is not a column on the contact — it's synced to the tag
+        // relation below. Filling it onto the model would try to persist a
+        // non-existent column.
+        $contact->fill(collect($request->validated())->except('tag_ids')->all());
         $this->contacts->save($contact);
 
         if ($contact->wasChanged('status')) {
