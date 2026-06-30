@@ -47,6 +47,49 @@ class FlatFileEventRepository implements EventRepository
         return $this->hydrator->event($record);
     }
 
+    public function recordSource(Contact $contact, string $type, array $attributes = []): Event
+    {
+        $uuid = (string) Str::uuid();
+        $now = now()->toIso8601String();
+        $occurredAt = $attributes['occurred_at'] ?? null;
+
+        $record = [
+            'id' => $uuid,
+            'uuid' => $uuid,
+            'contact_id' => (string) $contact->id,
+            'type' => $type,
+            'summary' => $attributes['summary'] ?? null,
+            'payload' => $attributes['payload'] ?? [],
+            'actor_type' => $attributes['actor_type'] ?? null,
+            'actor_id' => $attributes['actor_id'] ?? null,
+            'source_type' => $attributes['source_type'] ?? null,
+            'source_id' => isset($attributes['source_id']) ? (string) $attributes['source_id'] : null,
+            'dedupe_key' => $attributes['dedupe_key'] ?? null,
+            'occurred_at' => $occurredAt instanceof \DateTimeInterface
+                ? $occurredAt->format(\DATE_ATOM)
+                : $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ];
+
+        $this->files->appendJsonLine($this->pathFor($contact->id), $record);
+
+        return $this->hydrator->event($record);
+    }
+
+    public function findByDedupeKey(string $dedupeKey): ?Event
+    {
+        foreach ($this->files->glob('events/*.jsonl') as $relative) {
+            foreach ($this->files->readJsonLines($relative) as $record) {
+                if (($record['dedupe_key'] ?? null) === $dedupeKey) {
+                    return $this->hydrator->event($record);
+                }
+            }
+        }
+
+        return null;
+    }
+
     public function find(int|string $id): ?Event
     {
         // Scan all event files. Acceptable at flat-file scale.

@@ -32,6 +32,31 @@ class EloquentEventRepository implements EventRepository
         return $event;
     }
 
+    public function recordSource(Contact $contact, string $type, array $attributes = []): Event
+    {
+        $event = new Event([
+            'type' => $type,
+            'summary' => $attributes['summary'] ?? null,
+            'payload' => $attributes['payload'] ?? [],
+            'actor_type' => $attributes['actor_type'] ?? null,
+            'actor_id' => $attributes['actor_id'] ?? null,
+            'source_type' => $attributes['source_type'] ?? null,
+            'source_id' => isset($attributes['source_id']) ? (string) $attributes['source_id'] : null,
+            'dedupe_key' => $attributes['dedupe_key'] ?? null,
+            'occurred_at' => $attributes['occurred_at'] ?? now(),
+        ]);
+
+        $event->contact_id = $contact->id;
+        $event->save();
+
+        return $event;
+    }
+
+    public function findByDedupeKey(string $dedupeKey): ?Event
+    {
+        return Event::query()->where('dedupe_key', $dedupeKey)->first();
+    }
+
     public function find(int|string $id): ?Event
     {
         return Event::query()->find($id);

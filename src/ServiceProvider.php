@@ -19,6 +19,7 @@ use Goldnead\Leadhub\Events\LeadHubFollowupCompleted;
 use Goldnead\Leadhub\Events\LeadHubFollowupSet;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
+use Goldnead\Leadhub\Events\LeadHubSourceIngested;
 use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
@@ -65,6 +66,7 @@ class ServiceProvider extends AddonServiceProvider
             DispatchCrmSync::class,
         ],
         LeadHubSubmissionAttached::class => [],
+        LeadHubSourceIngested::class => [],
         LeadHubStatusChanged::class => [
             DispatchCrmSync::class,
         ],
@@ -129,6 +131,11 @@ class ServiceProvider extends AddonServiceProvider
 
         // CRM destinations — singleton so other addons can extend() it.
         $this->app->singleton(DestinationManager::class);
+
+        // Ingestion service + public manager facade target. Singletons so that
+        // host-app source projectors registered at boot persist for the request.
+        $this->app->singleton(\Goldnead\Leadhub\Services\IngestionService::class);
+        $this->app->singleton(LeadHubManager::class);
     }
 
     public function bootAddon(): void

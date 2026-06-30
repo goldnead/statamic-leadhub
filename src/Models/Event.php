@@ -18,6 +18,7 @@ class Event extends Model
 
     protected $casts = [
         'payload' => 'array',
+        'occurred_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -39,6 +40,14 @@ class Event extends Model
     public const TYPE_CRM_SYNC_FAILED = 'crm_sync_failed';
     public const TYPE_CONTACT_ARCHIVED = 'contact_archived';
     public const TYPE_CONTACT_DELETED = 'contact_deleted';
+    public const TYPE_CONTACTS_MERGED = 'contacts_merged';
+    public const TYPE_SOURCE_INGESTED = 'source_ingested';
+    public const TYPE_TASK_CREATED = 'task_created';
+    public const TYPE_TASK_COMPLETED = 'task_completed';
+    public const TYPE_OPPORTUNITY_CREATED = 'opportunity_created';
+    public const TYPE_OPPORTUNITY_STAGE_CHANGED = 'opportunity_stage_changed';
+    public const TYPE_OPPORTUNITY_WON = 'opportunity_won';
+    public const TYPE_OPPORTUNITY_LOST = 'opportunity_lost';
 
     protected static function booted(): void
     {
