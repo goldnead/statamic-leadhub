@@ -22,10 +22,17 @@ abstract class TestCase extends OrchestraTestCase
         // callbacks, so Nav, Permissions, and the rest of bootAddon never
         // register. Force it so HTTP feature tests can actually hit the
         // CP routes with the right ACLs in place.
-        $provider = $this->app->getProvider(ServiceProvider::class);
-        if ($provider) {
-            $provider->bootAddon();
-        }
+        $this->bootAddons();
+    }
+
+    /**
+     * Manually fire the Statamic addon bootAddon() callbacks that
+     * orchestra/testbench skips. Subclasses that need a peer addon booted
+     * first (e.g. the live webhook-manager integration) override this.
+     */
+    protected function bootAddons(): void
+    {
+        $this->app->getProvider(ServiceProvider::class)?->bootAddon();
     }
 
     protected function getPackageProviders($app): array

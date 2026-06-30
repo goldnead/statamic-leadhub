@@ -70,9 +70,19 @@ class WebhookManagerBridge
         }
 
         foreach (static::TRIGGERS as $eventClass => [$handle, $label]) {
-            \Goldnead\WebhookManager\Facades\WebhookManager::registerTrigger(
-                new LeadhubTrigger($handle, $label)
-            );
+            // Fail-safe: resolving the webhook-manager facade touches a binding
+            // that the addon sets up in its own boot. Addon boot order between
+            // two sibling addons is not guaranteed, so registration must never
+            // be allowed to break LeadHub's own boot.
+            try {
+                \Goldnead\WebhookManager\Facades\WebhookManager::registerTrigger(
+                    new LeadhubTrigger($handle, $label)
+                );
+            } catch (\Throwable $e) {
+                Log::warning('LeadHub → Webhook Manager bridge could not register trigger ['.$handle.']: '.$e->getMessage());
+
+                continue;
+            }
 
             $events->listen($eventClass, function ($event) use ($handle): void {
                 $this->dispatch($handle, $event);
