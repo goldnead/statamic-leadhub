@@ -209,6 +209,108 @@ class LeadHubManager
         return $this->present($this->reload($contact));
     }
 
+    // -- Pipelines & opportunities -----------------------------------------
+
+    /**
+     * Create a pipeline with its stages in one call.
+     *
+     * @param  array<int,array{name:string,slug?:string,is_terminal?:bool,terminal_outcome?:string}>  $stages
+     */
+    public function createPipeline(string $name, array $stages = [], ?string $slug = null): array
+    {
+        $pipeline = \Goldnead\Leadhub\Models\Pipeline::query()->create([
+            'name' => $name,
+            'slug' => $slug ?: \Illuminate\Support\Str::slug($name),
+        ]);
+
+        foreach (array_values($stages) as $index => $stage) {
+            $pipeline->stages()->create([
+                'name' => $stage['name'],
+                'slug' => $stage['slug'] ?? \Illuminate\Support\Str::slug($stage['name']),
+                'sort_order' => $stage['sort_order'] ?? $index,
+                'is_terminal' => $stage['is_terminal'] ?? false,
+                'terminal_outcome' => $stage['terminal_outcome'] ?? null,
+            ]);
+        }
+
+        return $this->presentPipeline($pipeline->refresh());
+    }
+
+    /**
+     * Create or update an opportunity for a contact within a pipeline (by slug
+     * or id). Deduped by (contact, pipeline, source) when source_* are given.
+     */
+    public function upsertOpportunity(int|string $contactId, int|string $pipeline, array $attributes = []): array
+    {
+        $contact = $this->mustFind($contactId);
+        $pipelineModel = $this->resolvePipeline($pipeline);
+
+        $opportunity = app(\Goldnead\Leadhub\Services\OpportunityService::class)
+            ->createOrUpdate($contact, $pipelineModel, $attributes);
+
+        return $this->presentOpportunity($opportunity);
+    }
+
+    /** Move an opportunity to a stage (by slug or id) within its pipeline. */
+    public function moveStage(int|string $opportunityId, int|string $stage, ?string $note = null): array
+    {
+        $opportunity = \Goldnead\Leadhub\Models\Opportunity::query()->findOrFail($opportunityId);
+
+        $stageModel = is_numeric($stage)
+            ? \Goldnead\Leadhub\Models\Stage::query()->findOrFail($stage)
+            : \Goldnead\Leadhub\Models\Stage::query()
+                ->where('pipeline_id', $opportunity->pipeline_id)
+                ->where('slug', $stage)
+                ->firstOrFail();
+
+        app(\Goldnead\Leadhub\Services\StageTransitionService::class)
+            ->transition($opportunity, $stageModel, $note);
+
+        return $this->presentOpportunity($opportunity->refresh());
+    }
+
+    protected function resolvePipeline(int|string $pipeline): \Goldnead\Leadhub\Models\Pipeline
+    {
+        return is_numeric($pipeline)
+            ? \Goldnead\Leadhub\Models\Pipeline::query()->findOrFail($pipeline)
+            : \Goldnead\Leadhub\Models\Pipeline::query()->where('slug', $pipeline)->firstOrFail();
+    }
+
+    protected function presentPipeline(\Goldnead\Leadhub\Models\Pipeline $pipeline): array
+    {
+        return [
+            'id' => $pipeline->id,
+            'uuid' => $pipeline->uuid,
+            'name' => $pipeline->name,
+            'slug' => $pipeline->slug,
+            'is_active' => (bool) $pipeline->is_active,
+            'stages' => $pipeline->stages->map(fn ($s) => [
+                'id' => $s->id,
+                'name' => $s->name,
+                'slug' => $s->slug,
+                'is_terminal' => (bool) $s->is_terminal,
+                'terminal_outcome' => $s->terminal_outcome,
+            ])->all(),
+        ];
+    }
+
+    protected function presentOpportunity(\Goldnead\Leadhub\Models\Opportunity $opportunity): array
+    {
+        return [
+            'id' => $opportunity->id,
+            'uuid' => $opportunity->uuid,
+            'contact_id' => $opportunity->contact_id,
+            'pipeline_id' => $opportunity->pipeline_id,
+            'stage_id' => $opportunity->stage_id,
+            'title' => $opportunity->title,
+            'value_estimate' => $opportunity->value_estimate,
+            'confidence' => $opportunity->confidence,
+            'status' => $opportunity->status,
+            'outcome' => $opportunity->outcome,
+            'owner_id' => $opportunity->owner_id,
+        ];
+    }
+
     // -- Tasks --------------------------------------------------------------
 
     /**
