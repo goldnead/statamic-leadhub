@@ -106,51 +106,57 @@ function statusColor(key) {
             <!-- Two-column layout -->
             <div class="grid gap-6 md:grid-cols-2">
                 <Panel :heading="__('Latest activity')">
-                    <div v-if="latestActivity.length === 0" class="px-4 py-6 text-sm text-gray-500 text-center">
-                        {{ __('No activity yet.') }}
-                    </div>
-                    <ul v-else class="divide-y divide-content-border">
-                        <li v-for="event in latestActivity" :key="event.id" class="px-4 py-3 text-sm">
-                            <div class="flex items-center justify-between">
-                                <Link :href="event.contact_url" class="font-medium hover:underline">
-                                    {{ event.contact_name }}
-                                </Link>
-                                <Text size="xs" variant="subtle">{{ event.created_at }}</Text>
-                            </div>
-                            <Text size="sm" variant="subtle">{{ event.summary }}</Text>
-                        </li>
-                    </ul>
-                </Panel>
-
-                <div class="space-y-4">
-                    <Panel :heading="__('Follow-ups due today')">
-                        <div v-if="followupsToday.length === 0" class="px-4 py-6 text-sm text-gray-500 text-center">
-                            {{ __('No follow-ups due today.') }}
+                    <Card>
+                        <div v-if="latestActivity.length === 0" class="py-6 text-sm text-gray-500 text-center">
+                            {{ __('No activity yet.') }}
                         </div>
-                        <ul v-else class="divide-y divide-content-border">
-                            <li v-for="f in followupsToday" :key="f.id" class="px-4 py-3 text-sm">
+                        <ul v-else class="-my-2 divide-y divide-content-border">
+                            <li v-for="event in latestActivity" :key="event.id" class="py-2.5 text-sm">
                                 <div class="flex items-center justify-between">
-                                    <Link :href="f.contact_url" class="font-medium hover:underline">
-                                        {{ f.contact_name }}
+                                    <Link :href="event.contact_url" class="font-medium hover:underline">
+                                        {{ event.contact_name }}
                                     </Link>
-                                    <Text size="xs" variant="subtle">{{ f.due_at }}</Text>
+                                    <Text size="xs" variant="subtle">{{ event.created_at }}</Text>
                                 </div>
-                                <Text v-if="f.note" size="sm" variant="subtle">{{ f.note }}</Text>
+                                <Text size="sm" variant="subtle">{{ event.summary }}</Text>
                             </li>
                         </ul>
+                    </Card>
+                </Panel>
+
+                <div class="space-y-6">
+                    <Panel :heading="__('Follow-ups due today')">
+                        <Card>
+                            <div v-if="followupsToday.length === 0" class="py-6 text-sm text-gray-500 text-center">
+                                {{ __('No follow-ups due today.') }}
+                            </div>
+                            <ul v-else class="-my-2 divide-y divide-content-border">
+                                <li v-for="f in followupsToday" :key="f.id" class="py-2.5 text-sm">
+                                    <div class="flex items-center justify-between">
+                                        <Link :href="f.contact_url" class="font-medium hover:underline">
+                                            {{ f.contact_name }}
+                                        </Link>
+                                        <Text size="xs" variant="subtle">{{ f.due_at }}</Text>
+                                    </div>
+                                    <Text v-if="f.note" size="sm" variant="subtle">{{ f.note }}</Text>
+                                </li>
+                            </ul>
+                        </Card>
                     </Panel>
 
                     <Panel v-if="followupsOverdue.length > 0" :heading="__('Overdue follow-ups')">
-                        <ul class="divide-y divide-content-border">
-                            <li v-for="f in followupsOverdue" :key="f.id" class="px-4 py-3 text-sm">
-                                <div class="flex items-center justify-between">
-                                    <Link :href="f.contact_url" class="font-medium hover:underline">
-                                        {{ f.contact_name }}
-                                    </Link>
-                                    <Badge color="red" :text="f.due_at" />
-                                </div>
-                            </li>
-                        </ul>
+                        <Card>
+                            <ul class="-my-2 divide-y divide-content-border">
+                                <li v-for="f in followupsOverdue" :key="f.id" class="py-2.5 text-sm">
+                                    <div class="flex items-center justify-between">
+                                        <Link :href="f.contact_url" class="font-medium hover:underline">
+                                            {{ f.contact_name }}
+                                        </Link>
+                                        <Badge color="red" :text="f.due_at" />
+                                    </div>
+                                </li>
+                            </ul>
+                        </Card>
                     </Panel>
                 </div>
             </div>
