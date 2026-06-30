@@ -25,10 +25,22 @@ It is **not** a full CRM. It's the missing layer between your website forms and 
 - **Dashboard** — KPIs, latest activity, due/overdue follow-ups
 - **Lead assignment + notifications** — assign an owner to each lead; e-mail your team on new leads, assignments, and a daily follow-up digest
 - **Marketing attribution** — capture UTM parameters, referrer and landing page on the originating submission
-- **CRM connectors** — push contacts to HubSpot, Brevo or any webhook (Zapier / Make / n8n) on create, update or status change, with a per-attempt **Sync log**
-- **Outbound events** — eleven domain events covering the full contact lifecycle, ready for [goldnead/statamic-webhook-manager](#webhooks--outbound-integrations) or your own listeners
+- **CRM connectors** — push contacts to HubSpot, Brevo or any webhook (Zapier / Make / n8n) on create, update or status change, with a per-attempt **Sync log**. Opted-out contacts (`do_not_contact`) are never pushed.
+- **Outbound events** — thirteen+ domain events covering the full contact lifecycle, ready for [goldnead/statamic-webhook-manager](#webhooks--outbound-integrations) or your own listeners
 
-What it deliberately does **not** do (yet): lead scoring, manual contact merge UI, bidirectional CRM sync. See [the roadmap](#roadmap).
+### CRM-core modules (opt-in)
+
+LeadHub can grow from a lead-capture layer into a lightweight CRM. These modules are **off by default** and require the eloquent driver — enable them under `features` in `config/leadhub.php`:
+
+- **Generic ingestion API** (`features.ingestion`) — `LeadHub::ingest()` turns *any* source (purchases, bookings, logins, inbound webhooks) into contacts + timeline entries, deduplicated by email/phone and idempotent via a `dedupe_key`. Register a `SourceProjector` to auto-map your own models.
+- **Companies** (`features.companies`) — B2B company records, deduplicated by domain/name, linked to contacts with a primary flag.
+- **Tasks** (`features.tasks`) — multiple tasks per contact with priority, assignee and due date (beyond the single next-action follow-up).
+- **Pipelines & opportunities** (`features.pipelines`) — multi-pipeline deal tracking with stages, terminal won/lost outcomes, value/confidence, full stage-transition history and a **Kanban board** in the CP.
+- **Contact merge** (`features.merge`) — `LeadHub::merge()` re-parents a duplicate's timeline/notes/tasks/opportunities onto a survivor.
+- **Lead scoring** (`features.scoring`) — accumulate an `engagement_score` per activity type.
+- **Public API** — a stable `Goldnead\Leadhub\Facades\LeadHub` facade (used by [statamic-automations](#automations) and [statamic-webhook-manager](#webhooks--outbound-integrations) to read and write leads).
+
+What it deliberately does **not** do (yet): bidirectional CRM sync, a pipeline-management UI (pipelines are seeded via `LeadHub::createPipeline()` / config). See [the roadmap](#roadmap).
 
 ---
 
