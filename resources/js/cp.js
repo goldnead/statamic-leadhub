@@ -8,6 +8,10 @@
 import Dashboard from './pages/Dashboard.vue';
 import ContactsIndex from './pages/Contacts/Index.vue';
 import ContactsShow from './pages/Contacts/Show.vue';
+import CompaniesIndex from './pages/Companies/Index.vue';
+import CompaniesShow from './pages/Companies/Show.vue';
+import TasksIndex from './pages/Tasks/Index.vue';
+import PipelinesBoard from './pages/Pipelines/Board.vue';
 import FollowupsIndex from './pages/Followups/Index.vue';
 import FormsIndex from './pages/Forms/Index.vue';
 import FormsEdit from './pages/Forms/Edit.vue';
@@ -19,6 +23,10 @@ Statamic.booting(() => {
     Statamic.$inertia.register('leadhub::Dashboard', Dashboard);
     Statamic.$inertia.register('leadhub::Contacts/Index', ContactsIndex);
     Statamic.$inertia.register('leadhub::Contacts/Show', ContactsShow);
+    Statamic.$inertia.register('leadhub::Companies/Index', CompaniesIndex);
+    Statamic.$inertia.register('leadhub::Companies/Show', CompaniesShow);
+    Statamic.$inertia.register('leadhub::Tasks/Index', TasksIndex);
+    Statamic.$inertia.register('leadhub::Pipelines/Board', PipelinesBoard);
     Statamic.$inertia.register('leadhub::Followups/Index', FollowupsIndex);
     Statamic.$inertia.register('leadhub::Forms/Index', FormsIndex);
     Statamic.$inertia.register('leadhub::Forms/Edit', FormsEdit);

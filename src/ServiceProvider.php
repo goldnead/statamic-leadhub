@@ -329,27 +329,47 @@ class ServiceProvider extends AddonServiceProvider
     protected function registerNavigation(): self
     {
         Nav::extend(function ($nav) {
+            $items = [
+                $nav->item(__('leadhub::nav.dashboard'))
+                    ->route('leadhub.dashboard'),
+                $nav->item(__('leadhub::nav.contacts'))
+                    ->route('leadhub.contacts.index'),
+            ];
+
+            // CRM-core sections — only shown when their feature flag is on
+            // (and, implicitly, the eloquent driver is in use).
+            if (config('leadhub.features.pipelines', false)) {
+                $items[] = $nav->item(__('leadhub::nav.pipelines'))
+                    ->route('leadhub.pipelines.board');
+            }
+            if (config('leadhub.features.tasks', false)) {
+                $items[] = $nav->item(__('leadhub::nav.tasks'))
+                    ->route('leadhub.tasks.index');
+            }
+            if (config('leadhub.features.companies', false)) {
+                $items[] = $nav->item(__('leadhub::nav.companies'))
+                    ->route('leadhub.companies.index');
+            }
+
+            $items = array_merge($items, [
+                $nav->item(__('leadhub::nav.followups'))
+                    ->route('leadhub.followups.index'),
+                $nav->item(__('leadhub::nav.forms'))
+                    ->route('leadhub.forms.index'),
+                $nav->item(__('leadhub::nav.tags'))
+                    ->route('leadhub.tags.index'),
+                $nav->item(__('leadhub::nav.settings'))
+                    ->route('leadhub.settings'),
+                $nav->item(__('leadhub::nav.sync_log'))
+                    ->route('leadhub.sync-log'),
+            ]);
+
             $nav->create('LeadHub')
                 ->section('Tools')
                 ->icon('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5.5H20.5L14 13V17.5L10 19.5V13Z"/></svg>')
                 ->route('leadhub.dashboard')
                 ->can('view leadhub')
-                ->children([
-                    $nav->item(__('leadhub::nav.dashboard'))
-                        ->route('leadhub.dashboard'),
-                    $nav->item(__('leadhub::nav.contacts'))
-                        ->route('leadhub.contacts.index'),
-                    $nav->item(__('leadhub::nav.followups'))
-                        ->route('leadhub.followups.index'),
-                    $nav->item(__('leadhub::nav.forms'))
-                        ->route('leadhub.forms.index'),
-                    $nav->item(__('leadhub::nav.tags'))
-                        ->route('leadhub.tags.index'),
-                    $nav->item(__('leadhub::nav.settings'))
-                        ->route('leadhub.settings'),
-                    $nav->item(__('leadhub::nav.sync_log'))
-                        ->route('leadhub.sync-log'),
-                ]);
+                ->children($items);
         });
 
         return $this;
