@@ -54,6 +54,14 @@ class WebhookManagerBridge
     ];
 
     /**
+     * Whether boot() has already run its registrations. Guards against
+     * double-registering triggers/listeners when the bridge is booted more
+     * than once (the ServiceProvider binds the bridge as a singleton so this
+     * guard holds across container resolutions).
+     */
+    protected bool $booted = false;
+
+    /**
      * Whether the webhook-manager addon is installed and the integration is on.
      */
     public static function available(): bool
@@ -68,9 +76,19 @@ class WebhookManagerBridge
      */
     public function boot(Dispatcher $events): void
     {
-        if (! static::available()) {
+        if ($this->booted || ! static::available()) {
             return;
         }
+
+        // The 'webhook-manager' container binding only appears once that
+        // addon's own provider has booted (sibling boot order is not
+        // guaranteed). Bail WITHOUT marking booted so a later boot attempt
+        // can still succeed instead of silently registering nothing.
+        if (! app()->bound('webhook-manager')) {
+            return;
+        }
+
+        $this->booted = true;
 
         foreach (static::TRIGGERS as $eventClass => [$handle, $label]) {
             // Fail-safe: resolving the webhook-manager facade touches a binding

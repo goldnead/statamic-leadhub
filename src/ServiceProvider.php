@@ -142,10 +142,28 @@ class ServiceProvider extends AddonServiceProvider
         // CRM destinations — singleton so other addons can extend() it.
         $this->app->singleton(DestinationManager::class);
 
+        // Singleton so the bridge's boot guard holds across resolutions —
+        // booting it twice must never double-register triggers/listeners.
+        $this->app->singleton(WebhookManagerBridge::class);
+
         // Ingestion service + public manager facade target. Singletons so that
         // host-app source projectors registered at boot persist for the request.
         $this->app->singleton(\Goldnead\Leadhub\Services\IngestionService::class);
         $this->app->singleton(LeadHubManager::class);
+    }
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        // Must be queued from the provider's boot() — NOT from bootAddon().
+        // Statamic runs bootAddon() inside an app->booted() callback, where
+        // the application already reports "booted" and a nested
+        // $this->app->booted() would fire immediately — i.e. still before a
+        // sibling addon's bootAddon() has run. Queuing here, while the app is
+        // still booting, guarantees the callback runs after ALL providers and
+        // addons have booted.
+        $this->registerWebhookManagerBridge();
     }
 
     public function bootAddon(): void
@@ -156,7 +174,6 @@ class ServiceProvider extends AddonServiceProvider
             ->registerPermissions()
             ->registerPolicies()
             ->registerSchedule()
-            ->registerWebhookManagerBridge()
             ->bootCommands()
             ->registerPublishables();
     }
@@ -164,11 +181,37 @@ class ServiceProvider extends AddonServiceProvider
     /**
      * Wire LeadHub's lifecycle events into goldnead/statamic-webhook-manager
      * when that addon is installed. No-op otherwise.
+     *
+     * Deferred until all providers have booted: sibling addon boot order is
+     * not guaranteed, and when LeadHub boots before webhook-manager the
+     * 'webhook-manager' container binding does not exist yet, so every
+     * trigger registration would fail. If the application is already booted,
+     * Laravel runs the callback immediately, so behaviour in already-booted
+     * contexts (e.g. tests) is unchanged.
      */
     protected function registerWebhookManagerBridge(): self
     {
-        $this->app->make(WebhookManagerBridge::class)
-            ->boot($this->app->make('events'));
+        $boot = function (): void {
+            $this->app->make(WebhookManagerBridge::class)
+                ->boot($this->app->make('events'));
+        };
+
+        $this->app->booted(function () use ($boot): void {
+            // First attempt. May still be too early: depending on package
+            // discovery order this callback can fire before Statamic's own
+            // booted callback has run the addons' bootAddon() methods, i.e.
+            // before webhook-manager has bound its service. The bridge then
+            // bails without marking itself booted.
+            $boot();
+
+            // Retry at the very end of the booted queue. Laravel appends
+            // callbacks registered during the booted phase to the live queue
+            // (and fires them once immediately), so this runs again after
+            // every other provider/addon callback — including Statamic's,
+            // which boots all addons. The bridge's guards make the extra
+            // invocations no-ops.
+            $this->app->booted($boot);
+        });
 
         return $this;
     }
