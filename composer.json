@@ -50,7 +50,7 @@
             "description": "Turn Statamic form submissions into contacts, timelines, and follow-ups directly inside your Control Panel.",
             "vite": {
                 "input": ["resources/js/cp.js", "resources/css/cp.css"],
-                "publicDirectory": "public"
+                "publicDirectory": "resources/dist"
             }
         },
         "laravel": {
