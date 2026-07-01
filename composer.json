@@ -13,7 +13,7 @@
     ],
     "authors": [
         {
-            "name": "goldnead",
+            "name": "Adrian Goldner",
             "email": "info@adriangoldner.com"
         }
     ],
@@ -32,6 +32,10 @@
         "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0",
         "pestphp/pest": "^2.0|^3.0",
         "pestphp/pest-plugin-laravel": "^2.0|^3.0"
+    },
+    "suggest": {
+        "goldnead/statamic-webhook-manager": "Fire outbound webhooks on LeadHub events and upsert leads from inbound webhooks",
+        "goldnead/statamic-automations": "Build multi-step follow-up workflows triggered by LeadHub events"
     },
     "autoload": {
         "psr-4": {
