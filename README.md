@@ -39,7 +39,7 @@ LeadHub can grow from a lead-capture layer into a lightweight CRM. These modules
 - **Contact merge** (`features.merge`) — `LeadHub::merge()` re-parents a duplicate's timeline/notes/tasks/opportunities onto a survivor.
 - **Lead scoring** (`features.scoring`) — accumulate an `engagement_score` per activity type.
 - **Consent / opt-out** — `do_not_contact` is honoured by every CRM connector; `LeadHub::optOut()` also actively removes the contact from supported destinations (e.g. a Brevo list).
-- **Public API** — a stable `Goldnead\Leadhub\Facades\LeadHub` facade (used by [statamic-automations](#automations) and [statamic-webhook-manager](#webhooks--outbound-integrations) to read and write leads, ingest external sources, and drive triggers).
+- **Public API & events** — a stable `Goldnead\Leadhub\Facades\LeadHub` facade to read and write leads and ingest external sources, plus 20+ lifecycle events fired across the contact lifecycle. [statamic-webhook-manager](#webhooks--outbound-integrations) pairs with these via LeadHub's built-in bridge; [statamic-automations](https://github.com/goldnead/statamic-automations) detects LeadHub on its side and offers these events as workflow triggers — no configuration in LeadHub required.
 
 What it deliberately does **not** do (yet): bidirectional CRM *pull* sync. See [the roadmap](#roadmap).
 
