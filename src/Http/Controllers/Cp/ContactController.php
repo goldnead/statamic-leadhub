@@ -53,7 +53,7 @@ class ContactController extends Controller
             // ?mine=1 scopes to the current user; ?assigned_to=ID to a specific
             // owner; ?assigned_to=none to unassigned leads.
             'assigned_to' => $request->boolean('mine')
-                ? (string) ($request->user()?->id() ?? '')
+                ? $this->userId($request)
                 : ($request->string('assigned_to')->toString() ?: null),
             'sort' => $request->input('sort', 'created_at'),
             'direction' => $request->input('direction', 'desc'),
@@ -230,8 +230,8 @@ class ContactController extends Controller
             ] : null,
             'statuses' => $statuses,
             'allTags' => $allTags,
-            'canArchive' => $request->user()?->hasPermission('archive leadhub contacts') ?? false,
-            'canDelete' => $request->user()?->hasPermission('delete leadhub contacts') ?? false,
+            'canArchive' => $this->userCan($request, 'archive leadhub contacts'),
+            'canDelete' => $this->userCan($request, 'delete leadhub contacts'),
         ]);
     }
 

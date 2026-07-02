@@ -131,7 +131,7 @@ class PipelineController extends Controller
             $opp,
             $stage,
             $validated['note'] ?? null,
-            (string) ($request->user()?->id() ?? '') ?: null,
+            $this->userId($request) ?: null,
         );
 
         return back()->with('success', __('leadhub::pipelines.moved'));

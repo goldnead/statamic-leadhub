@@ -19,7 +19,7 @@ class ExportController extends Controller
             'status', 'source', 'tag', 'from', 'to', 'followup', 'q', 'archived',
         ]);
 
-        $result = $this->exports->run($filters, (string) $request->user()?->id());
+        $result = $this->exports->run($filters, $this->userId($request));
 
         if ($result['queued'] ?? false) {
             return back()->with('success', __('leadhub::contacts.flashes.export_queued'));

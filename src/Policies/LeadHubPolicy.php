@@ -3,13 +3,21 @@
 namespace Goldnead\Leadhub\Policies;
 
 use Goldnead\Leadhub\Models\Contact;
-use Statamic\Contracts\Auth\User;
+use Illuminate\Contracts\Auth\Authenticatable as User;
+use Statamic\Facades\User as StatamicUser;
 
 class LeadHubPolicy
 {
+    /**
+     * The Gate passes the raw auth user — on eloquent-driver sites that is
+     * a plain App\Models\User, so we resolve the Statamic user through
+     * User::fromUser() before asking Statamic-specific questions. The
+     * per-ability checks below use $user->can(), which Statamic wires into
+     * the Gate for both user drivers.
+     */
     public function before(?User $user, string $ability): ?bool
     {
-        if ($user && method_exists($user, 'isSuper') && $user->isSuper()) {
+        if ($user && StatamicUser::fromUser($user)?->isSuper()) {
             return true;
         }
 

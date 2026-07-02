@@ -10,39 +10,35 @@ abstract class Controller extends BaseController
     /**
      * Abort with 403 unless the current user holds $permission.
      *
-     * Super users are short-circuited to true. We can't rely on
-     * Statamic's User::hasPermission() alone — for File-driver users
-     * it does NOT auto-include named permissions when the user is super
-     * (super only gets the literal `super` permission appended).
+     * Permission checks go through Laravel's Gate ($user->can()) instead of
+     * Statamic's User::hasPermission(): Statamic registers a Gate::after
+     * hook that resolves the Statamic user via User::fromUser() and
+     * short-circuits super users, so can() is correct for BOTH the file
+     * and the eloquent users repository. Calling hasPermission()/isSuper()
+     * on the raw auth user crashes on eloquent-driver sites where the
+     * authenticated model is a plain App\Models\User.
      */
     protected function authorizeOrFail(Request $request, string $permission): void
     {
-        $user = $request->user();
-
-        if (! $user) {
-            abort(403);
-        }
-
-        if (method_exists($user, 'isSuper') && $user->isSuper()) {
-            return;
-        }
-
-        if (! $user->hasPermission($permission)) {
+        if (! $this->userCan($request, $permission)) {
             abort(403);
         }
     }
 
     protected function userCan(Request $request, string $permission): bool
     {
-        $user = $request->user();
-        if (! $user) {
-            return false;
-        }
+        return (bool) $request->user()?->can($permission);
+    }
 
-        if (method_exists($user, 'isSuper') && $user->isSuper()) {
-            return true;
-        }
-
-        return $user->hasPermission($permission);
+    /**
+     * The authenticated user's identifier as a string ('' when guest).
+     *
+     * Uses getAuthIdentifier() from Laravel's Authenticatable contract —
+     * Statamic file users and plain eloquent users both implement it,
+     * whereas id() only exists on Statamic's user classes.
+     */
+    protected function userId(Request $request): string
+    {
+        return (string) ($request->user()?->getAuthIdentifier() ?? '');
     }
 }

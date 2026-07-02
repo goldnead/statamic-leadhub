@@ -53,7 +53,7 @@ class FollowupController extends Controller
             $contact,
             Carbon::parse($request->string('due_at')->toString()),
             $request->input('note'),
-            (string) ($request->user()?->id() ?? ''),
+            $this->userId($request),
         );
 
         return back()->with('success', __('leadhub::contacts.flashes.followup_set'));
@@ -83,7 +83,7 @@ class FollowupController extends Controller
         $followup = $this->followupsRepo->find($followupId);
         abort_unless($followup, 404);
 
-        $this->service->complete($followup, (string) ($request->user()?->id() ?? ''));
+        $this->service->complete($followup, $this->userId($request));
 
         return back()->with('success', __('leadhub::contacts.flashes.followup_completed'));
     }

@@ -39,7 +39,7 @@ class TagController extends Controller
             'tags' => $rows,
             'columns' => $columns,
             'storeUrl' => cp_route('leadhub.tags.store'),
-            'canManage' => $request->user()?->hasPermission('manage leadhub tags') ?? false,
+            'canManage' => $this->userCan($request, 'manage leadhub tags'),
         ]);
     }
 

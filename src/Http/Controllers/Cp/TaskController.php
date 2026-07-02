@@ -63,7 +63,7 @@ class TaskController extends Controller
         abort_unless(config('leadhub.features.tasks', false), 404);
 
         $model = Task::query()->findOrFail($task);
-        app(TaskService::class)->complete($model, (string) ($request->user()?->id() ?? '') ?: null);
+        app(TaskService::class)->complete($model, $this->userId($request) ?: null);
 
         return back()->with('success', __('leadhub::tasks.completed'));
     }

@@ -6,6 +6,12 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.0.1] — 2026-07-02
+
+### Fixed
+
+- **Eloquent-users compatibility.** CP controllers and the `LeadHubPolicy` called Statamic-only methods (`hasPermission()`, `isSuper()`, `id()`) on the raw authenticated user. On sites using the eloquent users repository the auth user is a plain model (e.g. `App\Models\User`), so every LeadHub CP page crashed with a `BadMethodCallException`. Permission checks now go through Laravel's Gate (`$user->can()`, which Statamic wires up via `Gate::after` for both user drivers), the policy resolves supers via `User::fromUser()`, and user IDs are read with `getAuthIdentifier()`. Regression-tested with `statamic.users.repository=eloquent` and a plain `Authenticatable` model.
+
 ## [1.0.0] — 2026-06-30
 
 First stable release — the complete LeadHub feature set on Statamic 6, installable with `composer require` + `php artisan migrate` out of the box.

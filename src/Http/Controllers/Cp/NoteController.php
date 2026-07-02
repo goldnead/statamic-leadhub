@@ -23,7 +23,7 @@ class NoteController extends Controller
         abort_unless($contact, 404);
 
         $body = $request->string('body')->toString();
-        $userId = (string) ($request->user()?->id() ?? '');
+        $userId = $this->userId($request);
 
         $note = $this->notes->create($contact, $body, $userId !== '' ? $userId : null);
 
