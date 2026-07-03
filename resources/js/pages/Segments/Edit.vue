@@ -1,4 +1,5 @@
 <script setup>
+import axios from 'axios';
 import { ref, reactive, watch, computed } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import { Header, Panel, Badge, Button, Field, Input, Select, Switch } from '@statamic/cms/ui';
@@ -63,7 +64,7 @@ function schedulePreview() {
 
 function runPreview() {
     previewing.value = true;
-    window.axios.post(props.previewUrl, { rules: form.rules })
+    axios.post(props.previewUrl, { rules: form.rules })
         .then((res) => { previewCount.value = res.data.count; })
         .catch(() => { previewCount.value = null; })
         .finally(() => { previewing.value = false; });
