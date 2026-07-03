@@ -35,13 +35,13 @@ function reloadPage() {
 
 function statusColor(key) {
     return {
-        new: 'gray',
+        new: 'default',
         contacted: 'blue',
         qualified: 'amber',
         won: 'green',
         lost: 'red',
-        archived: 'gray',
-    }[key] || 'gray';
+        archived: 'default',
+    }[key] || 'default';
 }
 
 function exportCsv() {
@@ -111,7 +111,7 @@ function restore(row) {
 
             <template #cell-tags="{ row }">
                 <div class="flex flex-wrap gap-1">
-                    <Badge v-for="tag in row.tags" :key="tag.id" color="gray" :text="tag.name" />
+                    <Badge v-for="tag in row.tags" :key="tag.id" color="default" :text="tag.name" />
                 </div>
             </template>
 
@@ -131,7 +131,7 @@ function restore(row) {
             <template #cell-active_followup="{ row }">
                 <Badge
                     v-if="row.active_followup"
-                    :color="row.active_followup.is_overdue ? 'red' : 'gray'"
+                    :color="row.active_followup.is_overdue ? 'red' : 'default'"
                     :text="row.active_followup.due_at"
                 />
                 <span v-else class="text-2xs text-gray-400">—</span>

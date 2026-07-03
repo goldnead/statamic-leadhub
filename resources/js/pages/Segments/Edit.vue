@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, watch, computed } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
-import { Header, Panel, Badge, Button, Field, Input } from '@statamic/cms/ui';
+import { Header, Panel, Badge, Button, Field, Input, Select, Switch } from '@statamic/cms/ui';
 
 const props = defineProps([
     'segment',      // null on create, else { id, name, handle, description, is_active, rules, update_url, delete_url }
@@ -93,7 +93,7 @@ function submit() {
 
     <div class="max-w-page mx-auto">
         <Header :title="isEdit ? __('Edit segment') : __('New segment')" icon="tags">
-            <Button :href="indexUrl" :as="Link" :text="__('Back')" variant="ghost" />
+            <Button :href="indexUrl" :text="__('Back')" variant="ghost" />
             <Button :text="__('Save')" variant="primary" :disabled="!form.name.trim()" @click="submit" />
         </Header>
 
@@ -109,7 +109,7 @@ function submit() {
                     <Input v-model="form.description" />
                 </Field>
                 <label class="flex items-center gap-2 text-sm">
-                    <input type="checkbox" v-model="form.is_active" />
+                    <Switch v-model="form.is_active" />
                     {{ __('Active') }}
                 </label>
             </div>
@@ -119,10 +119,11 @@ function submit() {
             <div class="p-4 space-y-4">
                 <div class="flex items-center gap-2">
                     <span class="text-sm">{{ __('Contacts must match') }}</span>
-                    <select v-model="form.rules.match" class="rounded border border-content-border h-9 px-2 text-sm">
-                        <option value="all">{{ __('all conditions') }}</option>
-                        <option value="any">{{ __('any condition') }}</option>
-                    </select>
+                    <Select
+                        v-model="form.rules.match"
+                        class="w-48"
+                        :options="[{ value: 'all', label: __('all conditions') }, { value: 'any', label: __('any condition') }]"
+                    />
                 </div>
 
                 <div
@@ -135,14 +136,10 @@ function submit() {
                     <!-- field condition -->
                     <template v-if="condition.type === 'field'">
                         <Field :label="__('Field')" class="min-w-[10rem]">
-                            <select v-model="condition.field" class="rounded border border-content-border h-10 px-2 w-full">
-                                <option v-for="f in vocabulary.fields" :key="f" :value="f">{{ f }}</option>
-                            </select>
+                            <Select v-model="condition.field" class="w-full" :options="vocabulary.fields.map(f => ({ value: f, label: f }))" />
                         </Field>
                         <Field :label="__('Operator')">
-                            <select v-model="condition.operator" class="rounded border border-content-border h-10 px-2">
-                                <option v-for="o in vocabulary.field_operators" :key="o" :value="o">{{ o }}</option>
-                            </select>
+                            <Select v-model="condition.operator" :options="vocabulary.field_operators.map(o => ({ value: o, label: o }))" />
                         </Field>
                         <Field :label="__('Value')" class="flex-1 min-w-[8rem]">
                             <Input v-model="condition.value" />
@@ -152,9 +149,7 @@ function submit() {
                     <!-- tag condition -->
                     <template v-else-if="condition.type === 'tag'">
                         <Field :label="__('Operator')">
-                            <select v-model="condition.operator" class="rounded border border-content-border h-10 px-2">
-                                <option v-for="o in vocabulary.tag_operators" :key="o" :value="o">{{ o }}</option>
-                            </select>
+                            <Select v-model="condition.operator" :options="vocabulary.tag_operators.map(o => ({ value: o, label: o }))" />
                         </Field>
                         <Field :label="__('Tag (id, slug or name)')" class="flex-1 min-w-[10rem]">
                             <Input v-model="condition.value" />
@@ -164,9 +159,7 @@ function submit() {
                     <!-- event condition -->
                     <template v-else-if="condition.type === 'event'">
                         <Field :label="__('Operator')">
-                            <select v-model="condition.operator" class="rounded border border-content-border h-10 px-2">
-                                <option v-for="o in vocabulary.event_operators" :key="o" :value="o">{{ o }}</option>
-                            </select>
+                            <Select v-model="condition.operator" :options="vocabulary.event_operators.map(o => ({ value: o, label: o }))" />
                         </Field>
                         <Field :label="__('Event key')" class="flex-1 min-w-[8rem]">
                             <Input v-model="condition.event" :placeholder="__('e.g. purchase')" />
@@ -190,7 +183,7 @@ function submit() {
         <Panel :heading="__('Matching contacts')">
             <div class="p-4 flex items-center gap-3">
                 <Badge
-                    :color="previewing ? 'gray' : 'green'"
+                    :color="previewing ? 'default' : 'green'"
                     :text="previewing ? '…' : (previewCount === null ? '—' : String(previewCount))"
                 />
                 <span class="text-sm text-gray-500">{{ __('contacts currently match these rules') }}</span>

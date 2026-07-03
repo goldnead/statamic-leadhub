@@ -55,7 +55,7 @@ function money(value) {
                     <div class="px-3 py-2 border-b border-content-border flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="font-medium text-sm">{{ column.name }}</span>
-                            <Badge color="gray" :text="String(column.cards.length)" />
+                            <Badge color="default" :text="String(column.cards.length)" />
                         </div>
                         <Badge
                             v-if="column.is_terminal"
@@ -68,7 +68,7 @@ function money(value) {
                         <div
                             v-for="card in column.cards"
                             :key="card.id"
-                            class="rounded border border-content-border bg-white dark:bg-dark-700 p-2 shadow-sm"
+                            class="rounded border border-content-border bg-white dark:bg-gray-850 p-2 shadow-sm"
                         >
                             <div class="font-medium text-sm">{{ card.title }}</div>
                             <a v-if="card.contact_url" :href="card.contact_url" class="text-xs text-blue-600">
@@ -78,7 +78,7 @@ function money(value) {
                                 <span v-if="card.value_estimate" class="text-xs text-gray-600 dark:text-gray-300">
                                     {{ money(card.value_estimate) }}
                                 </span>
-                                <Badge v-if="card.confidence" color="gray" :text="`${card.confidence}%`" />
+                                <Badge v-if="card.confidence" color="default" :text="`${card.confidence}%`" />
                             </div>
 
                             <div v-if="canManage" class="mt-2 flex flex-wrap gap-1">

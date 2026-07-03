@@ -102,7 +102,7 @@ function tagOptions() {
 
     <div class="max-w-5xl 3xl:max-w-6xl mx-auto" data-max-width-wrapper>
         <Header :title="contact.display_name" icon="user">
-            <Select v-model="status" :options="statusOptions()" @change="changeStatus" />
+            <Select v-model="status" :options="statusOptions()" @update:model-value="changeStatus" />
         </Header>
 
         <div class="grid gap-6 lg:grid-cols-3">
@@ -170,7 +170,12 @@ function tagOptions() {
                             </li>
                         </ul>
                         <div v-if="events.meta.last_page > 1" class="mt-4 pt-4 border-t border-content-border">
-                            <Pagination :meta="events.meta" />
+                            <Pagination
+                                :resource-meta="events.meta"
+                                :show-totals="false"
+                                :show-per-page-selector="false"
+                                @page-selected="page => router.get(window.location.pathname, { page }, { preserveScroll: true, preserveState: true })"
+                            />
                         </div>
                     </Card>
                 </Panel>
@@ -196,7 +201,7 @@ function tagOptions() {
                     <Card>
                         <div v-if="activeFollowup" class="text-sm space-y-3">
                             <div class="flex items-center gap-2">
-                                <Badge :color="activeFollowup.is_overdue ? 'red' : 'gray'" :text="activeFollowup.due_at" />
+                                <Badge :color="activeFollowup.is_overdue ? 'red' : 'default'" :text="activeFollowup.due_at" />
                                 <Text v-if="activeFollowup.is_overdue" size="xs" variant="danger">{{ __('overdue') }}</Text>
                             </div>
                             <Text v-if="activeFollowup.note">{{ activeFollowup.note }}</Text>
@@ -292,10 +297,10 @@ function tagOptions() {
         </div>
 
         <ConfirmationModal
-            v-if="showDeleteConfirm"
+            :open="showDeleteConfirm"
             :title="__('Delete contact')"
-            :message="__('This will permanently delete the contact and its entire timeline. This cannot be undone.')"
-            variant="danger"
+            :body-text="__('This will permanently delete the contact and its entire timeline. This cannot be undone.')"
+            danger
             :button-text="__('Delete')"
             @cancel="showDeleteConfirm = false"
             @confirm="destroy"

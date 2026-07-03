@@ -46,13 +46,13 @@ const kpiTiles = computed(() => [
 
 function statusColor(key) {
     return {
-        new: 'gray',
+        new: 'default',
         contacted: 'blue',
         qualified: 'amber',
         won: 'green',
         lost: 'red',
-        archived: 'gray',
-    }[key] || 'gray';
+        archived: 'default',
+    }[key] || 'default';
 }
 </script>
 
