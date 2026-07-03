@@ -365,6 +365,58 @@ The listener is **fail-safe**: any exception is caught and logged. A LeadHub err
 
 ---
 
+## Segments
+
+Segments are **dynamic groups of contacts defined by rules**. Membership is materialized and kept up to date automatically: reactively when a contact changes, and via a daily sweep for time-based rules. Build them in the Control Panel under **LeadHub → Segments** with a live "matching contacts" preview.
+
+### Rule vocabulary
+
+A segment's rules are a boolean tree of `all` / `any` groups (groups nest):
+
+```json
+{
+  "match": "all",
+  "conditions": [
+    { "type": "field", "field": "status", "operator": "eq", "value": "qualified" },
+    { "type": "tag",   "operator": "has", "value": "vip" },
+    { "type": "event", "operator": "has", "event": "purchase", "within_days": 30 },
+    { "match": "any", "conditions": [
+      { "type": "field", "field": "source", "operator": "eq", "value": "referral" },
+      { "type": "field", "field": "utm_campaign", "operator": "contains", "value": "spring" }
+    ]}
+  ]
+}
+```
+
+- **`field`** — any of `status`, `source`, `source_form`, `assigned_to`, `engagement_score`, `do_not_contact`, `created_at`, `last_activity_at`, `full_name`, `first_name`, `last_name`, `email`, `company`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`. Operators: `eq`, `neq`, `in`, `not_in`, `contains`, `starts_with`, `gt`, `gte`, `lt`, `lte`, `is_set`, `is_empty`, `is_true`, `is_false`, `before`, `after`, `within_days`, `older_than_days`.
+- **`tag`** — `has` / `has_not` a tag (by id, slug, or name).
+- **`event`** — `has` / `has_not` a timeline event key, optionally `within_days`.
+
+An **empty rule set matches nobody** — express "everyone" as no segment at all.
+
+### How membership stays fresh
+
+- **Reactive:** a listener re-evaluates the mutated contact against every active segment on `LeadHubContactCreated/Updated`, `LeadHubStatusChanged`, `LeadHubTagAdded/Removed`, and `LeadHubSourceIngested`.
+- **Scheduled sweep:** `leadhub:segments:sweep` (registered daily) re-materializes membership for time-based rules that no mutation would otherwise trigger.
+- **Diffs fire events:** `LeadHubContactEnteredSegment` and `LeadHubContactLeftSegment` (both carry `segment_handle` / `segment_id` in `metadata`). These are exposed as Webhook Manager triggers (`leadhub.segment.entered` / `leadhub.segment.left`) automatically.
+- **Loop protection:** a per-contact re-evaluation depth guard (`SegmentService::MAX_DEPTH = 1`) prevents infinite cascades when a consumer reacts to an enter/leave event by mutating the same contact.
+
+### Consumer contract (public facade)
+
+```php
+use Goldnead\Leadhub\Facades\LeadHub;
+
+LeadHub::segments();                          // [{ id, name, handle, is_active, members_count }, ...]
+LeadHub::segmentMemberIds('qualified-leads'); // ['<contact-uuid>', ...] resolved LIVE from the rules
+LeadHub::contactInSegment($contactOrId, 'qualified-leads'); // bool, cheap reactive check
+```
+
+`segmentMemberIds()` returns contact **UUIDs** and resolves live from the segment's rules (not the materialized pivot), so consumers always see the current set. It returns `[]` for an unknown or inactive segment. Guard optional integrations with `method_exists(LeadHub::getFacadeRoot(), 'segmentMemberIds')` so older LeadHub versions degrade gracefully.
+
+Both storage drivers are supported: `eloquent` materializes membership in the `leadhub_segment_contact` pivot; `flat` mirrors segment handles onto each contact's YAML.
+
+---
+
 ## Webhooks & outbound integrations
 
 LeadHub doesn't ship its own webhook-sending UI — instead it fires a complete set of plain Laravel events across the contact lifecycle. That makes it a first-class **event source** for any webhook addon, queue, or listener you already run.

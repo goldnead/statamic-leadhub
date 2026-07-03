@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Facade;
 /**
  * @method static array statuses()
  * @method static array tags()
+ * @method static array segments()
+ * @method static array segmentMemberIds(string $handle)
+ * @method static bool contactInSegment(\Goldnead\Leadhub\Models\Contact|int|string $contactOrId, string $handle)
  * @method static array|null find(int|string $id)
  * @method static array|null findByEmail(string $email)
  * @method static array create(array $attributes)

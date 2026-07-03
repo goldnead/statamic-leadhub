@@ -9,6 +9,8 @@ return [
     'archive_contacts' => 'Kontakte archivieren',
     'export_contacts' => 'Kontakte exportieren',
     'manage_tags' => 'Tags verwalten',
+    'view_segments' => 'Segmente sehen',
+    'manage_segments' => 'Segmente verwalten',
     'manage_form_mappings' => 'Formular-Zuordnungen verwalten',
     'manage_settings' => 'LeadHub-Einstellungen verwalten',
 ];

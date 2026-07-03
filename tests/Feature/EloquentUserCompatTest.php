@@ -125,6 +125,36 @@ class EloquentUserCompatTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_segments_index_renders_for_super_eloquent_user(): void
+    {
+        $this->actingAs($this->makeUser(super: true));
+
+        $response = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get(cp_route('leadhub.segments.index'));
+
+        $response->assertStatus(200);
+    }
+
+    public function test_segments_create_renders_for_super_eloquent_user(): void
+    {
+        $this->actingAs($this->makeUser(super: true));
+
+        $response = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get(cp_route('leadhub.segments.create'));
+
+        $response->assertStatus(200);
+    }
+
+    public function test_unprivileged_eloquent_user_gets_403_on_segments(): void
+    {
+        $this->actingAs($this->makeUser(super: false));
+
+        $response = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get(cp_route('leadhub.segments.index'));
+
+        $response->assertStatus(403);
+    }
+
     public function test_unprivileged_eloquent_user_gets_403_not_500(): void
     {
         $this->actingAs($this->makeUser(super: false));

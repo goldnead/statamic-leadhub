@@ -5,6 +5,7 @@ namespace Goldnead\Leadhub;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
 use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
+use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Contracts\SourceProjector;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
@@ -14,6 +15,7 @@ use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Services\ContactResolver;
 use Goldnead\Leadhub\Services\FollowupService;
 use Goldnead\Leadhub\Services\IngestionService;
+use Goldnead\Leadhub\Services\SegmentService;
 use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactDto;
@@ -39,6 +41,8 @@ class LeadHubManager
         protected FollowupService $followupService,
         protected TimelineService $timeline,
         protected IngestionService $ingestion,
+        protected SegmentRepository $segmentRepository,
+        protected SegmentService $segmentService,
     ) {
     }
 
@@ -57,6 +61,48 @@ class LeadHubManager
             ->map(fn ($tag) => ['id' => $tag->id, 'name' => $tag->name, 'slug' => $tag->slug])
             ->values()
             ->all();
+    }
+
+    /**
+     * All segments as [id, name, handle, is_active, members_count] arrays.
+     *
+     * @return array<int,array{id:mixed,name:string,handle:string,is_active:bool,members_count:int}>
+     */
+    public function segments(): array
+    {
+        return $this->segmentRepository->all()
+            ->map(fn ($segment) => [
+                'id' => $segment->uuid,
+                'name' => $segment->name,
+                'handle' => $segment->handle,
+                'is_active' => (bool) $segment->is_active,
+                'members_count' => $this->segmentRepository->membersCount($segment),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Member contact UUIDs for a segment handle, resolved LIVE from the
+     * segment's rules (not the materialized pivot). Returns [] for an unknown
+     * or inactive segment. This is the stable contract consumers (e.g.
+     * statamic-marketing campaign audience narrowing) build on.
+     *
+     * @return array<int,string>
+     */
+    public function segmentMemberIds(string $handle): array
+    {
+        return $this->segmentService->resolveMemberIds($handle);
+    }
+
+    /**
+     * Is a contact (by model, id, or uuid) a member of the segment identified
+     * by $handle? Cheap, reactive path — evaluates the contact's fields against
+     * the segment rules without scanning the whole contact set.
+     */
+    public function contactInSegment(Contact|int|string $contactOrId, string $handle): bool
+    {
+        return $this->segmentService->contactInSegment($contactOrId, $handle);
     }
 
     /** Find a contact by id or uuid, normalized to an array (or null). */

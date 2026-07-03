@@ -17,6 +17,8 @@ import FollowupsIndex from './pages/Followups/Index.vue';
 import FormsIndex from './pages/Forms/Index.vue';
 import FormsEdit from './pages/Forms/Edit.vue';
 import TagsIndex from './pages/Tags/Index.vue';
+import SegmentsIndex from './pages/Segments/Index.vue';
+import SegmentsEdit from './pages/Segments/Edit.vue';
 import Settings from './pages/Settings.vue';
 import SyncLog from './pages/SyncLog.vue';
 
@@ -33,6 +35,8 @@ Statamic.booting(() => {
     Statamic.$inertia.register('leadhub::Forms/Index', FormsIndex);
     Statamic.$inertia.register('leadhub::Forms/Edit', FormsEdit);
     Statamic.$inertia.register('leadhub::Tags/Index', TagsIndex);
+    Statamic.$inertia.register('leadhub::Segments/Index', SegmentsIndex);
+    Statamic.$inertia.register('leadhub::Segments/Edit', SegmentsEdit);
     Statamic.$inertia.register('leadhub::Settings', Settings);
     Statamic.$inertia.register('leadhub::SyncLog', SyncLog);
 });

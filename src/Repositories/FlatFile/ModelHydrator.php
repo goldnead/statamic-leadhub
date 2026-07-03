@@ -7,6 +7,7 @@ use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Models\Followup;
 use Goldnead\Leadhub\Models\FormMapping;
 use Goldnead\Leadhub\Models\Note;
+use Goldnead\Leadhub\Models\Segment;
 use Goldnead\Leadhub\Models\Tag;
 use Illuminate\Database\Eloquent\Model;
 
@@ -49,6 +50,11 @@ class ModelHydrator
     public function formMapping(array $data): FormMapping
     {
         return $this->hydrate(new FormMapping(), $data);
+    }
+
+    public function segment(array $data): Segment
+    {
+        return $this->hydrate(new Segment(), $data);
     }
 
     /**

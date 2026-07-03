@@ -6,11 +6,13 @@ use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
+use Goldnead\Leadhub\Console\SweepSegmentsCommand;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
+use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
@@ -29,6 +31,7 @@ use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
+use Goldnead\Leadhub\Listeners\ReevaluateSegmentMembership;
 use Goldnead\Leadhub\Listeners\ScoreContactOnActivity;
 use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
 use Goldnead\Leadhub\Models\Contact;
@@ -38,6 +41,7 @@ use Goldnead\Leadhub\Repositories\Eloquent\EloquentEventRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentFollowupRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentFormMappingRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentNoteRepository;
+use Goldnead\Leadhub\Repositories\Eloquent\EloquentSegmentRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentTagRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FileStore;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository;
@@ -45,6 +49,7 @@ use Goldnead\Leadhub\Repositories\FlatFile\FlatFileEventRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFollowupRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFormMappingRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileNoteRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileSegmentRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\Index;
 use Goldnead\Leadhub\Repositories\FlatFile\IndexBuilder;
@@ -64,23 +69,33 @@ class ServiceProvider extends AddonServiceProvider
         LeadHubContactCreated::class => [
             SendNewLeadNotification::class,
             DispatchCrmSync::class,
+            ReevaluateSegmentMembership::class,
         ],
         LeadHubContactUpdated::class => [
             DispatchCrmSync::class,
+            ReevaluateSegmentMembership::class,
         ],
         LeadHubSubmissionAttached::class => [
             ScoreContactOnActivity::class,
         ],
         LeadHubSourceIngested::class => [
             ScoreContactOnActivity::class,
+            ReevaluateSegmentMembership::class,
         ],
         LeadHubContactsMerged::class => [],
         LeadHubStatusChanged::class => [
             DispatchCrmSync::class,
+            ReevaluateSegmentMembership::class,
         ],
-        LeadHubTagAdded::class => [],
-        LeadHubTagRemoved::class => [],
+        LeadHubTagAdded::class => [
+            ReevaluateSegmentMembership::class,
+        ],
+        LeadHubTagRemoved::class => [
+            ReevaluateSegmentMembership::class,
+        ],
         LeadHubNoteAdded::class => [],
+        \Goldnead\Leadhub\Events\LeadHubContactEnteredSegment::class => [],
+        \Goldnead\Leadhub\Events\LeadHubContactLeftSegment::class => [],
         LeadHubFollowupSet::class => [],
         LeadHubFollowupCompleted::class => [],
         \Goldnead\Leadhub\Events\LeadHubFollowupDue::class => [],
@@ -115,6 +130,7 @@ class ServiceProvider extends AddonServiceProvider
         StorageMigrateCommand::class,
         SendFollowupDigestCommand::class,
         FireDueFollowupsCommand::class,
+        SweepSegmentsCommand::class,
     ];
 
     public function register(): void
@@ -234,6 +250,14 @@ class ServiceProvider extends AddonServiceProvider
                 ->dailyAt($time)
                 ->onOneServer()
                 ->name('leadhub-followups-due');
+
+            // Re-materialize segment membership for time-based rules that the
+            // reactive listener can't catch without a mutation to trigger it.
+            $sweepTime = (string) config('leadhub.segments.sweep_time', '03:00');
+            $schedule->command('leadhub:segments:sweep')
+                ->dailyAt($sweepTime)
+                ->onOneServer()
+                ->name('leadhub-segments-sweep');
         });
 
         return $this;
@@ -265,6 +289,7 @@ class ServiceProvider extends AddonServiceProvider
         $this->app->bind(EloquentFollowupRepository::class);
         $this->app->bind(EloquentTagRepository::class);
         $this->app->bind(EloquentFormMappingRepository::class);
+        $this->app->bind(EloquentSegmentRepository::class);
 
         // Flat-file driver: shared FileStore + per-entity Indexes.
         $this->app->singleton(FileStore::class, function ($app) {
@@ -348,6 +373,12 @@ class ServiceProvider extends AddonServiceProvider
                 $app->make(ModelHydrator::class),
             );
         });
+        $this->app->singleton(FlatFileSegmentRepository::class, function ($app) {
+            return new FlatFileSegmentRepository(
+                $app->make(FileStore::class),
+                $app->make(ModelHydrator::class),
+            );
+        });
 
         // Driver selection — resolved lazily on each `app()` call so that
         // config changes after `register()` (e.g. orchestra/testbench's
@@ -366,6 +397,7 @@ class ServiceProvider extends AddonServiceProvider
         $bind(FollowupRepository::class, EloquentFollowupRepository::class, FlatFileFollowupRepository::class);
         $bind(TagRepository::class, EloquentTagRepository::class, FlatFileTagRepository::class);
         $bind(FormMappingRepository::class, EloquentFormMappingRepository::class, FlatFileFormMappingRepository::class);
+        $bind(SegmentRepository::class, EloquentSegmentRepository::class, FlatFileSegmentRepository::class);
     }
 
     protected function registerMigrations(): self
@@ -410,6 +442,9 @@ class ServiceProvider extends AddonServiceProvider
                     ->route('leadhub.forms.index'),
                 $nav->item(__('leadhub::nav.tags'))
                     ->route('leadhub.tags.index'),
+                $nav->item(__('leadhub::nav.segments'))
+                    ->route('leadhub.segments.index')
+                    ->can('view leadhub segments'),
                 $nav->item(__('leadhub::nav.settings'))
                     ->route('leadhub.settings'),
                 $nav->item(__('leadhub::nav.sync_log'))
@@ -450,6 +485,12 @@ class ServiceProvider extends AddonServiceProvider
                             ]),
                         Permission::make('manage leadhub tags')
                             ->label(__('leadhub::permissions.manage_tags')),
+                        Permission::make('view leadhub segments')
+                            ->label(__('leadhub::permissions.view_segments'))
+                            ->children([
+                                Permission::make('manage leadhub segments')
+                                    ->label(__('leadhub::permissions.manage_segments')),
+                            ]),
                         Permission::make('manage leadhub form mappings')
                             ->label(__('leadhub::permissions.manage_form_mappings')),
                         Permission::make('manage leadhub settings')
