@@ -35,6 +35,21 @@ abstract class TestCase extends OrchestraTestCase
         $this->app->getProvider(ServiceProvider::class)?->bootAddon();
     }
 
+    /**
+     * Register the addon's $listen event listeners. Statamic does this in
+     * bootEvents() from the Statamic::booted callback that testbench never
+     * fires, so event-driven behaviour is otherwise inert in tests. Tests that
+     * assert on event-listener side effects opt in by calling this.
+     */
+    protected function bootAddonEvents(): void
+    {
+        $provider = $this->app->getProvider(ServiceProvider::class);
+
+        if ($provider && method_exists($provider, 'bootEvents')) {
+            $provider->bootEvents();
+        }
+    }
+
     protected function getPackageProviders($app): array
     {
         return [

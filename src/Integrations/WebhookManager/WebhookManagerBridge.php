@@ -5,6 +5,8 @@ namespace Goldnead\Leadhub\Integrations\WebhookManager;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactDeleted;
+use Goldnead\Leadhub\Events\LeadHubContactEnteredSegment;
+use Goldnead\Leadhub\Events\LeadHubContactLeftSegment;
 use Goldnead\Leadhub\Events\LeadHubContactUpdated;
 use Goldnead\Leadhub\Events\LeadHubFollowupCompleted;
 use Goldnead\Leadhub\Events\LeadHubFollowupSet;
@@ -51,6 +53,8 @@ class WebhookManagerBridge
         \Goldnead\Leadhub\Events\LeadHubSourceIngested::class => ['leadhub.source.ingested', 'LeadHub — source ingested'],
         \Goldnead\Leadhub\Events\LeadHubContactsMerged::class => ['leadhub.contacts.merged', 'LeadHub — contacts merged'],
         \Goldnead\Leadhub\Events\LeadHubFollowupDue::class => ['leadhub.followup.due', 'LeadHub — follow-up due'],
+        LeadHubContactEnteredSegment::class => ['leadhub.segment.entered', 'LeadHub — entered segment'],
+        LeadHubContactLeftSegment::class => ['leadhub.segment.left', 'LeadHub — left segment'],
     ];
 
     /**

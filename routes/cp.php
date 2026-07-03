@@ -9,6 +9,7 @@ use Goldnead\Leadhub\Http\Controllers\Cp\TaskController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FollowupController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FormMappingController;
 use Goldnead\Leadhub\Http\Controllers\Cp\NoteController;
+use Goldnead\Leadhub\Http\Controllers\Cp\SegmentController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SettingsController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SyncLogController;
 use Goldnead\Leadhub\Http\Controllers\Cp\TagController;
@@ -53,6 +54,17 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::post('/', [TagController::class, 'store'])->name('store');
         Route::patch('/{tag}', [TagController::class, 'update'])->name('update');
         Route::delete('/{tag}', [TagController::class, 'destroy'])->name('destroy');
+    });
+
+    // Segments
+    Route::prefix('segments')->name('segments.')->group(function () {
+        Route::get('/', [SegmentController::class, 'index'])->name('index');
+        Route::get('/create', [SegmentController::class, 'create'])->name('create');
+        Route::post('/', [SegmentController::class, 'store'])->name('store');
+        Route::post('/preview', [SegmentController::class, 'preview'])->name('preview');
+        Route::get('/{segment}', [SegmentController::class, 'edit'])->name('edit');
+        Route::patch('/{segment}', [SegmentController::class, 'update'])->name('update');
+        Route::delete('/{segment}', [SegmentController::class, 'destroy'])->name('destroy');
     });
 
     // Companies (CRM-core, eloquent)

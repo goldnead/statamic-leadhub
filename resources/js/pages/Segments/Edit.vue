@@ -1,0 +1,200 @@
+<script setup>
+import { ref, reactive, watch, computed } from 'vue';
+import { Head, Link, router } from '@statamic/cms/inertia';
+import { Header, Panel, Badge, Button, Field, Input } from '@statamic/cms/ui';
+
+const props = defineProps([
+    'segment',      // null on create, else { id, name, handle, description, is_active, rules, update_url, delete_url }
+    'storeUrl',     // present on create
+    'previewUrl',
+    'indexUrl',
+    'vocabulary',   // { fields, field_operators, tag_operators, event_operators, statuses }
+]);
+
+const isEdit = computed(() => !! props.segment);
+
+const form = reactive({
+    name: props.segment?.name ?? '',
+    handle: props.segment?.handle ?? '',
+    description: props.segment?.description ?? '',
+    is_active: props.segment ? !! props.segment.is_active : true,
+    rules: normalizeRules(props.segment?.rules),
+});
+
+function normalizeRules(rules) {
+    if (! rules || typeof rules !== 'object') {
+        return { match: 'all', conditions: [] };
+    }
+    return {
+        match: rules.match === 'any' ? 'any' : 'all',
+        conditions: Array.isArray(rules.conditions) ? rules.conditions.map(normalizeCondition) : [],
+    };
+}
+
+function normalizeCondition(c) {
+    const type = c.type ?? 'field';
+    if (type === 'tag') return { type: 'tag', operator: c.operator ?? 'has', value: c.value ?? '' };
+    if (type === 'event') return { type: 'event', operator: c.operator ?? 'has', event: c.event ?? '', within_days: c.within_days ?? null };
+    return { type: 'field', field: c.field ?? props.vocabulary.fields[0], operator: c.operator ?? 'eq', value: c.value ?? '' };
+}
+
+function addFieldCondition() {
+    form.rules.conditions.push({ type: 'field', field: props.vocabulary.fields[0], operator: 'eq', value: '' });
+}
+function addTagCondition() {
+    form.rules.conditions.push({ type: 'tag', operator: 'has', value: '' });
+}
+function addEventCondition() {
+    form.rules.conditions.push({ type: 'event', operator: 'has', event: '', within_days: null });
+}
+function removeCondition(index) {
+    form.rules.conditions.splice(index, 1);
+}
+
+// -- Live member-count preview (debounced) --
+const previewCount = ref(null);
+const previewing = ref(false);
+let previewTimer = null;
+
+function schedulePreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(runPreview, 400);
+}
+
+function runPreview() {
+    previewing.value = true;
+    window.axios.post(props.previewUrl, { rules: form.rules })
+        .then((res) => { previewCount.value = res.data.count; })
+        .catch(() => { previewCount.value = null; })
+        .finally(() => { previewing.value = false; });
+}
+
+watch(() => form.rules, schedulePreview, { deep: true });
+
+function submit() {
+    if (! form.name.trim()) return;
+    const payload = {
+        name: form.name,
+        handle: form.handle || null,
+        description: form.description || null,
+        is_active: form.is_active,
+        rules: form.rules,
+    };
+    if (isEdit.value) {
+        router.patch(props.segment.update_url, payload, { preserveScroll: true });
+    } else {
+        router.post(props.storeUrl, payload);
+    }
+}
+</script>
+
+<template>
+    <Head :title="[isEdit ? __('Edit segment') : __('New segment'), __('LeadHub')]" />
+
+    <div class="max-w-page mx-auto">
+        <Header :title="isEdit ? __('Edit segment') : __('New segment')" icon="tags">
+            <Button :href="indexUrl" :as="Link" :text="__('Back')" variant="ghost" />
+            <Button :text="__('Save')" variant="primary" :disabled="!form.name.trim()" @click="submit" />
+        </Header>
+
+        <Panel class="mb-4" :heading="__('Details')">
+            <div class="p-4 space-y-4">
+                <Field :label="__('Name')">
+                    <Input v-model="form.name" :placeholder="__('e.g. Engaged buyers')" />
+                </Field>
+                <Field :label="__('Handle')" :instructions="__('Stable identifier used by consumers. Leave empty to derive from the name.')">
+                    <Input v-model="form.handle" :placeholder="__('engaged-buyers')" />
+                </Field>
+                <Field :label="__('Description')">
+                    <Input v-model="form.description" />
+                </Field>
+                <label class="flex items-center gap-2 text-sm">
+                    <input type="checkbox" v-model="form.is_active" />
+                    {{ __('Active') }}
+                </label>
+            </div>
+        </Panel>
+
+        <Panel class="mb-4" :heading="__('Rules')">
+            <div class="p-4 space-y-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm">{{ __('Contacts must match') }}</span>
+                    <select v-model="form.rules.match" class="rounded border border-content-border h-9 px-2 text-sm">
+                        <option value="all">{{ __('all conditions') }}</option>
+                        <option value="any">{{ __('any condition') }}</option>
+                    </select>
+                </div>
+
+                <div
+                    v-for="(condition, index) in form.rules.conditions"
+                    :key="index"
+                    class="flex flex-wrap items-end gap-2 border-b border-content-border pb-3"
+                >
+                    <Badge :text="condition.type" color="blue" />
+
+                    <!-- field condition -->
+                    <template v-if="condition.type === 'field'">
+                        <Field :label="__('Field')" class="min-w-[10rem]">
+                            <select v-model="condition.field" class="rounded border border-content-border h-10 px-2 w-full">
+                                <option v-for="f in vocabulary.fields" :key="f" :value="f">{{ f }}</option>
+                            </select>
+                        </Field>
+                        <Field :label="__('Operator')">
+                            <select v-model="condition.operator" class="rounded border border-content-border h-10 px-2">
+                                <option v-for="o in vocabulary.field_operators" :key="o" :value="o">{{ o }}</option>
+                            </select>
+                        </Field>
+                        <Field :label="__('Value')" class="flex-1 min-w-[8rem]">
+                            <Input v-model="condition.value" />
+                        </Field>
+                    </template>
+
+                    <!-- tag condition -->
+                    <template v-else-if="condition.type === 'tag'">
+                        <Field :label="__('Operator')">
+                            <select v-model="condition.operator" class="rounded border border-content-border h-10 px-2">
+                                <option v-for="o in vocabulary.tag_operators" :key="o" :value="o">{{ o }}</option>
+                            </select>
+                        </Field>
+                        <Field :label="__('Tag (id, slug or name)')" class="flex-1 min-w-[10rem]">
+                            <Input v-model="condition.value" />
+                        </Field>
+                    </template>
+
+                    <!-- event condition -->
+                    <template v-else-if="condition.type === 'event'">
+                        <Field :label="__('Operator')">
+                            <select v-model="condition.operator" class="rounded border border-content-border h-10 px-2">
+                                <option v-for="o in vocabulary.event_operators" :key="o" :value="o">{{ o }}</option>
+                            </select>
+                        </Field>
+                        <Field :label="__('Event key')" class="flex-1 min-w-[8rem]">
+                            <Input v-model="condition.event" :placeholder="__('e.g. purchase')" />
+                        </Field>
+                        <Field :label="__('Within days (optional)')">
+                            <Input v-model.number="condition.within_days" type="number" min="0" />
+                        </Field>
+                    </template>
+
+                    <Button icon="trash" size="sm" variant="ghost" @click="removeCondition(index)" />
+                </div>
+
+                <div class="flex flex-wrap gap-2">
+                    <Button :text="__('Add field condition')" icon="add" size="sm" variant="ghost" @click="addFieldCondition" />
+                    <Button :text="__('Add tag condition')" icon="add" size="sm" variant="ghost" @click="addTagCondition" />
+                    <Button :text="__('Add event condition')" icon="add" size="sm" variant="ghost" @click="addEventCondition" />
+                </div>
+            </div>
+        </Panel>
+
+        <Panel :heading="__('Matching contacts')">
+            <div class="p-4 flex items-center gap-3">
+                <Badge
+                    :color="previewing ? 'gray' : 'green'"
+                    :text="previewing ? '…' : (previewCount === null ? '—' : String(previewCount))"
+                />
+                <span class="text-sm text-gray-500">{{ __('contacts currently match these rules') }}</span>
+            </div>
+        </Panel>
+    </div>
+</template>

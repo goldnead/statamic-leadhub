@@ -9,6 +9,8 @@ return [
     'archive_contacts' => 'Archive contacts',
     'export_contacts' => 'Export contacts',
     'manage_tags' => 'Manage tags',
+    'view_segments' => 'View segments',
+    'manage_segments' => 'Manage segments',
     'manage_form_mappings' => 'Manage form mappings',
     'manage_settings' => 'Manage LeadHub settings',
 ];

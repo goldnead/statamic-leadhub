@@ -10,6 +10,7 @@ return [
     'followups' => 'Follow-ups',
     'forms' => 'Forms',
     'tags' => 'Tags',
+    'segments' => 'Segments',
     'settings' => 'Settings',
     'sync_log' => 'Sync log',
 ];

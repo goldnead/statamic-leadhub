@@ -6,6 +6,26 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.1.0] — 2026-07-03
+
+### Added — Segments
+
+- **Dynamic contact segments.** A new first-class entity: named, rule-based groups of contacts whose membership updates itself. Rules are a boolean `all` / `any` tree (groups nest) over three condition types:
+  - **`field`** — any contact column (`status`, `source`, `source_form`, `assigned_to`, `engagement_score`, `do_not_contact`, `created_at`, `last_activity_at`, `full_name`, `first_name`, `last_name`, `email`, `company`, `utm_*`) with a full operator set (`eq`, `neq`, `in`, `not_in`, `contains`, `starts_with`, `gt`/`gte`/`lt`/`lte`, `is_set`, `is_empty`, `is_true`, `is_false`, `before`, `after`, `within_days`, `older_than_days`).
+  - **`tag`** — `has` / `has_not` a tag (by id, slug, or name).
+  - **`event`** — `has` / `has_not` a timeline event key, optionally scoped `within_days`.
+- **Driver-agnostic evaluation.** Contact facts are assembled through the repositories (tags via `TagRepository::forContact`, events via `EventRepository`), never through Eloquent relations — so evaluation is correct under both the `eloquent` and `flat` drivers. Whole-segment resolution iterates the contact set (chunked for eloquent, index-driven for flat); single-contact evaluation is a cheap reactive path.
+- **Materialized membership, kept fresh two ways.** Eloquent stores membership in a `leadhub_segment_contact` pivot; flat mirrors segment handles onto each contact's YAML. A listener (`ReevaluateSegmentMembership`) re-evaluates the mutated contact on `LeadHubContactCreated/Updated`, `LeadHubStatusChanged`, `LeadHubTagAdded/Removed` and `LeadHubSourceIngested`; a scheduled `leadhub:segments:sweep` command re-materializes time-based rules daily.
+- **New lifecycle events.** `LeadHubContactEnteredSegment` and `LeadHubContactLeftSegment` fire on membership diffs (metadata carries `segment_handle` / `segment_id`) and are auto-registered as Webhook Manager triggers `leadhub.segment.entered` / `leadhub.segment.left`.
+- **Loop protection.** A per-contact re-evaluation depth guard (`SegmentService::MAX_DEPTH = 1`) prevents infinite cascades when a consumer reacts to an enter/leave event by mutating the same contact (e.g. adding a tag). Documented in the class.
+- **Public facade contract.** `LeadHub::segments()`, `LeadHub::segmentMemberIds(string $handle): array` (returns contact UUIDs, resolved live from the rules), and `LeadHub::contactInSegment($contactOrId, string $handle): bool`. This is the stable surface sibling addons (e.g. campaign audience narrowing in `statamic-marketing`) build on. Guard with `method_exists(LeadHub::getFacadeRoot(), 'segmentMemberIds')` for graceful degradation on older LeadHub.
+- **Control Panel.** A Segments index and a create/edit rule builder (condition rows for field/tag/event, `all`/`any` matching, live "matching contacts" member-count preview), plus two new permissions (`view leadhub segments`, `manage leadhub segments`) and a nav entry. Permission checks go through `$user->can(...)` so they work on eloquent-users sites.
+- **Rules cast.** A dedicated `Casts\SegmentRules` accepts BOTH a stored JSON string (eloquent) and an already-decoded PHP array (flat hydration, and in-memory `new Segment(['rules' => [...]])`), fixing the `Json::decode`-on-array crash the built-in `array` cast would have caused.
+
+### Notes
+
+- Full suite green on the eloquent driver: **161 passed + 4 skipped** (up from 130 + 4). New coverage: every condition type and `all`/`any` nesting, both drivers, reactive enter/leave, the scheduled sweep, the loop guard, the facade contract, and eloquent-user CP compatibility for the new routes. The flat matrix adds one documented skip for an unrelated pre-existing `Tag::id` cast quirk.
+
 ## [1.0.1] — 2026-07-02
 
 ### Fixed
