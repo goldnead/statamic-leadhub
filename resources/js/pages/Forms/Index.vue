@@ -61,7 +61,7 @@ function reloadPage() {
 
             <template #cell-enabled="{ row }">
                 <Badge
-                    :color="row.enabled ? 'green' : 'gray'"
+                    :color="row.enabled ? 'green' : 'default'"
                     :text="row.enabled ? __('Active') : __('Disabled')"
                 />
             </template>

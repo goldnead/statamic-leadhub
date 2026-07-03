@@ -41,7 +41,6 @@ function destroy() {
             <Button
                 v-if="canManage"
                 :href="createUrl"
-                :as="Link"
                 :text="__('Create segment')"
                 variant="primary"
             />
@@ -66,11 +65,11 @@ function destroy() {
             </template>
 
             <template #cell-members_count="{ row }">
-                <Badge color="gray" :text="String(row.members_count)" />
+                <Badge color="default" :text="String(row.members_count)" />
             </template>
 
             <template #cell-is_active="{ row }">
-                <Badge :color="row.is_active ? 'green' : 'gray'" :text="row.is_active ? __('Active') : __('Inactive')" />
+                <Badge :color="row.is_active ? 'green' : 'default'" :text="row.is_active ? __('Active') : __('Inactive')" />
             </template>
 
             <template #prepended-row-actions="{ row }">
@@ -90,10 +89,10 @@ function destroy() {
         </Listing>
 
         <ConfirmationModal
-            v-if="segmentToDelete"
+            :open="segmentToDelete !== null"
             :title="__('Delete segment')"
-            :message="__('Delete this segment? Contacts are not affected, only the segment definition and its membership.')"
-            variant="danger"
+            :body-text="__('Delete this segment? Contacts are not affected, only the segment definition and its membership.')"
+            danger
             :button-text="__('Delete')"
             @cancel="segmentToDelete = null"
             @confirm="destroy"

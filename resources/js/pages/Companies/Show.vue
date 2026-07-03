@@ -47,7 +47,7 @@ function openContact(url) {
                         <li
                             v-for="contact in contacts"
                             :key="contact.id"
-                            class="flex items-center justify-between py-2 px-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-600"
+                            class="flex items-center justify-between py-2 px-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                             @click="openContact(contact.url)"
                         >
                             <div>
@@ -55,7 +55,7 @@ function openContact(url) {
                                 <div class="text-xs text-gray-500">{{ contact.email }}</div>
                             </div>
                             <div class="flex items-center gap-2">
-                                <Badge v-if="contact.relationship_label" color="gray" :text="contact.relationship_label" />
+                                <Badge v-if="contact.relationship_label" color="default" :text="contact.relationship_label" />
                                 <Badge v-if="contact.is_primary" color="blue" :text="__('Primary')" />
                             </div>
                         </li>
