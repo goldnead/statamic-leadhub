@@ -20,7 +20,19 @@ class PipelineController extends Controller
         abort_unless(config('leadhub.features.pipelines', false), 404);
 
         $pipelines = Pipeline::query()->active()->orderBy('sort_order')->get();
-        abort_if($pipelines->isEmpty(), 404);
+
+        // Feature enabled but no pipeline configured yet: render a native empty
+        // state instead of a hard 404, so the user is guided to create one.
+        if ($pipelines->isEmpty()) {
+            return Inertia::render('leadhub::Pipelines/Board', [
+                'pipeline' => null,
+                'pipelines' => [],
+                'columns' => [],
+                'manageUrl' => cp_route('leadhub.pipelines.manage'),
+                'canConfigure' => $this->userCan($request, 'manage leadhub settings'),
+                'canManage' => $this->userCan($request, 'edit leadhub contacts'),
+            ]);
+        }
 
         $current = $pipeline
             ? $pipelines->firstWhere(fn ($p) => (string) $p->id === (string) $pipeline || $p->slug === $pipeline)

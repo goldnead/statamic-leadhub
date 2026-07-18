@@ -1,7 +1,7 @@
 composer.phar
 /vendor/
 /node_modules/
-/package-lock.json
+# package-lock.json is COMMITTED — CI runs `npm ci` for reproducible dist builds.
 /composer.lock
 /.phpunit.cache/
 

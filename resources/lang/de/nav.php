@@ -6,6 +6,7 @@ return [
     'contacts' => 'Kontakte',
     'followups' => 'Follow-ups',
     'forms' => 'Formulare',
+    'email_templates' => 'E-Mail-Vorlagen',
     'tags' => 'Tags',
     'segments' => 'Segmente',
     'settings' => 'Einstellungen',

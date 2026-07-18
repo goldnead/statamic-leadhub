@@ -475,6 +475,30 @@ class LeadHubManager
         return $this->present($merged);
     }
 
+    // -- Email templates ----------------------------------------------------
+
+    /**
+     * Resolve an email template by slug. A managed `email_templates` entry
+     * always wins; the caller-supplied $fallback (the old file-based template)
+     * is only used when no entry exists — so migrating a template into the CP
+     * transparently overrides the file and nothing breaks meanwhile.
+     *
+     * Consumed by sibling addons (automations, marketing) via the class_exists
+     * coupling on {@see \Goldnead\Leadhub\Facades\LeadHub}. Returns the stable
+     * array shape [slug, title, subject, body, plain_text, description, source]
+     * or null when neither an entry nor a fallback yields a template.
+     *
+     * @param  (callable(string):(\Goldnead\Leadhub\Support\EmailTemplates\EmailTemplateData|array<string,mixed>|null))|null  $fallback
+     * @return array<string,mixed>|null
+     */
+    public function resolveEmailTemplate(string $slug, ?callable $fallback = null): ?array
+    {
+        $resolved = app(\Goldnead\Leadhub\Services\EmailTemplates\EmailTemplateResolver::class)
+            ->resolve($slug, $fallback);
+
+        return $resolved?->toArray();
+    }
+
     // -- Ingestion ----------------------------------------------------------
 
     /** Ingest a generic source event (purchase, booking, login, webhook, …). */
