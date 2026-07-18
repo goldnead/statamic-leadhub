@@ -20,7 +20,7 @@ function reloadPage() {
 }
 
 function priorityColor(p) {
-    return p === 'high' ? 'red' : p === 'low' ? 'gray' : 'blue';
+    return p === 'high' ? 'red' : p === 'low' ? 'default' : 'blue';
 }
 
 function complete(row) {

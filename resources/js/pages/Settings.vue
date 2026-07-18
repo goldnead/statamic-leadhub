@@ -15,7 +15,7 @@ defineProps([
     <div class="max-w-page mx-auto">
         <Header :title="__('Settings')" icon="cog" />
 
-        <Alert variant="info" class="mb-4">
+        <Alert variant="default" class="mb-4">
             {{ __('LeadHub settings are read-only here. Edit') }}
             <code class="px-1 rounded bg-gray-100 dark:bg-gray-800 text-xs">config/leadhub.php</code>
             {{ __('to change them. Run') }}
@@ -70,7 +70,7 @@ defineProps([
                     <Badge
                         v-for="key in config.timeline_payload_redaction"
                         :key="key"
-                        color="gray"
+                        color="default"
                         :text="key"
                     />
                 </div>

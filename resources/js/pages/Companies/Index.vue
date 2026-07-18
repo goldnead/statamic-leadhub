@@ -38,7 +38,7 @@ function reloadPage() {
             </template>
 
             <template #cell-contacts_count="{ row }">
-                <Badge color="gray" :text="String(row.contacts_count)" />
+                <Badge color="default" :text="String(row.contacts_count)" />
             </template>
         </Listing>
     </div>

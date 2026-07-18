@@ -152,7 +152,7 @@ function onDrop(columnId) {
                     <div class="px-3 py-2 border-b border-content-border flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="font-medium text-sm text-gray-900 dark:text-gray-100">{{ column.name }}</span>
-                            <Badge color="gray" size="sm" :text="String(column.cards.length)" />
+                            <Badge color="default" size="sm" :text="String(column.cards.length)" />
                         </div>
                         <Badge
                             v-if="column.is_terminal"
@@ -203,7 +203,7 @@ function onDrop(columnId) {
                                 <Text v-if="card.value_estimate" size="sm" class="font-medium text-gray-700 dark:text-gray-200">
                                     {{ money(card.value_estimate) }}
                                 </Text>
-                                <Badge v-if="card.confidence" color="gray" size="sm" :text="`${card.confidence}%`" />
+                                <Badge v-if="card.confidence" color="default" size="sm" :text="`${card.confidence}%`" />
                             </div>
 
                             <div v-if="canManage" class="mt-2 flex flex-wrap gap-1 border-t border-content-border pt-2">

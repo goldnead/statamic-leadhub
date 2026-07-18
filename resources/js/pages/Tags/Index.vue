@@ -85,7 +85,7 @@ function destroy() {
             </template>
 
             <template #cell-contacts_count="{ row }">
-                <Badge color="gray" :text="String(row.contacts_count)" />
+                <Badge color="default" :text="String(row.contacts_count)" />
             </template>
 
             <template #prepended-row-actions="{ row }">
@@ -99,10 +99,10 @@ function destroy() {
         </Listing>
 
         <ConfirmationModal
-            v-if="tagToDelete"
+            :open="tagToDelete !== null"
             :title="__('Delete tag')"
-            :message="__('Delete this tag and detach it from all contacts?')"
-            variant="danger"
+            :body-text="__('Delete this tag and detach it from all contacts?')"
+            danger
             :button-text="__('Delete')"
             @cancel="tagToDelete = null"
             @confirm="destroy"

@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
-import { Header, Panel, Badge, Button, Field, Input } from '@statamic/cms/ui';
+import { Header, Panel, Badge, Button, Field, Input, Select, Switch } from '@statamic/cms/ui';
 
 const props = defineProps(['pipelines', 'storeUrl', 'canManage']);
 
@@ -52,15 +52,14 @@ function create() {
                             <Input v-model="stage.name" :placeholder="__('Stage name')" />
                         </Field>
                         <label class="flex items-center gap-1 text-sm pb-2">
-                            <input type="checkbox" v-model="stage.is_terminal" />
+                            <Switch v-model="stage.is_terminal" />
                             {{ __('Terminal') }}
                         </label>
                         <Field v-if="stage.is_terminal" :label="__('Outcome')">
-                            <select v-model="stage.terminal_outcome" class="rounded border border-content-border h-10 px-2">
-                                <option :value="null">—</option>
-                                <option value="won">{{ __('Won') }}</option>
-                                <option value="lost">{{ __('Lost') }}</option>
-                            </select>
+                            <Select
+                                v-model="stage.terminal_outcome"
+                                :options="[{ value: null, label: '—' }, { value: 'won', label: __('Won') }, { value: 'lost', label: __('Lost') }]"
+                            />
                         </Field>
                         <Button icon="trash" size="sm" variant="ghost" @click="removeStage(index)" />
                     </div>
@@ -76,7 +75,7 @@ function create() {
                 <div class="px-4 py-3 flex items-center justify-between border-b border-content-border">
                     <div class="flex items-center gap-2">
                         <span class="font-medium">{{ pipeline.name }}</span>
-                        <Badge color="gray" :text="pipeline.slug" />
+                        <Badge color="default" :text="pipeline.slug" />
                         <Badge v-if="!pipeline.is_active" color="red" :text="__('Inactive')" />
                     </div>
                     <Link :href="pipeline.board_url" class="text-sm text-blue-600 hover:underline">{{ __('Open board') }}</Link>
