@@ -9,6 +9,7 @@ return [
     'companies' => 'Companies',
     'followups' => 'Follow-ups',
     'forms' => 'Forms',
+    'email_templates' => 'Email templates',
     'tags' => 'Tags',
     'segments' => 'Segments',
     'settings' => 'Settings',

@@ -91,6 +91,14 @@ abstract class TestCase extends OrchestraTestCase
             'index_disk' => 'local',
             'index_path' => 'leadhub-test-'.getmypid().'/index',
         ]);
+
+        // Point Statamic's Stache (collections/entries) at a per-process temp
+        // dir. Only the email-template tests create Statamic collections/
+        // entries; redirecting the native stores keeps those writes out of the
+        // shared testbench fixtures and isolated between parallel runs.
+        $stacheRoot = sys_get_temp_dir().'/leadhub-stache-'.getmypid();
+        $app['config']->set('statamic.stache.stores.collections.directory', $stacheRoot.'/content/collections');
+        $app['config']->set('statamic.stache.stores.entries.directory', $stacheRoot.'/content/collections');
     }
 
     /**

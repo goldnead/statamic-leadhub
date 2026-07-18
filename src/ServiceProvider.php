@@ -3,10 +3,13 @@
 namespace Goldnead\Leadhub;
 
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
+use Goldnead\Leadhub\Console\ImportEmailTemplatesCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
 use Goldnead\Leadhub\Console\SweepSegmentsCommand;
+use Goldnead\Leadhub\Services\EmailTemplates\EmailTemplateCollectionManager;
+use Goldnead\Leadhub\Support\EmailTemplates\MarketingEmailTemplateSource;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
@@ -131,6 +134,7 @@ class ServiceProvider extends AddonServiceProvider
         SendFollowupDigestCommand::class,
         FireDueFollowupsCommand::class,
         SweepSegmentsCommand::class,
+        ImportEmailTemplatesCommand::class,
     ];
 
     public function register(): void
@@ -166,6 +170,17 @@ class ServiceProvider extends AddonServiceProvider
         // host-app source projectors registered at boot persist for the request.
         $this->app->singleton(\Goldnead\Leadhub\Services\IngestionService::class);
         $this->app->singleton(LeadHubManager::class);
+
+        // Email templates — the shared module consumed (optionally) by
+        // automations + marketing via the class_exists/registry coupling.
+        $this->app->singleton(EmailTemplateCollectionManager::class);
+        $this->app->singleton(\Goldnead\Leadhub\Services\EmailTemplates\EmailTemplateResolver::class);
+
+        // Import sources are container-tagged so additional file-based template
+        // sources can be contributed without touching the import command. The
+        // marketing source is a soft dependency (no-op when marketing absent).
+        $this->app->bind(MarketingEmailTemplateSource::class);
+        $this->app->tag([MarketingEmailTemplateSource::class], 'leadhub.email_template_sources');
     }
 
     public function boot(): void
@@ -186,12 +201,35 @@ class ServiceProvider extends AddonServiceProvider
     {
         $this
             ->registerMigrations()
+            ->registerEmailTemplates()
             ->registerNavigation()
             ->registerPermissions()
             ->registerPolicies()
             ->registerSchedule()
             ->bootCommands()
             ->registerPublishables();
+    }
+
+    /**
+     * Ensure the shared `email_templates` collection + blueprint exist so the
+     * native CP listing and publish form are available. Idempotent; guarded by
+     * a feature flag (default on) and wrapped so a not-yet-ready Stache during
+     * early console commands (e.g. package discovery) never breaks boot.
+     */
+    protected function registerEmailTemplates(): self
+    {
+        if (! config('leadhub.features.email_templates', true)) {
+            return $this;
+        }
+
+        try {
+            $this->app->make(EmailTemplateCollectionManager::class)->ensure();
+        } catch (\Throwable $e) {
+            // Non-fatal: the collection is (re)ensured on the next boot and by
+            // the import command. Never let it take down the whole addon.
+        }
+
+        return $this;
     }
 
     /**
@@ -440,6 +478,8 @@ class ServiceProvider extends AddonServiceProvider
                     ->route('leadhub.followups.index'),
                 $nav->item(__('leadhub::nav.forms'))
                     ->route('leadhub.forms.index'),
+                $nav->item(__('leadhub::nav.email_templates'))
+                    ->url(cp_route('collections.show', EmailTemplateCollectionManager::HANDLE)),
                 $nav->item(__('leadhub::nav.tags'))
                     ->route('leadhub.tags.index'),
                 $nav->item(__('leadhub::nav.segments'))

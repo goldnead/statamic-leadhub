@@ -102,6 +102,11 @@ return [
         'crm_destinations' => false,
         'attribution' => true,
 
+        // Shared email-template module: a native `email_templates` collection
+        // in the CP, consumed (optionally) by statamic-automations and
+        // statamic-marketing. Set to false to hide the collection + nav entry.
+        'email_templates' => false,
+
         // Auto-wire LeadHub's lifecycle events into the optional
         // goldnead/statamic-webhook-manager addon when it is installed. Has no
         // effect unless that addon is present; set to false to opt out.
