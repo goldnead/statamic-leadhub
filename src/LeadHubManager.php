@@ -15,6 +15,7 @@ use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Services\ContactResolver;
 use Goldnead\Leadhub\Services\FollowupService;
 use Goldnead\Leadhub\Services\IngestionService;
+use Goldnead\Leadhub\Services\ScoringService;
 use Goldnead\Leadhub\Services\SegmentService;
 use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
@@ -189,6 +190,40 @@ class LeadHubManager
         $this->tagService->attach($contact, $tag);
 
         return $this->present($this->reload($contact));
+    }
+
+    /**
+     * Relative engagement-score change — the target of the automations
+     * "change score" action. Resolves the contact by id/uuid (or accepts a
+     * Contact), applies $delta (clamped at 0), persists, and returns the new
+     * score — or null if the contact can't be found. Routes through
+     * {@see ScoringService::adjust} so {@see \Goldnead\Leadhub\Events\LeadHubContactScoreChanged}
+     * fires on the same mutation path as activity-based scoring.
+     */
+    public function adjustScore(string|Contact $contact, int $delta, ?string $reason = null): ?int
+    {
+        $model = $contact instanceof Contact ? $contact : $this->contacts->find($contact);
+
+        if (! $model instanceof Contact) {
+            return null;
+        }
+
+        return app(ScoringService::class)->adjust($model, $delta, $reason);
+    }
+
+    /**
+     * Absolute engagement-score set. Same resolution + return contract as
+     * {@see adjustScore}; fires LeadHubContactScoreChanged on a real change.
+     */
+    public function setScore(string|Contact $contact, int $score, ?string $reason = null): ?int
+    {
+        $model = $contact instanceof Contact ? $contact : $this->contacts->find($contact);
+
+        if (! $model instanceof Contact) {
+            return null;
+        }
+
+        return app(ScoringService::class)->set($model, $score, $reason);
     }
 
     public function removeTag(int|string $id, string $tag): array
@@ -478,25 +513,33 @@ class LeadHubManager
     // -- Email templates ----------------------------------------------------
 
     /**
-     * Resolve an email template by slug. A managed `email_templates` entry
-     * always wins; the caller-supplied $fallback (the old file-based template)
-     * is only used when no entry exists — so migrating a template into the CP
-     * transparently overrides the file and nothing breaks meanwhile.
+     * Resolve an email template by slug. Email templates are owned by the
+     * standalone goldnead/statamic-email-templates addon (the shared
+     * `et_templates` collection); this method is a thin seam that delegates to
+     * that addon's public resolver facade. A managed entry always wins; the
+     * caller-supplied $fallback (the old file-based template) is only used when
+     * no entry exists.
      *
      * Consumed by sibling addons (automations, marketing) via the class_exists
      * coupling on {@see \Goldnead\Leadhub\Facades\LeadHub}. Returns the stable
      * array shape [slug, title, subject, body, plain_text, description, source]
-     * or null when neither an entry nor a fallback yields a template.
+     * or null when neither an entry nor a fallback yields a template — and also
+     * null (never fatal) when the email-templates addon isn't installed.
      *
-     * @param  (callable(string):(\Goldnead\Leadhub\Support\EmailTemplates\EmailTemplateData|array<string,mixed>|null))|null  $fallback
+     * @param  (callable(string):(array<string,mixed>|object|null))|null  $fallback
      * @return array<string,mixed>|null
      */
     public function resolveEmailTemplate(string $slug, ?callable $fallback = null): ?array
     {
-        $resolved = app(\Goldnead\Leadhub\Services\EmailTemplates\EmailTemplateResolver::class)
-            ->resolve($slug, $fallback);
+        $facade = \Goldnead\EmailTemplates\Facades\EmailTemplates::class;
 
-        return $resolved?->toArray();
+        // Guard gracefully: the email-templates addon is an optional, soft
+        // dependency. Without it there are no managed templates to resolve.
+        if (! class_exists($facade)) {
+            return null;
+        }
+
+        return $facade::resolve($slug, $fallback)?->toArray();
     }
 
     // -- Ingestion ----------------------------------------------------------

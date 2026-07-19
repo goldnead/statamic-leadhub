@@ -102,11 +102,6 @@ return [
         'crm_destinations' => false,
         'attribution' => true,
 
-        // Shared email-template module: a native `email_templates` collection
-        // in the CP, consumed (optionally) by statamic-automations and
-        // statamic-marketing. Set to false to hide the collection + nav entry.
-        'email_templates' => false,
-
         // Auto-wire LeadHub's lifecycle events into the optional
         // goldnead/statamic-webhook-manager addon when it is installed. Has no
         // effect unless that addon is present; set to false to opt out.
@@ -120,6 +115,13 @@ return [
         'companies' => false,
         'tasks' => false,
         'pipelines' => false,
+
+        // Email link-click tracking for lead scoring. Opt-in (default off) and
+        // consent-first: even when enabled, a click is only ever scored when the
+        // contact has given marketing consent (see the `click_tracking` block
+        // below). Transactional-only recipients are never tracked. GDPR: German
+        // installs must obtain marketing consent before enabling this.
+        'click_tracking' => false,
     ],
 
     /*
@@ -140,7 +142,33 @@ return [
             'LeadHubSubmissionAttached' => 2,
             'purchase.completed' => 10,
             'booking.confirmed' => 5,
+            // A tracked email link click. Only awarded when features.scoring is
+            // on AND the contact has marketing consent (see click_tracking).
+            'email_link_clicked' => 3,
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Email Link-Click Tracking
+    |--------------------------------------------------------------------------
+    |
+    | Rewrites <a href> links in marketing emails to a signed redirect that
+    | records an `email_link_clicked` timeline event and awards engagement
+    | points before forwarding the recipient to the target URL.
+    |
+    | CONSENT / GDPR: enabling features.click_tracking is not enough — a click is
+    | only ever scored when the resolved contact has given marketing consent
+    | (contact.consent === true and do_not_contact === false). Transactional-only
+    | contacts are never tracked. The redirect itself always succeeds, even when
+    | scoring is skipped, so recipients always reach their link.
+    |
+    */
+
+    'click_tracking' => [
+        // Repeated clicks of the same link by the same contact within this many
+        // minutes are recorded once and scored once (dedupe window).
+        'dedupe_window' => 60,
     ],
 
     /*

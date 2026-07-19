@@ -112,5 +112,11 @@ abstract class TestCase extends OrchestraTestCase
         $router->name('statamic.cp.')
             ->prefix('cp')
             ->group(__DIR__.'/../routes/cp.php');
+
+        // Public front-end routes (click tracking). Statamic mounts these at the
+        // site root via $routes['web']; testbench doesn't fire those callbacks,
+        // so mount them here the same way production does.
+        $router->middleware('web')
+            ->group(__DIR__.'/../routes/web.php');
     }
 }

@@ -3,13 +3,10 @@
 namespace Goldnead\Leadhub;
 
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
-use Goldnead\Leadhub\Console\ImportEmailTemplatesCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
 use Goldnead\Leadhub\Console\SweepSegmentsCommand;
-use Goldnead\Leadhub\Services\EmailTemplates\EmailTemplateCollectionManager;
-use Goldnead\Leadhub\Support\EmailTemplates\MarketingEmailTemplateSource;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
@@ -37,6 +34,7 @@ use Goldnead\Leadhub\Listeners\DispatchCrmSync;
 use Goldnead\Leadhub\Listeners\ReevaluateSegmentMembership;
 use Goldnead\Leadhub\Listeners\ScoreContactOnActivity;
 use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
+use Goldnead\Leadhub\Events\LeadHubEmailLinkClicked;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Policies\LeadHubPolicy;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentContactRepository;
@@ -85,6 +83,10 @@ class ServiceProvider extends AddonServiceProvider
             ScoreContactOnActivity::class,
             ReevaluateSegmentMembership::class,
         ],
+        LeadHubEmailLinkClicked::class => [
+            ScoreContactOnActivity::class,
+            ReevaluateSegmentMembership::class,
+        ],
         LeadHubContactsMerged::class => [],
         LeadHubStatusChanged::class => [
             DispatchCrmSync::class,
@@ -107,6 +109,7 @@ class ServiceProvider extends AddonServiceProvider
     ];
 
     protected $routes = [
+        'web' => __DIR__.'/../routes/web.php',
         'cp' => __DIR__.'/../routes/cp.php',
     ];
 
@@ -134,7 +137,6 @@ class ServiceProvider extends AddonServiceProvider
         SendFollowupDigestCommand::class,
         FireDueFollowupsCommand::class,
         SweepSegmentsCommand::class,
-        ImportEmailTemplatesCommand::class,
     ];
 
     public function register(): void
@@ -171,16 +173,11 @@ class ServiceProvider extends AddonServiceProvider
         $this->app->singleton(\Goldnead\Leadhub\Services\IngestionService::class);
         $this->app->singleton(LeadHubManager::class);
 
-        // Email templates — the shared module consumed (optionally) by
-        // automations + marketing via the class_exists/registry coupling.
-        $this->app->singleton(EmailTemplateCollectionManager::class);
-        $this->app->singleton(\Goldnead\Leadhub\Services\EmailTemplates\EmailTemplateResolver::class);
-
-        // Import sources are container-tagged so additional file-based template
-        // sources can be contributed without touching the import command. The
-        // marketing source is a soft dependency (no-op when marketing absent).
-        $this->app->bind(MarketingEmailTemplateSource::class);
-        $this->app->tag([MarketingEmailTemplateSource::class], 'leadhub.email_template_sources');
+        // Click-tracking surface. Public singletons so sibling addons (the
+        // automations / email-templates send path) can resolve the linker to
+        // rewrite email links: app(ClickTrackingLinker::class).
+        $this->app->singleton(\Goldnead\Leadhub\Services\ClickTracking\ClickTrackingLinker::class);
+        $this->app->singleton(\Goldnead\Leadhub\Services\ClickTracking\RecipientResolver::class);
     }
 
     public function boot(): void
@@ -201,35 +198,12 @@ class ServiceProvider extends AddonServiceProvider
     {
         $this
             ->registerMigrations()
-            ->registerEmailTemplates()
             ->registerNavigation()
             ->registerPermissions()
             ->registerPolicies()
             ->registerSchedule()
             ->bootCommands()
             ->registerPublishables();
-    }
-
-    /**
-     * Ensure the shared `email_templates` collection + blueprint exist so the
-     * native CP listing and publish form are available. Idempotent; guarded by
-     * a feature flag (default on) and wrapped so a not-yet-ready Stache during
-     * early console commands (e.g. package discovery) never breaks boot.
-     */
-    protected function registerEmailTemplates(): self
-    {
-        if (! config('leadhub.features.email_templates', true)) {
-            return $this;
-        }
-
-        try {
-            $this->app->make(EmailTemplateCollectionManager::class)->ensure();
-        } catch (\Throwable $e) {
-            // Non-fatal: the collection is (re)ensured on the next boot and by
-            // the import command. Never let it take down the whole addon.
-        }
-
-        return $this;
     }
 
     /**
@@ -478,8 +452,6 @@ class ServiceProvider extends AddonServiceProvider
                     ->route('leadhub.followups.index'),
                 $nav->item(__('leadhub::nav.forms'))
                     ->route('leadhub.forms.index'),
-                $nav->item(__('leadhub::nav.email_templates'))
-                    ->url(cp_route('collections.show', EmailTemplateCollectionManager::HANDLE)),
                 $nav->item(__('leadhub::nav.tags'))
                     ->route('leadhub.tags.index'),
                 $nav->item(__('leadhub::nav.segments'))
