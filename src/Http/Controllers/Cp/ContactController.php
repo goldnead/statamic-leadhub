@@ -9,8 +9,10 @@ use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
+use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactDeleted;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
+use Goldnead\Leadhub\Http\Requests\StoreContactRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateContactRequest;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Services\LeadHubNotifier;
@@ -129,7 +131,74 @@ class ContactController extends Controller
             'showArchived' => $filters['archived'],
             'hasFormConnected' => $this->mappings->anyEnabled(),
             'configureFormsUrl' => cp_route('leadhub.forms.index'),
+            // Manual "create contact" entry point — null (button hidden) when
+            // the feature flag is off or the user lacks the permission.
+            'createUrl' => config('leadhub.features.manual_contacts', true)
+                && $this->userCan($request, 'create leadhub contacts')
+                ? cp_route('leadhub.contacts.create')
+                : null,
         ]);
+    }
+
+    /**
+     * Render the manual "create contact" form. Gated behind the
+     * `features.manual_contacts` flag and the `create leadhub contacts`
+     * permission.
+     */
+    public function create(Request $request)
+    {
+        abort_unless(config('leadhub.features.manual_contacts', true), 404);
+        $this->authorizeOrFail($request, 'create leadhub contacts');
+
+        $statuses = (array) config('leadhub.statuses', []);
+
+        return Inertia::render('leadhub::Contacts/Create', [
+            'statuses' => $statuses,
+            'defaultStatus' => (string) config('leadhub.default_status', array_key_first($statuses) ?: 'new'),
+            'assignableUsers' => $this->users->assignable(),
+            'tagOptions' => $this->tagsRepo->all()->map(fn ($t) => [
+                'value' => (string) $t->id,
+                'label' => $t->name,
+            ])->all(),
+            'storeUrl' => cp_route('leadhub.contacts.store'),
+            'cancelUrl' => cp_route('leadhub.contacts.index'),
+        ]);
+    }
+
+    /**
+     * Persist a manually created contact. Validated against the contact
+     * blueprint via StoreContactRequest, then created through the repository so
+     * the timeline entry + LeadHubContactCreated event fire exactly like the
+     * form-ingestion path.
+     */
+    public function store(StoreContactRequest $request)
+    {
+        abort_unless(config('leadhub.features.manual_contacts', true), 404);
+
+        $validated = $request->validated();
+
+        $attributes = collect($validated)->except('tag_ids')->all();
+        $attributes['status'] = $attributes['status']
+            ?? (string) config('leadhub.default_status', 'new');
+        $attributes['consent'] = (bool) ($validated['consent'] ?? false);
+        $attributes['consent_at'] = ! empty($attributes['consent']) ? now() : null;
+        $attributes['last_activity_at'] = now();
+
+        $contact = $this->contacts->create($attributes);
+
+        $this->timeline->recordContactCreated($contact);
+        event(new LeadHubContactCreated($contact));
+
+        if (! empty($validated['tag_ids'])) {
+            foreach ($validated['tag_ids'] as $id) {
+                if ($tag = $this->tagsRepo->find((string) $id)) {
+                    $this->tags->attach($contact, $tag);
+                }
+            }
+        }
+
+        return redirect(cp_route('leadhub.contacts.show', $contact->uuid))
+            ->with('success', __('leadhub::contacts.flashes.created'));
     }
 
     public function show(Request $request, int|string $contactId)

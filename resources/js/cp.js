@@ -7,6 +7,7 @@
 
 import Dashboard from './pages/Dashboard.vue';
 import ContactsIndex from './pages/Contacts/Index.vue';
+import ContactsCreate from './pages/Contacts/Create.vue';
 import ContactsShow from './pages/Contacts/Show.vue';
 import CompaniesIndex from './pages/Companies/Index.vue';
 import CompaniesShow from './pages/Companies/Show.vue';
@@ -25,6 +26,7 @@ import SyncLog from './pages/SyncLog.vue';
 Statamic.booting(() => {
     Statamic.$inertia.register('leadhub::Dashboard', Dashboard);
     Statamic.$inertia.register('leadhub::Contacts/Index', ContactsIndex);
+    Statamic.$inertia.register('leadhub::Contacts/Create', ContactsCreate);
     Statamic.$inertia.register('leadhub::Contacts/Show', ContactsShow);
     Statamic.$inertia.register('leadhub::Companies/Index', CompaniesIndex);
     Statamic.$inertia.register('leadhub::Companies/Show', CompaniesShow);

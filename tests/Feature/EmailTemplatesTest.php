@@ -1,176 +1,73 @@
 <?php
 
-use Goldnead\Leadhub\Contracts\EmailTemplateSource;
+use Goldnead\EmailTemplates\Facades\EmailTemplates as EtFacade;
 use Goldnead\Leadhub\Facades\LeadHub;
-use Goldnead\Leadhub\Services\EmailTemplates\EmailTemplateCollectionManager;
-use Goldnead\Leadhub\Services\EmailTemplates\EmailTemplateResolver;
-use Goldnead\Leadhub\Support\EmailTemplates\EmailTemplateBlueprint;
-use Goldnead\Leadhub\Support\EmailTemplates\EmailTemplateData;
-use Illuminate\Support\Facades\Artisan;
-use Statamic\Facades\Blueprint;
-use Statamic\Facades\Collection;
 
-// The collections/entries Stache is redirected to a per-process temp dir that
-// persists across tests in a run, so clear any leftover entries up front.
-beforeEach(function () {
-    Collection::findByHandle('email_templates')?->queryEntries()->get()->each->delete();
+// LeadHub no longer ships its own email-template subsystem. Email templates are
+// owned by the standalone goldnead/statamic-email-templates addon (the shared
+// `et_templates` collection). LeadHub::resolveEmailTemplate() is now a thin
+// seam that delegates to that addon's public facade. These tests pin that
+// delegation using a stand-in facade (see tests/Fixtures/EmailTemplatesAddonStub.php),
+// since the real addon is an optional, non-composer dependency.
+
+require_once __DIR__.'/../Fixtures/EmailTemplatesAddonStub.php';
+
+afterEach(function () {
+    EtFacade::$handler = null;
 });
 
-/** An in-memory template source for exercising the import command. */
-function fakeTemplateSource(array $templates): EmailTemplateSource
+/** A tiny resolved-template double: whatever the addon returns, we call toArray(). */
+function fakeResolvedTemplate(array $data): object
 {
-    return new class($templates) implements EmailTemplateSource
+    return new class($data)
     {
-        public function __construct(private array $templates)
+        public function __construct(private array $data)
         {
         }
 
-        public function label(): string
+        public function toArray(): array
         {
-            return 'fake';
-        }
-
-        public function all(): array
-        {
-            return array_map(fn (array $t) => EmailTemplateData::fromArray($t), $this->templates);
+            return $this->data;
         }
     };
 }
 
-function registerFakeSource(EmailTemplateSource $source): void
-{
-    app()->instance('leadhub.test.fake_source', $source);
-    app()->tag(['leadhub.test.fake_source'], 'leadhub.email_template_sources');
-}
-
-// -- Slice 1: collection + blueprint + entry CRUD -------------------------
-
-it('registers the email_templates collection and its blueprint', function () {
-    // bootAddon() (fired in TestCase::setUp) already ran ensure(); assert result.
-    expect(Collection::findByHandle('email_templates'))->not->toBeNull();
-
-    $blueprint = Blueprint::find(
-        EmailTemplateBlueprint::NAMESPACE.'.'.EmailTemplateBlueprint::HANDLE
-    );
-
-    expect($blueprint)->not->toBeNull()
-        ->and($blueprint->hasField('subject'))->toBeTrue()
-        ->and($blueprint->hasField('body'))->toBeTrue()
-        ->and($blueprint->field('body')->type())->toBe('code');
-});
-
-it('creates and reads a template entry by slug', function () {
-    $manager = app(EmailTemplateCollectionManager::class);
-
-    [$entry, $created] = $manager->upsert(new EmailTemplateData(
-        slug: 'welcome',
-        title: 'Welcome',
-        subject: 'Willkommen, {{ contact.first_name }}',
-        body: '<h1>Hallo</h1>',
-    ));
-
-    expect($created)->toBeTrue()
-        ->and($entry->slug())->toBe('welcome');
-
-    $found = $manager->findBySlug('welcome');
-
-    expect($found)->not->toBeNull()
-        ->and($found->value('subject'))->toBe('Willkommen, {{ contact.first_name }}')
-        ->and($found->value('body'))->toBe('<h1>Hallo</h1>');
-});
-
-// -- Slice 2: import command ---------------------------------------------
-
-it('imports file-based templates into entries, preserving the slug', function () {
-    registerFakeSource(fakeTemplateSource([
-        ['handle' => 'newsletter', 'name' => 'Newsletter', 'html' => '<p>Body</p>'],
-    ]));
-
-    $code = Artisan::call('leadhub:email-templates:import');
-
-    expect($code)->toBe(0);
-
-    $entry = app(EmailTemplateCollectionManager::class)->findBySlug('newsletter');
-
-    expect($entry)->not->toBeNull()
-        ->and($entry->slug())->toBe('newsletter')
-        ->and($entry->value('title'))->toBe('Newsletter')
-        ->and($entry->value('body'))->toBe('<p>Body</p>');
-});
-
-it('skips existing slugs unless --overwrite is passed', function () {
-    $manager = app(EmailTemplateCollectionManager::class);
-    $manager->upsert(new EmailTemplateData(slug: 'promo', title: 'Old', body: 'OLD'));
-
-    registerFakeSource(fakeTemplateSource([
-        ['slug' => 'promo', 'title' => 'New', 'body' => 'NEW'],
-    ]));
-
-    Artisan::call('leadhub:email-templates:import');
-    expect($manager->findBySlug('promo')->value('body'))->toBe('OLD');
-
-    Artisan::call('leadhub:email-templates:import', ['--overwrite' => true]);
-    expect($manager->findBySlug('promo')->value('body'))->toBe('NEW');
-});
-
-it('reports nothing to import when no source yields templates', function () {
-    $code = Artisan::call('leadhub:email-templates:import');
-
-    expect($code)->toBe(0);
-    expect(Artisan::output())->toContain('Nothing to import');
-});
-
-// -- Slice 3: resolver with fallback -------------------------------------
-
-it('resolves the entry template over the file fallback (entry wins)', function () {
-    app(EmailTemplateCollectionManager::class)->upsert(new EmailTemplateData(
-        slug: 'reminder',
-        title: 'Reminder',
-        subject: 'From entry',
-        body: 'ENTRY BODY',
-    ));
-
-    $fallbackCalled = false;
-    $resolved = app(EmailTemplateResolver::class)->resolve('reminder', function () use (&$fallbackCalled) {
-        $fallbackCalled = true;
-
-        return ['title' => 'File', 'body' => 'FILE BODY'];
-    });
-
-    expect($fallbackCalled)->toBeFalse()
-        ->and($resolved)->not->toBeNull()
-        ->and($resolved->source)->toBe('entry')
-        ->and($resolved->body)->toBe('ENTRY BODY');
-});
-
-it('falls back to the file template when no entry exists', function () {
-    $resolved = app(EmailTemplateResolver::class)->resolve('missing', fn () => [
-        'title' => 'File',
-        'body' => 'FILE BODY',
+it('resolves an email template through the et_templates addon facade', function () {
+    EtFacade::$handler = fn (string $slug) => fakeResolvedTemplate([
+        'slug' => $slug,
+        'title' => 'Welcome',
+        'subject' => 'Hi',
+        'body' => 'VIA ET ADDON',
+        'source' => 'entry',
     ]);
 
-    expect($resolved)->not->toBeNull()
-        ->and($resolved->source)->toBe('fallback')
-        ->and($resolved->slug)->toBe('missing')
-        ->and($resolved->body)->toBe('FILE BODY');
-});
-
-it('returns null when neither an entry nor a fallback yields a template', function () {
-    expect(app(EmailTemplateResolver::class)->resolve('nope'))->toBeNull();
-    expect(app(EmailTemplateResolver::class)->resolve('nope', fn () => null))->toBeNull();
-});
-
-it('exposes resolveEmailTemplate through the LeadHub facade', function () {
-    app(EmailTemplateCollectionManager::class)->upsert(new EmailTemplateData(
-        slug: 'facade',
-        title: 'Facade',
-        body: 'VIA FACADE',
-    ));
-
-    $result = LeadHub::resolveEmailTemplate('facade');
+    $result = LeadHub::resolveEmailTemplate('welcome');
 
     expect($result)->toBeArray()
-        ->and($result['slug'])->toBe('facade')
-        ->and($result['body'])->toBe('VIA FACADE')
+        ->and($result['slug'])->toBe('welcome')
+        ->and($result['body'])->toBe('VIA ET ADDON')
         ->and($result['source'])->toBe('entry');
+});
+
+it('passes the slug and fallback through to the addon resolver', function () {
+    $captured = [];
+
+    EtFacade::$handler = function (string $slug, ?callable $fallback) use (&$captured) {
+        $captured = ['slug' => $slug, 'fallback' => $fallback];
+
+        return null;
+    };
+
+    $fallback = fn () => ['title' => 'File', 'body' => 'FILE BODY'];
+
+    LeadHub::resolveEmailTemplate('reminder', $fallback);
+
+    expect($captured['slug'])->toBe('reminder')
+        ->and($captured['fallback'])->toBe($fallback);
+});
+
+it('returns null when the addon resolves no template', function () {
+    EtFacade::$handler = fn () => null;
+
+    expect(LeadHub::resolveEmailTemplate('nope'))->toBeNull();
 });

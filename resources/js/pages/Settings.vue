@@ -1,11 +1,41 @@
 <script setup>
+import { computed } from 'vue';
 import { Head } from '@statamic/cms/inertia';
-import { Header, Panel, Alert, Badge } from '@statamic/cms/ui';
+import { Header, Panel, Card, Alert, Badge } from '@statamic/cms/ui';
 
-defineProps([
+const props = defineProps([
     'config',           // raw config('leadhub') array
     'driver',           // active driver
     'publishCommand',   // 'php artisan vendor:publish --tag=leadhub-config'
+]);
+
+// Human-readable rows for the Behavior panel. The raw config key is kept as a
+// mono sub-label so nothing is lost, while the label gives it a proper name.
+const behaviorRows = computed(() => [
+    {
+        key: 'overwrite_existing_fields_from_submissions',
+        label: __('Overwrite existing fields from submissions'),
+        value: props.config.overwrite_existing_fields_from_submissions,
+        type: 'bool',
+    },
+    {
+        key: 'store_full_submission_payload',
+        label: __('Store full submission payload'),
+        value: props.config.store_full_submission_payload,
+        type: 'bool',
+    },
+    {
+        key: 'default_status',
+        label: __('Default lead status'),
+        value: props.config.default_status,
+        type: 'text',
+    },
+    {
+        key: 'exports.queue_threshold',
+        label: __('Export queue threshold'),
+        value: props.config.exports?.queue_threshold ?? 1000,
+        type: 'text',
+    },
 ]);
 </script>
 
@@ -25,64 +55,94 @@ defineProps([
 
         <div class="space-y-4">
             <Panel :heading="__('Storage driver')">
-                <div class="p-4 text-sm">
-                    <Badge :color="driver === 'flat' ? 'amber' : 'blue'" :text="driver" />
-                    <span class="ml-2 text-gray-700 dark:text-gray-300">
-                        {{ driver === 'flat'
-                            ? __('YAML files under content/leadhub/')
-                            : __('Database tables (leadhub_*)') }}
-                    </span>
-                </div>
+                <Card>
+                    <div class="flex items-center gap-3 p-1 text-sm">
+                        <Badge :color="driver === 'flat' ? 'amber' : 'blue'" :text="driver" />
+                        <span class="text-gray-700 dark:text-gray-300">
+                            {{ driver === 'flat'
+                                ? __('YAML files under content/leadhub/')
+                                : __('Database tables (leadhub_*)') }}
+                        </span>
+                    </div>
+                </Card>
             </Panel>
 
             <Panel :heading="__('Lead statuses')">
-                <ul class="divide-y divide-content-border text-sm">
-                    <li v-for="(label, key) in config.statuses" :key="key" class="px-4 py-2 flex justify-between">
-                        <span class="text-gray-500">{{ key }}</span>
-                        <span>{{ label }}</span>
-                    </li>
-                </ul>
+                <Card>
+                    <dl class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <div
+                            v-for="(label, key) in config.statuses"
+                            :key="key"
+                            class="flex items-center justify-between gap-4 py-3 first:pt-1 last:pb-1"
+                        >
+                            <dt class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ label }}</dt>
+                            <dd>
+                                <code class="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-xs font-mono text-gray-600 dark:text-gray-300">{{ key }}</code>
+                            </dd>
+                        </div>
+                    </dl>
+                </Card>
             </Panel>
 
             <Panel :heading="__('Behavior')">
-                <dl class="p-4 text-sm space-y-1">
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">overwrite_existing_fields_from_submissions</dt>
-                        <dd>{{ config.overwrite_existing_fields_from_submissions ? 'true' : 'false' }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">store_full_submission_payload</dt>
-                        <dd>{{ config.store_full_submission_payload ? 'true' : 'false' }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">default_status</dt>
-                        <dd>{{ config.default_status }}</dd>
-                    </div>
-                    <div class="flex justify-between">
-                        <dt class="text-gray-500">exports.queue_threshold</dt>
-                        <dd>{{ config.exports?.queue_threshold ?? 1000 }}</dd>
-                    </div>
-                </dl>
+                <Card>
+                    <dl class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <div
+                            v-for="row in behaviorRows"
+                            :key="row.key"
+                            class="flex items-start justify-between gap-4 py-3 first:pt-1 last:pb-1"
+                        >
+                            <div class="min-w-0">
+                                <dt class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ row.label }}</dt>
+                                <dd class="mt-0.5 text-xs font-mono text-gray-500 dark:text-gray-400">{{ row.key }}</dd>
+                            </div>
+                            <div class="shrink-0 text-sm">
+                                <Badge
+                                    v-if="row.type === 'bool'"
+                                    :color="row.value ? 'green' : 'default'"
+                                    :text="row.value ? __('Enabled') : __('Disabled')"
+                                />
+                                <span v-else class="font-mono text-gray-700 dark:text-gray-300">{{ row.value }}</span>
+                            </div>
+                        </div>
+                    </dl>
+                </Card>
             </Panel>
 
             <Panel :heading="__('Payload redaction')">
-                <div class="p-4 flex flex-wrap gap-2">
-                    <Badge
-                        v-for="key in config.timeline_payload_redaction"
-                        :key="key"
-                        color="default"
-                        :text="key"
-                    />
-                </div>
+                <Card>
+                    <div class="flex flex-wrap gap-2 p-1">
+                        <Badge
+                            v-for="key in config.timeline_payload_redaction"
+                            :key="key"
+                            color="default"
+                            :text="key"
+                        />
+                        <span
+                            v-if="!config.timeline_payload_redaction || !config.timeline_payload_redaction.length"
+                            class="text-sm text-gray-500 dark:text-gray-400 italic"
+                        >
+                            {{ __('No payload keys are redacted.') }}
+                        </span>
+                    </div>
+                </Card>
             </Panel>
 
             <Panel :heading="__('Feature flags')">
-                <dl class="p-4 text-sm space-y-1">
-                    <div v-for="(value, key) in config.features" :key="key" class="flex justify-between">
-                        <dt class="text-gray-500">{{ key }}</dt>
-                        <dd>{{ value ? '✓' : '—' }}</dd>
-                    </div>
-                </dl>
+                <Card>
+                    <dl class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <div
+                            v-for="(value, key) in config.features"
+                            :key="key"
+                            class="flex items-center justify-between gap-4 py-3 first:pt-1 last:pb-1"
+                        >
+                            <dt class="text-sm font-mono text-gray-700 dark:text-gray-300">{{ key }}</dt>
+                            <dd>
+                                <Badge :color="value ? 'green' : 'default'" :text="value ? __('On') : __('Off')" />
+                            </dd>
+                        </div>
+                    </dl>
+                </Card>
             </Panel>
         </div>
     </div>

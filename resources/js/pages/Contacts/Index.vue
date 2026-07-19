@@ -20,6 +20,7 @@ const props = defineProps([
     'showArchived',       // bool
     'hasFormConnected',   // bool
     'configureFormsUrl',  // string
+    'createUrl',          // string | null — manual "create contact" (feature-gated)
 ]);
 
 function anyFilterActive() {
@@ -80,6 +81,13 @@ function restore(row) {
                 :heading="__('Configure forms')"
                 :description="__('Pick a Statamic form and map its fields to a LeadHub contact.')"
             />
+            <EmptyStateItem
+                v-if="createUrl"
+                :href="createUrl"
+                icon="plus"
+                :heading="__('Create contact')"
+                :description="__('Add a contact by hand instead of waiting for a form submission.')"
+            />
         </EmptyStateMenu>
     </div>
 
@@ -87,6 +95,13 @@ function restore(row) {
     <div v-else class="max-w-page mx-auto">
         <Header :title="__('Contacts')" icon="users">
             <Button :text="__('Export CSV')" icon="download" variant="default" @click="exportCsv" />
+            <Button
+                v-if="createUrl"
+                :text="__('Create contact')"
+                icon="plus"
+                variant="primary"
+                @click="router.visit(createUrl)"
+            />
         </Header>
 
         <Listing

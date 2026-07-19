@@ -86,9 +86,29 @@ class FormMappingController extends Controller
         $data = $request->validated();
         $data['form_handle'] = $formHandle;
 
-        $this->mappings->update($mapping, $data);
+        $mapping = $this->mappings->update($mapping, $data);
 
-        return back()->with('success', __('leadhub::forms.flashes.saved'));
+        // The Forms/Edit screen uses Statamic's native <PublishForm>, which
+        // submits via axios and expects a JSON response. Returning back() here
+        // is a 302 to the shared edit/update URI: the XHR follows it, preserves
+        // the PATCH verb, re-hits update, and loops until ERR_TOO_MANY_REDIRECTS.
+        //
+        // Mirror edit()'s value shape so PublishForm re-hydrates and clears its
+        // `saving` flag. PublishForm's SavePipeline reads `data.values` (see
+        // Publish/SavePipeline.js Request step) and Statamic's own EntriesController
+        // returns the same `['data' => ['values' => ..., 'extraValues' => ...], 'saved' => true]`.
+        $form = Form::find($formHandle);
+        $blueprint = FormMappingBlueprint::build($form);
+        $values = $this->mappingToValues($mapping);
+        $fields = $blueprint->fields()->addValues($values)->preProcess();
+
+        return response()->json([
+            'data' => [
+                'values' => $fields->values()->all(),
+                'extraValues' => (object) [],
+            ],
+            'saved' => true,
+        ]);
     }
 
     protected function mappingToValues(FormMapping $mapping): array
