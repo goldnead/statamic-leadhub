@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Models;
 
+use Goldnead\BrandContext\Concerns\HasBrand;
 use Goldnead\Leadhub\Database\Factories\TagFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
 
 class Tag extends Model
 {
+    use HasBrand;
+
     use HasFactory;
 
     protected $table = 'leadhub_tags';

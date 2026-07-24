@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Models;
 
+use Goldnead\BrandContext\Concerns\HasBrand;
 use Goldnead\Leadhub\Database\Factories\ContactFactory;
 use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\PhoneNormalizer;
@@ -14,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Contact extends Model
 {
+    use HasBrand;
+
     use HasFactory;
 
     protected $table = 'leadhub_contacts';

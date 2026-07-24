@@ -2,11 +2,14 @@
 
 namespace Goldnead\Leadhub\Models;
 
+use Goldnead\BrandContext\Concerns\HasBrand;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StageTransition extends Model
 {
+    use HasBrand;
+
     protected $table = 'leadhub_stage_transitions';
 
     protected $guarded = [];

@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Models;
 
+use Goldnead\BrandContext\Concerns\HasBrand;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
 
 class Task extends Model
 {
+    use HasBrand;
+
     protected $table = 'leadhub_tasks';
 
     protected $guarded = [];

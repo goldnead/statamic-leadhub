@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Models;
 
+use Goldnead\BrandContext\Concerns\HasBrand;
 use Goldnead\Leadhub\Casts\SegmentRules;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,8 @@ use Illuminate\Support\Str;
 
 class Segment extends Model
 {
+    use HasBrand;
+
     protected $table = 'leadhub_segments';
 
     protected $guarded = [];

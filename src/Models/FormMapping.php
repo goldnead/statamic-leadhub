@@ -2,12 +2,15 @@
 
 namespace Goldnead\Leadhub\Models;
 
+use Goldnead\BrandContext\Concerns\HasBrand;
 use Goldnead\Leadhub\Database\Factories\FormMappingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class FormMapping extends Model
 {
+    use HasBrand;
+
     use HasFactory;
 
     protected $table = 'leadhub_form_mappings';

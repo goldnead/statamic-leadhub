@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Models;
 
+use Goldnead\BrandContext\Concerns\HasBrand;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -9,6 +10,8 @@ use Illuminate\Support\Str;
 
 class Company extends Model
 {
+    use HasBrand;
+
     protected $table = 'leadhub_companies';
 
     protected $guarded = [];

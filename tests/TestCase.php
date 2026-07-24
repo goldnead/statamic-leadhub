@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Tests;
 
+use Goldnead\BrandContext\ServiceProvider as BrandContextServiceProvider;
 use Goldnead\Leadhub\ServiceProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
@@ -54,6 +55,9 @@ abstract class TestCase extends OrchestraTestCase
     {
         return [
             StatamicServiceProvider::class,
+            // Foundation for brand scoping: registers the `brands` table + the
+            // always-present default brand so brand_id backfills have a target.
+            BrandContextServiceProvider::class,
             ServiceProvider::class,
         ];
     }
