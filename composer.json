@@ -21,22 +21,13 @@
         "issues": "https://github.com/goldnead/statamic-leadhub/issues",
         "source": "https://github.com/goldnead/statamic-leadhub"
     },
-    "repositories": [
-        {
-            "type": "path",
-            "url": "../statamic-brand-context",
-            "options": {
-                "symlink": true
-            }
-        }
-    ],
     "require": {
         "php": "^8.2",
         "laravel/framework": "^11.0|^12.0|^13.0",
         "statamic/cms": "^6.0",
         "inertiajs/inertia-laravel": "^1.0|^2.0",
         "symfony/yaml": "^6.0|^7.0",
-        "goldnead/statamic-brand-context": "@dev"
+        "goldnead/statamic-brand-context": "^1.0"
     },
     "require-dev": {
         "orchestra/testbench": "^8.0|^9.0|^10.0|^11.0",
@@ -63,7 +54,10 @@
             "name": "LeadHub",
             "description": "Turn Statamic form submissions into contacts, timelines, and follow-ups directly inside your Control Panel.",
             "vite": {
-                "input": ["resources/js/cp.js", "resources/css/cp.css"],
+                "input": [
+                    "resources/js/cp.js",
+                    "resources/css/cp.css"
+                ],
                 "publicDirectory": "resources/dist"
             }
         },
