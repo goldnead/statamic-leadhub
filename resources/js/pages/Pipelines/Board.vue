@@ -1,9 +1,14 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
-import { Header, Panel, Badge, Button, Text, Icon, EmptyStateMenu, EmptyStateItem } from '@statamic/cms/ui';
+import { Header, Panel, Badge, Button, Text, Icon, Select, EmptyStateMenu, EmptyStateItem } from '@statamic/cms/ui';
 
-const props = defineProps(['pipeline', 'pipelines', 'columns', 'manageUrl', 'canConfigure', 'canManage']);
+const props = defineProps([
+    'pipeline', 'pipelines', 'columns', 'manageUrl', 'canConfigure', 'canManage',
+    'closedWindow',         // 'none' | '30d' | '90d' | '365d' | 'all'
+    'closedWindowOptions',  // [{ value, label }]
+    'totals',               // { open, closed, won, lost }
+]);
 
 // Feature is enabled but no pipeline exists yet: show a native empty state.
 const isEmpty = computed(() => !props.pipeline || !props.pipelines || props.pipelines.length === 0);
@@ -29,6 +34,21 @@ function switchPipeline(url) {
     router.visit(url);
 }
 
+// Closed deals used to be filtered out entirely, which made a win look like a
+// deleted record and left the win column summing to 0. The window is a query
+// parameter so the chosen view is shareable and survives a reload.
+const closedWindow = ref(props.closedWindow || '30d');
+
+watch(() => props.closedWindow, (value) => { closedWindow.value = value || '30d'; });
+
+function changeClosedWindow(value) {
+    closedWindow.value = value;
+    router.get(window.location.pathname, { closed: value }, {
+        preserveScroll: true,
+        preserveState: false,
+    });
+}
+
 function money(value) {
     if (value === null || value === undefined) return null;
     return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(value);
@@ -43,6 +63,12 @@ function initials(name) {
 
 function columnValue(column) {
     return column.cards.reduce((sum, card) => sum + (Number(card.value_estimate) || 0), 0);
+}
+
+function columnClosedValue(column) {
+    return column.cards
+        .filter((card) => card.is_closed)
+        .reduce((sum, card) => sum + (Number(card.value_estimate) || 0), 0);
 }
 
 /** Optimistically move a card between local columns, then persist. */
@@ -130,6 +156,13 @@ function onDrop(columnId) {
                         :variant="p.id === pipeline.id ? 'primary' : 'ghost'"
                         @click="switchPipeline(p.url)"
                     />
+                    <Select
+                        :model-value="closedWindow"
+                        :options="closedWindowOptions"
+                        class="w-56"
+                        data-leadhub-closed-filter
+                        @update:model-value="changeClosedWindow"
+                    />
                     <Button
                         v-if="canConfigure"
                         :text="__('Manage')"
@@ -141,6 +174,12 @@ function onDrop(columnId) {
                 </div>
             </template>
         </Header>
+
+        <div v-if="totals" class="flex flex-wrap items-center gap-4 px-1 pb-3 text-xs text-gray-500" data-leadhub-board-totals>
+            <span>{{ __('Open') }}: <span class="font-medium text-gray-700 dark:text-gray-200">{{ money(totals.open) }}</span></span>
+            <span>{{ __('Won') }}: <span class="font-medium text-green-600 dark:text-green-400">{{ money(totals.won) }}</span></span>
+            <span>{{ __('Lost') }}: <span class="font-medium text-red-600 dark:text-red-400">{{ money(totals.lost) }}</span></span>
+        </div>
 
         <div class="flex gap-3 overflow-x-auto pb-4">
             <div
@@ -176,10 +215,21 @@ function onDrop(columnId) {
                             :class="[
                                 canManage ? 'cursor-grab active:cursor-grabbing' : '',
                                 draggingCardId === card.id ? 'opacity-50' : '',
+                                card.is_closed ? 'opacity-90 ring-dashed' : '',
                             ]"
+                            :data-leadhub-closed="card.is_closed ? card.outcome : null"
                             @dragstart="onDragStart($event, card.id, column.id)"
                             @dragend="onDragEnd"
                         >
+                            <div v-if="card.is_closed" class="mb-2 flex items-center gap-1.5">
+                                <Badge
+                                    :color="card.outcome === 'won' ? 'green' : 'red'"
+                                    size="sm"
+                                    :text="card.outcome === 'won' ? __('Won') : __('Lost')"
+                                />
+                                <Text v-if="card.closed_at" size="xs" variant="subtle">{{ card.closed_at }}</Text>
+                            </div>
+
                             <div class="flex items-start gap-2.5">
                                 <div
                                     class="size-7 shrink-0 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-2xs font-medium text-gray-600 dark:text-gray-300"
@@ -219,12 +269,19 @@ function onDrop(columnId) {
                         </div>
 
                         <p v-if="!column.cards.length" class="text-xs text-gray-400 px-1 py-2">
-                            {{ __('No open opportunities in this stage.') }}
+                            {{ closedWindow === 'none' ? __('No open opportunities in this stage.') : __('Nothing in this stage.') }}
                         </p>
                     </div>
 
-                    <div v-if="columnValue(column)" class="px-3 py-1 border-t border-content-border text-xs text-gray-500">
-                        {{ money(columnValue(column)) }}
+                    <div
+                        v-if="columnValue(column)"
+                        class="px-3 py-1 border-t border-content-border text-xs text-gray-500 flex items-center justify-between gap-2"
+                        data-leadhub-column-total
+                    >
+                        <span class="font-medium text-gray-700 dark:text-gray-200">{{ money(columnValue(column)) }}</span>
+                        <span v-if="columnClosedValue(column)" class="truncate">
+                            {{ __('incl. closed') }} {{ money(columnClosedValue(column)) }}
+                        </span>
                     </div>
                 </Panel>
             </div>

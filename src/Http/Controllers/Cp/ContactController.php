@@ -250,6 +250,8 @@ class ContactController extends Controller
             'slug' => $t->slug,
         ])->all();
 
+        $crm = $this->crmPanels($contact);
+
         return Inertia::render('leadhub::Contacts/Show', [
             'contact' => [
                 'id' => (string) $contact->uuid,
@@ -301,7 +303,99 @@ class ContactController extends Controller
             'allTags' => $allTags,
             'canArchive' => $this->userCan($request, 'archive leadhub contacts'),
             'canDelete' => $this->userCan($request, 'delete leadhub contacts'),
+            // Linked CRM records. `contact.company` above is the free-text
+            // company string that came off the form — a different thing from
+            // `linkedCompanies`, which are real Company records. The view is
+            // required to keep them visually apart.
+            'crmFeatures' => $crm['features'],
+            'linkedCompanies' => $crm['companies'],
+            'tasks' => $crm['tasks'],
+            'opportunities' => $crm['opportunities'],
         ]);
+    }
+
+    /**
+     * The CRM entities linked to a contact: companies, tasks, opportunities.
+     *
+     * Eloquent-only (the CRM-core modules are), each behind its own feature
+     * flag. Returns empty lists rather than nulls so the view never has to
+     * guard against a missing prop.
+     */
+    protected function crmPanels(mixed $contact): array
+    {
+        $features = [
+            'companies' => (bool) config('leadhub.features.companies', false),
+            'tasks' => (bool) config('leadhub.features.tasks', false),
+            'pipelines' => (bool) config('leadhub.features.pipelines', false),
+        ];
+
+        $eloquent = config('leadhub.storage.driver', 'eloquent') === 'eloquent'
+            && $contact instanceof Contact
+            && $contact->exists;
+
+        $out = ['features' => $features, 'companies' => [], 'tasks' => [], 'opportunities' => []];
+
+        if (! $eloquent) {
+            return $out;
+        }
+
+        if ($features['companies']) {
+            $out['companies'] = $contact->companies()->orderBy('name')->get()
+                ->map(fn ($company) => [
+                    'id' => (string) $company->id,
+                    'name' => $company->displayName(),
+                    'domain' => $company->domain,
+                    'industry' => $company->industry,
+                    'relationship_label' => $company->pivot->relationship_label ?? null,
+                    'is_primary' => (bool) ($company->pivot->is_primary ?? false),
+                    'url' => cp_route('leadhub.companies.show', $company->id),
+                ])->values()->all();
+        }
+
+        if ($features['tasks']) {
+            $out['tasks'] = \Goldnead\Leadhub\Models\Task::query()
+                ->where('contact_id', $contact->id)
+                ->orderByRaw('completed_at is not null')
+                ->orderByRaw('due_at is null, due_at asc')
+                ->get()
+                ->map(fn ($task) => [
+                    'id' => (string) $task->id,
+                    'title' => $task->title,
+                    'status' => $task->status,
+                    'priority' => $task->priority,
+                    'due_at' => $task->due_at?->format('Y-m-d H:i'),
+                    'is_overdue' => $task->isOverdue(),
+                    'is_completed' => $task->isCompleted(),
+                    'assignee_id' => $task->assignee_id,
+                    'assignee_name' => $task->assignee_id ? $this->users->label($task->assignee_id) : null,
+                    'complete_url' => cp_route('leadhub.tasks.complete', $task->id),
+                    'index_url' => cp_route('leadhub.tasks.index'),
+                ])->values()->all();
+        }
+
+        if ($features['pipelines']) {
+            $out['opportunities'] = \Goldnead\Leadhub\Models\Opportunity::query()
+                ->where('contact_id', $contact->id)
+                ->with(['pipeline', 'stage'])
+                ->orderByDesc('last_activity_at')
+                ->get()
+                ->map(fn ($opp) => [
+                    'id' => (string) $opp->id,
+                    'title' => $opp->title,
+                    'status' => $opp->status,
+                    'outcome' => $opp->outcome,
+                    'value_estimate' => $opp->value_estimate !== null ? (float) $opp->value_estimate : null,
+                    'confidence' => $opp->confidence,
+                    'stage_name' => $opp->stage?->name,
+                    'pipeline_name' => $opp->pipeline?->name,
+                    'closed_at' => $opp->closed_at?->format('Y-m-d'),
+                    'board_url' => $opp->pipeline
+                        ? cp_route('leadhub.pipelines.board.show', $opp->pipeline->id)
+                        : null,
+                ])->values()->all();
+        }
+
+        return $out;
     }
 
     public function update(UpdateContactRequest $request, int|string $contactId)

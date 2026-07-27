@@ -7,6 +7,7 @@ use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Http\Requests\StoreFollowupRequest;
 use Goldnead\Leadhub\Services\FollowupService;
+use Goldnead\Leadhub\Support\DateValueNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -65,6 +66,12 @@ class FollowupController extends Controller
 
         $followup = $this->followupsRepo->find($followupId);
         abort_unless($followup, 404);
+
+        // Same DatePicker-object payload as the store path — normalize before
+        // the `date` rule sees it. See Support\DateValueNormalizer.
+        if ($request->has('due_at')) {
+            $request->merge(['due_at' => DateValueNormalizer::normalize($request->input('due_at'))]);
+        }
 
         $request->validate([
             'due_at' => 'sometimes|date',

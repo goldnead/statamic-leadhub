@@ -4,6 +4,7 @@ namespace Goldnead\Leadhub\Models;
 
 use Goldnead\BrandContext\Concerns\HasBrand;
 use Goldnead\Leadhub\Database\Factories\ContactFactory;
+use Goldnead\Leadhub\Models\Concerns\ScopesPivotToBrand;
 use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\PhoneNormalizer;
 use Illuminate\Database\Eloquent\Builder;
@@ -18,6 +19,7 @@ class Contact extends Model
     use HasBrand;
 
     use HasFactory;
+    use ScopesPivotToBrand;
 
     protected $table = 'leadhub_contacts';
 
@@ -101,22 +103,26 @@ class Contact extends Model
 
     public function tags(): BelongsToMany
     {
-        return $this->belongsToMany(
-            Tag::class,
-            'leadhub_contact_tag',
-            'contact_id',
-            'tag_id'
-        )->withTimestamps();
+        return $this->scopePivotToOwnBrand(
+            $this->belongsToMany(
+                Tag::class,
+                'leadhub_contact_tag',
+                'contact_id',
+                'tag_id'
+            )->withTimestamps()
+        );
     }
 
     public function companies(): BelongsToMany
     {
-        return $this->belongsToMany(
-            Company::class,
-            'leadhub_contact_company',
-            'contact_id',
-            'company_id'
-        )->withPivot(['relationship_label', 'is_primary'])->withTimestamps();
+        return $this->scopePivotToOwnBrand(
+            $this->belongsToMany(
+                Company::class,
+                'leadhub_contact_company',
+                'contact_id',
+                'company_id'
+            )->withPivot(['relationship_label', 'is_primary', 'brand_id'])->withTimestamps()
+        );
     }
 
     /** The surviving contact this one was merged into (if any). */

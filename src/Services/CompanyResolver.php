@@ -57,12 +57,18 @@ class CompanyResolver
     public function link(Contact $contact, Company $company, ?string $label = null, bool $primary = false): void
     {
         if ($primary) {
-            // Demote any existing primary for this contact.
+            // Demote any existing primary for this contact — within its brand.
+            // This is a raw pivot statement, so the relation's brand filter does
+            // not apply and has to be repeated by hand.
             $contact->companies()->newPivotStatement()
                 ->where('contact_id', $contact->id)
+                ->where('brand_id', $contact->brand_id)
                 ->update(['is_primary' => false]);
         }
 
+        // brand_id is stamped by the relation itself (withPivotValue in
+        // Models\Concerns\ScopesPivotToBrand), so a link can never be written
+        // into the wrong brand from here.
         $contact->companies()->syncWithoutDetaching([
             $company->id => array_filter([
                 'relationship_label' => $label,

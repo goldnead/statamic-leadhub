@@ -3,6 +3,7 @@
 namespace Goldnead\Leadhub\Models;
 
 use Goldnead\BrandContext\Concerns\HasBrand;
+use Goldnead\Leadhub\Models\Concerns\ScopesPivotToBrand;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,6 +12,7 @@ use Illuminate\Support\Str;
 class Company extends Model
 {
     use HasBrand;
+    use ScopesPivotToBrand;
 
     protected $table = 'leadhub_companies';
 
@@ -87,12 +89,14 @@ class Company extends Model
 
     public function contacts(): BelongsToMany
     {
-        return $this->belongsToMany(
-            Contact::class,
-            'leadhub_contact_company',
-            'company_id',
-            'contact_id'
-        )->withPivot(['relationship_label', 'is_primary'])->withTimestamps();
+        return $this->scopePivotToOwnBrand(
+            $this->belongsToMany(
+                Contact::class,
+                'leadhub_contact_company',
+                'company_id',
+                'contact_id'
+            )->withPivot(['relationship_label', 'is_primary', 'brand_id'])->withTimestamps()
+        );
     }
 
     public function scopeSearch(Builder $query, ?string $term): Builder

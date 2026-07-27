@@ -89,6 +89,19 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::get('/manage', [PipelineController::class, 'manage'])->name('manage');
         Route::post('/', [PipelineController::class, 'store'])->name('store');
         Route::post('/opportunities/{opportunity}/move', [PipelineController::class, 'move'])->name('move');
+
+        // Stage management. Registered before the `/{pipeline}` board route —
+        // different verbs, but keeping them together makes the ordering
+        // intentional rather than accidental.
+        Route::post('/{pipeline}/stages', [PipelineController::class, 'storeStage'])
+            ->whereNumber('pipeline')->name('stages.store');
+        Route::post('/{pipeline}/stages/reorder', [PipelineController::class, 'reorderStages'])
+            ->whereNumber('pipeline')->name('stages.reorder');
+        Route::patch('/{pipeline}/stages/{stage}', [PipelineController::class, 'updateStage'])
+            ->whereNumber('pipeline')->whereNumber('stage')->name('stages.update');
+        Route::delete('/{pipeline}/stages/{stage}', [PipelineController::class, 'destroyStage'])
+            ->whereNumber('pipeline')->whereNumber('stage')->name('stages.destroy');
+
         Route::get('/{pipeline}', [PipelineController::class, 'board'])->whereNumber('pipeline')->name('board.show');
     });
 

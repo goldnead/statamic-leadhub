@@ -4,6 +4,7 @@ namespace Goldnead\Leadhub\Models;
 
 use Goldnead\BrandContext\Concerns\HasBrand;
 use Goldnead\Leadhub\Database\Factories\TagFactory;
+use Goldnead\Leadhub\Models\Concerns\ScopesPivotToBrand;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -14,6 +15,7 @@ class Tag extends Model
     use HasBrand;
 
     use HasFactory;
+    use ScopesPivotToBrand;
 
     protected $table = 'leadhub_tags';
 
@@ -34,12 +36,14 @@ class Tag extends Model
 
     public function contacts(): BelongsToMany
     {
-        return $this->belongsToMany(
-            Contact::class,
-            'leadhub_contact_tag',
-            'tag_id',
-            'contact_id'
-        )->withTimestamps();
+        return $this->scopePivotToOwnBrand(
+            $this->belongsToMany(
+                Contact::class,
+                'leadhub_contact_tag',
+                'tag_id',
+                'contact_id'
+            )->withPivot('brand_id')->withTimestamps()
+        );
     }
 
     protected static function newFactory(): TagFactory

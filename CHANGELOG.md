@@ -6,6 +6,96 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.5.0] — 2026-07-27
+
+Repairs from a full QA run against a live Hub instance. Five defects, each with
+a test that fails without its fix, plus a written account of three things that
+are simply not built yet (`GAPS.md`).
+
+### Fixed
+
+- **Follow-ups could not be created from the Control Panel.** The CP
+  `<DatePicker>` is built on reka-ui: its `v-model` is an
+  `@internationalized/date` *DateValue object*, never a string. `Contacts/Show.vue`
+  posted it straight through, so `due_at` arrived as
+  `{"calendar":{"identifier":"gregory"},"era":"AD","year":2026,…}` and Laravel's
+  `date` rule answered "Not a valid date." — a 422 that `setFollowup()` had no
+  `onError` branch to display. The date is now normalized before it is sent
+  (`resources/js/support/datetime.js`) and again on arrival
+  (`Support\DateValueNormalizer`, applied through
+  `Http\Requests\Concerns\NormalizesDatePickerValues` on the store route and on
+  the update route), and the field renders whatever validation still rejects.
+  The picker also carried an inert `with-time` attribute — not a prop of that
+  component — so a follow-up could never be given a time; it is now
+  `granularity="minute"`. Covered against the real HTTP route, not the model:
+  `tests/Feature/FollowupDatePickerTest.php`.
+- **The contact detail page showed none of the contact's CRM records.**
+  `ContactController::show` passed no props for companies, tasks or
+  opportunities, so all three were invisible regardless of the feature flags.
+  They are now three panels, each rendered whenever its module is on — including
+  when empty, so "nothing linked" is distinguishable from "not built". The
+  free-text `company` column and a linked `Company` record are two different
+  things that look alike; the page now says which one it is showing.
+  `tests/Feature/ContactShowCrmPanelsTest.php`.
+- **Winning a deal made it disappear from the board.** The Kanban query filtered
+  on `open()`, so a closed opportunity vanished and its terminal column summed
+  to 0 — from the operator's seat, indistinguishable from data loss. Closed
+  deals now stay in their terminal stage for a selectable window (open only /
+  30 / 90 / 365 days / all, default 30 days, carried in `?closed=`), cards are
+  badged won or lost with their closing date, the stage total counts them, and
+  the board header carries open / won / lost totals. Widening the status filter
+  does not widen brand access — asserted across two brands in
+  `tests/Feature/PipelineBoardClosedDealsTest.php`.
+- **`brand_id` on the pivot tables was documentation, not defense.** The
+  brand-scoping migration justified the denormalized column as "query-time
+  defense", then never stamped or read it. Decision: keep it and make it real.
+  `Models\Concerns\ScopesPivotToBrand` stamps the brand on every attach and
+  constrains every read of `leadhub_contact_company` and `leadhub_contact_tag`,
+  which is the only protection that survives the paths where the models' own
+  `BrandScope` is deliberately switched off (`BrandContext::withoutBrandScope()`
+  for cross-brand admin and reporting, and per-brand console commands). A new
+  migration re-stamps the rows written since the column was added, so no
+  existing link disappears behind the new filter.
+  `tests/Feature/ContactCompanyPivotBrandTest.php` includes the cross-brand case
+  that fails the moment the pivot filter is removed.
+- **Pipeline stages could not be ordered or edited.** "Add stage" only appended,
+  and nothing could be renamed, moved or deleted afterwards — a stage that
+  landed behind the terminal ones could only be fixed by rebuilding the whole
+  pipeline. The management screen now edits stages in place, moves them up and
+  down, appends and deletes them, and saves the order in one request. A partial
+  reorder is refused rather than half-applied, a stage still holding
+  opportunities is not deleted, and a pipeline cannot keep fewer than one stage.
+  `tests/Feature/PipelineStageManagementTest.php`.
+
+### Added
+
+- `POST /cp/leadhub/pipelines/{pipeline}/stages`,
+  `POST …/stages/reorder`, `PATCH …/stages/{stage}` and
+  `DELETE …/stages/{stage}` — all behind `manage leadhub settings` and the
+  `features.pipelines` flag, resolving the pipeline through the brand-scoped
+  query.
+- `GAPS.md` — what is *not* built: CP create/edit/delete for companies, tasks
+  and opportunities; task assignment beyond the data model; and the engagement
+  score, which computes correctly and appears on no screen. Per gap: affected
+  files, prerequisites, the decisions to settle first, and an effort estimate.
+
+### Notes
+
+- Full suite green on the eloquent driver: **227 passed + 4 skipped** (up from
+  192 + 4). The flat driver keeps its 7 pre-existing failures
+  (`FlatFileContactRepository`, `SendFollowupDigestCommand`), unchanged in count
+  and location before and after these fixes; the CRM-core modules are
+  eloquent-only and skip there.
+- Still open, recorded in `GAPS.md`: `leadhub_segment_contact` is written and
+  read through raw `DB::table()` queries in `EloquentSegmentRepository`, so its
+  `brand_id` is backfilled by the new migration but neither stamped on new rows
+  nor read. Same defect class as the two pivots fixed here; it needs repository
+  work rather than a relation change.
+- `resources/lang/de/` still has no `companies.php`, `tasks.php` or
+  `pipelines.php`; German installs fall back to English for the CRM modules.
+- 1.2.0 through 1.4.0 were tagged without changelog entries. Those releases are
+  not reconstructed here.
+
 ## [1.1.0] — 2026-07-03
 
 ### Added — Segments

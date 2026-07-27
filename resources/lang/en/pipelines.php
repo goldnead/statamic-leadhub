@@ -6,4 +6,18 @@ return [
     'moved' => 'Opportunity moved.',
     'created' => 'Pipeline created.',
     'empty' => 'No open opportunities in this stage.',
+
+    // Closed opportunities on the board
+    'closed_filter' => 'Closed deals',
+    'closed_none' => 'Open only',
+    'closed_days' => 'Closed in the last :days days',
+    'closed_all' => 'All closed deals',
+
+    // Stage management
+    'stage_created' => 'Stage added.',
+    'stage_updated' => 'Stage updated.',
+    'stage_deleted' => 'Stage deleted.',
+    'stages_reordered' => 'Stage order saved.',
+    'stage_not_empty' => 'This stage still holds opportunities. Move them to another stage first.',
+    'stage_last' => 'A pipeline needs at least one stage.',
 ];
