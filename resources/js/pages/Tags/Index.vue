@@ -78,9 +78,17 @@ function destroy() {
             </template>
 
             <template #cell-color="{ row }">
+                <!--
+                    Kein Tag-Color gesetzt: Platzhalter ueber CP-Tokens statt
+                    ueber ein hartkodiertes #e5e7eb. Der Hex war ein fester
+                    Light-Mode-Grauwert und blieb im Darkmode unveraendert
+                    hell. bg-gray-200/dark:bg-gray-700 folgt dem Theme.
+                    Ist eine Farbe gesetzt, gewinnt das Inline-Style ueber die
+                    Klasse -- der Swatch zeigt also weiterhin exakt row.color.
+                -->
                 <span
-                    class="inline-block w-6 h-6 rounded border border-content-border"
-                    :style="{ background: row.color || '#e5e7eb' }"
+                    class="inline-block w-6 h-6 rounded border border-content-border bg-gray-200 dark:bg-gray-700"
+                    :style="row.color ? { background: row.color } : null"
                 ></span>
             </template>
 
