@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Models\Concerns;
 
+use Goldnead\Leadhub\Support\PivotBrand;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 /**
@@ -44,24 +45,8 @@ trait ScopesPivotToBrand
 
     protected function resolvePivotBrandId(string $column = 'brand_id'): ?int
     {
-        $own = $this->getAttribute(
-            method_exists($this, 'getBrandColumn') ? $this->getBrandColumn() : $column
-        );
-
-        if (! empty($own)) {
-            return (int) $own;
-        }
-
-        if (! app()->bound('brand-context')) {
-            return null;
-        }
-
-        try {
-            return (int) app('brand-context')->currentId();
-        } catch (\Throwable) {
-            // No brands table yet (fresh install mid-migration): stay inert
-            // rather than break the relation.
-            return null;
-        }
+        // Shared with EloquentSegmentRepository, which has to answer the same
+        // question without a relation to hang it on.
+        return PivotBrand::for($this, $column);
     }
 }

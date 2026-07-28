@@ -6,6 +6,83 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.6.0] — 2026-07-28
+
+The two loose ends v1.5.0 wrote down instead of fixing: the third pivot's brand
+column, and the German half of the CRM modules.
+
+### Fixed
+
+- **The brand column on segment membership was still documentation, not
+  defense.** v1.5.0 made `brand_id` real on `leadhub_contact_company` and
+  `leadhub_contact_tag` through `Models\Concerns\ScopesPivotToBrand`, which
+  hangs on an Eloquent relation. `leadhub_segment_contact` carries the same
+  column and the same promise in its migration comment, but membership is
+  written and read by raw query-builder calls in `EloquentSegmentRepository` —
+  there was no relation for that fix to attach to, so the column stayed inert.
+  It is now stamped on every insert and filtered on every read: `membersCount`,
+  `hasContact`, `handlesForContact`, `removeContact`, and the
+  `Segment::contacts()` relation behind `memberIds()` and the member count on
+  the index. As with the other two pivots this changes nothing while the models'
+  global `BrandScope` is on; it is the protection that survives the paths where
+  the scope is deliberately off — `BrandContext::withoutBrandScope()` for
+  cross-brand reporting, and console commands iterating brands. There a
+  mis-stamped row would otherwise hand brand A's segment a contact of brand B.
+  `tests/Feature/SegmentContactPivotBrandTest.php` covers both directions and
+  fails in six places the moment the filter is removed.
+
+  Two decisions worth knowing about, both in the code:
+
+  - `addContact()` checks for an existing row **without** the brand filter. The
+    pivot's primary key is `(segment_id, contact_id)`, so a foreign-brand row
+    cannot be joined by a second one; it is left untouched rather than
+    re-stamped, because re-stamping would launder a cross-brand membership into
+    the current brand.
+  - `removeContact()` is filtered like the reads. A caller that cannot see a
+    membership must not be able to delete it either — the same contract
+    `withPivotValue()` gives `detach()` on the other two pivots.
+
+  The resolution of "which brand does this pivot row belong to" moved into
+  `Support\PivotBrand` so the relation path and the repository path cannot drift
+  apart. It stays inert (no stamp, no filter) when no brand can be resolved at
+  all, which is what keeps a fresh install mid-migration working.
+- **New migration `2026_07_28_000001`** re-stamps segment memberships written
+  since the v1.5.0 backfill. Those rows carry `NULL`, because the raw inserts
+  never set the column — and a filter over a partially-NULL column does not
+  raise an error, it makes members disappear from a segment that nobody
+  changed. The migration runs immediately before the filter goes live, takes the
+  brand from the owning segment, parks unresolvable rows on the default brand,
+  and only touches rows that are still NULL, so it is safe to re-run.
+
+### Added
+
+- **German translations for the CRM modules.** `resources/lang/de/` had no
+  `companies.php`, `tasks.php` or `pipelines.php`, so German installs showed
+  those three modules in English in an otherwise German Control Panel — Laravel
+  falls back key by key, which is why this never looked like an error. All three
+  now exist in full, and the two files that had quietly fallen behind are caught
+  up: `nav.php` was missing the three CRM entries, `timeline.php` the eight
+  task, opportunity, merge and source-ingest lines added since 1.1.0.
+- **`tests/Feature/TranslationParityTest.php`** compares `en/` and `de/` file by
+  file and key by key, in both directions. An English string nobody translates
+  now fails the suite instead of appearing in somebody's CP, and a German key
+  whose English original was renamed is caught as the dead weight it is. This is
+  the test that stops the gap from reopening; it fails in seven places against
+  the pre-1.6.0 lang files.
+
+### Notes
+
+- Full suite green on the eloquent driver: **268 passed + 4 skipped** (up from
+  227 + 4). The flat driver keeps its 7 pre-existing failures
+  (`ContactCreateTest`, `CpRoutesTest`, `CrmSyncTest`, `NotificationsTest` —
+  `FlatFileContactRepository` and `SendFollowupDigestCommand` underneath),
+  unchanged in count and location before and after these changes; segment
+  membership on flat is stored in the contact's YAML and has no pivot, so
+  `SegmentContactPivotBrandTest` skips there.
+- `GAPS.md` no longer lists either of these. What remains unbuilt is unchanged:
+  CP create/edit/delete for companies, tasks and opportunities; task assignment
+  beyond the data model; and the engagement score.
+
 ## [1.5.0] — 2026-07-27
 
 Repairs from a full QA run against a live Hub instance. Five defects, each with

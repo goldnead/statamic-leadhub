@@ -9,7 +9,7 @@ Everything below refers to the eloquent driver. The CRM-core modules
 (companies, tasks, pipelines) are eloquent-only by design and sit behind the
 `features.*` flags in `config/leadhub.php`.
 
-State as of v1.5.0.
+State as of v1.6.0.
 
 ---
 
@@ -155,8 +155,9 @@ given the same treatment.
 - `resources/js/pages/Tasks/Index.vue` — an Assignee column, an owner filter,
   and a "my tasks" toggle. `resources/js/pages/Contacts/Index.vue` has the same
   three things and is the template.
-- `resources/lang/en/tasks.php` (+ a `de` counterpart, which does not exist yet
-  — `resources/lang/de/` has no `tasks.php`, `companies.php` or `pipelines.php`).
+- `resources/lang/en/tasks.php` **and** `resources/lang/de/tasks.php` — both
+  exist since v1.6.0 and `tests/Feature/TranslationParityTest.php` fails if a
+  new key lands in only one of them.
 - Optionally `src/Notifications/` — contacts get `LeadAssignedNotification`;
   tasks have no equivalent.
 
@@ -235,7 +236,8 @@ Display:
 History:
 - `src/Services/TimelineService.php` — a `recordScoreChanged()` method.
 - `src/Models/Event.php` — a `TYPE_SCORE_CHANGED` constant.
-- `resources/lang/en/timeline.php` — the summary line.
+- `resources/lang/en/timeline.php` and `resources/lang/de/timeline.php` — the
+  summary line, in both locales (the parity test insists).
 - A listener on `LeadHubContactScoreChanged`, registered in the provider's
   `$listen`.
 
@@ -283,18 +285,22 @@ Rule management:
 
 ---
 
-## Not in this document
+## Closed since this document was written
 
-Two related observations from the same QA run, recorded so they are not
-rediscovered as gaps:
+Two observations from the same QA run were recorded here as bugs rather than
+gaps. Both were fixed in **v1.6.0** and are listed only so nobody looks for them
+again:
 
-- `leadhub_segment_contact` is written and read through raw
-  `DB::table()` queries in `src/Repositories/Eloquent/EloquentSegmentRepository.php`.
-  Its `brand_id` is backfilled by
-  `database/migrations/2026_07_27_000001_backfill_brand_id_on_leadhub_pivots.php`
-  but is not stamped on new rows and not read, because the repository does not
-  go through Eloquent relations. That is the same class of defect fixed for
-  `leadhub_contact_company` and `leadhub_contact_tag` in v1.5.0 and is a bug,
-  not a gap — it just needs repository work rather than a new feature.
-- `resources/lang/de/` has no `companies.php`, `tasks.php` or `pipelines.php`.
-  German installs fall back to the English strings for all three CRM modules.
+- `leadhub_segment_contact` now has its `brand_id` stamped on every insert and
+  filtered on every read in `EloquentSegmentRepository` and in
+  `Segment::contacts()`, with a second backfill migration
+  (`2026_07_28_000001`) for the rows written between the two releases.
+  `tests/Feature/SegmentContactPivotBrandTest.php`.
+- `resources/lang/de/` has `companies.php`, `tasks.php` and `pipelines.php`, and
+  the gaps that had opened in `nav.php` and `timeline.php` are filled.
+  `tests/Feature/TranslationParityTest.php` compares both locales key by key in
+  both directions, so this cannot reopen quietly.
+
+Note for gap 1 above: every new CRM screen brings new strings with it, and the
+parity test means an untranslated one fails the suite. Write the German
+counterpart in the same commit as the English original.

@@ -4,6 +4,7 @@ namespace Goldnead\Leadhub\Models;
 
 use Goldnead\BrandContext\Concerns\HasBrand;
 use Goldnead\Leadhub\Casts\SegmentRules;
+use Goldnead\Leadhub\Models\Concerns\ScopesPivotToBrand;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,7 +12,7 @@ use Illuminate\Support\Str;
 
 class Segment extends Model
 {
-    use HasBrand;
+    use HasBrand, ScopesPivotToBrand;
 
     protected $table = 'leadhub_segments';
 
@@ -37,12 +38,19 @@ class Segment extends Model
 
     public function contacts(): BelongsToMany
     {
-        return $this->belongsToMany(
-            Contact::class,
-            'leadhub_segment_contact',
-            'segment_id',
-            'contact_id'
-        )->withPivot('entered_at');
+        // Membership is brand-scoped on the pivot itself, not only through the
+        // two models: cross-brand reporting and per-brand console runs turn the
+        // models' BrandScope off deliberately, and this filter is what still
+        // holds then. Membership is written by EloquentSegmentRepository, which
+        // stamps the same column on insert.
+        return $this->scopePivotToOwnBrand(
+            $this->belongsToMany(
+                Contact::class,
+                'leadhub_segment_contact',
+                'segment_id',
+                'contact_id'
+            )->withPivot('entered_at')
+        );
     }
 
     public function scopeActive(Builder $query): Builder
