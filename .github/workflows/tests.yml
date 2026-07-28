@@ -88,3 +88,29 @@ jobs:
       # never mutates the committed composer.json/lock.
       - name: Run live webhook-manager integration suite
         run: scripts/test-webhook-manager.sh
+
+  notifications-integration:
+    name: Notifications integration (live both-addons path)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, intl, dom, fileinfo, sqlite, pdo_sqlite, gd
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-progress --no-interaction
+
+      # Pulls in goldnead/statamic-notifications and runs ONLY the Integration
+      # suite. Same shape as the job above: the default suite runs with the
+      # addon absent so the no-op contract stays honest, and the script works on
+      # a throwaway copy of the repo.
+      - name: Run live notifications integration suite
+        run: scripts/test-notifications.sh

@@ -24,6 +24,13 @@ return [
     'any_assignee' => 'Anyone',
     'mine' => 'My tasks',
 
+    // Notifications (goldnead/statamic-notifications). Assigning a task to
+    // yourself never notifies.
+    'notifications' => [
+        'assigned_label' => 'Task assigned',
+        'assigned_message' => 'A task was assigned to you: :title',
+    ],
+
     'priorities' => [
         'low' => 'Low',
         'normal' => 'Normal',

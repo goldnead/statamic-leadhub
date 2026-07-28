@@ -7,6 +7,7 @@ use Goldnead\Leadhub\Http\Requests\StoreTaskRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateTaskRequest;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Task;
+use Goldnead\Leadhub\Services\TaskAssignmentNotifier;
 use Goldnead\Leadhub\Services\TaskService;
 use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactPicker;
@@ -160,7 +161,16 @@ class TaskController extends Controller
             $attributes['opportunity_id'] = null;
         }
 
-        app(TaskService::class)->create($attributes, $contact);
+        $task = app(TaskService::class)->create($attributes, $contact);
+
+        // Creating a task for somebody else is an assignment too, and the more
+        // common one — a colleague who is handed work at creation time would
+        // otherwise still find out by opening the list.
+        app(TaskAssignmentNotifier::class)->assigned(
+            $task,
+            filled($task->assignee_id) ? (string) $task->assignee_id : null,
+            $this->userId($request) ?: null,
+        );
 
         return redirect(cp_route('leadhub.tasks.index'))
             ->with('success', __('leadhub::tasks.created'));
@@ -245,6 +255,12 @@ class TaskController extends Controller
             }
 
             event(new LeadHubTaskAssigned($model, $oldAssignee, $newAssignee));
+
+            app(TaskAssignmentNotifier::class)->assigned(
+                $model,
+                $newAssignee,
+                $this->userId($request) ?: null,
+            );
         }
 
         return redirect(cp_route('leadhub.tasks.index'))

@@ -237,6 +237,12 @@ return [
         // Notify the owner when a lead is assigned to them.
         'on_assignment' => true,
 
+        // Notify the new assignee when a TASK is handed to them. Runs through
+        // goldnead/statamic-notifications (preferences, in-app, mail, digest)
+        // rather than through the mail notifier above, and is inert when that
+        // addon is not installed. Assigning a task to yourself never notifies.
+        'on_task_assignment' => true,
+
         // Default recipients (emails) for new, unassigned leads.
         'recipients' => array_filter(array_map(
             'trim',

@@ -30,6 +30,11 @@ return [
     'opportunity_deleted' => 'Opportunity gelöscht.',
     'opportunity_has_tasks' => 'An dieser Opportunity hängen noch :count Aufgabe(n). Erledige oder lösche sie zuerst.',
 
+    // Aufgabenliste auf der Opportunity-Maske (v1.10.0). Die Absage oben nannte
+    // bisher eine Zahl, die sich auf keinem Bildschirm nachprüfen ließ.
+    'opportunity_tasks_empty' => 'An dieser Opportunity hängt noch keine Aufgabe.',
+    'opportunity_tasks_hint' => 'Gezählt wird jede Aufgabe, erledigte eingeschlossen — solange eine daran hängt, wird das Löschen der Opportunity verweigert.',
+
     'validation' => [
         'contact_not_found' => 'Diesen Kontakt gibt es nicht.',
         'company_not_found' => 'Diese Firma gibt es nicht.',

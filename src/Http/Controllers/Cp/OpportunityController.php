@@ -122,6 +122,10 @@ class OpportunityController extends Controller
             ])->values()->all(),
             'companyOptions' => $this->companyOptions(),
             'assignableUsers' => $this->users->assignable(),
+            'tasks' => $this->taskPanel($model),
+            'tasksEnabled' => (bool) config('leadhub.features.tasks', false),
+            'canManageTasks' => $this->userCan($request, 'manage leadhub tasks'),
+            'createTaskUrl' => $this->createTaskUrl($model),
             'updateUrl' => cp_route('leadhub.pipelines.opportunities.update', $model->id),
             'deleteUrl' => cp_route('leadhub.pipelines.opportunities.destroy', $model->id),
             'cancelUrl' => cp_route('leadhub.pipelines.board.show', $model->pipeline_id),
@@ -184,6 +188,71 @@ class OpportunityController extends Controller
 
         return redirect(cp_route('leadhub.pipelines.board.show', $pipelineId))
             ->with('success', __('leadhub::pipelines.opportunity_deleted'));
+    }
+
+    /**
+     * The tasks hanging on this opportunity.
+     *
+     * v1.9.0 let a task point at a deal from the task form only, so the link
+     * was visible from one end. From the deal's end the tasks existed solely as
+     * the reason `destroy()` refused — a refusal naming a count that nothing on
+     * screen let you check. This is that list.
+     *
+     * It shows **every** task, completed ones included, because that is what
+     * the deletion rule counts. Filtering to open tasks here would produce the
+     * one screen this panel exists to prevent: an empty list beside "this
+     * opportunity still has 3 tasks".
+     *
+     * No new route and no new route parameter. The panel travels in the edit
+     * payload and links to the task routes that already exist — the cheapest
+     * way not to repeat v1.8.1, where a generic parameter name was eaten by a
+     * sibling addon's application-wide `Route::bind()`.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function taskPanel(Opportunity $opportunity): array
+    {
+        if (! config('leadhub.features.tasks', false)) {
+            return [];
+        }
+
+        return $opportunity->tasks()
+            // Open work first, then by due date, undated last — the order the
+            // task list itself uses.
+            ->orderByRaw('case when status = ? then 0 else 1 end', [Task::STATUS_OPEN])
+            ->orderByRaw('due_at is null, due_at asc')
+            ->get()
+            ->map(fn (Task $task) => [
+                'id' => (string) $task->id,
+                'title' => $task->title,
+                'status' => $task->status,
+                'priority' => $task->priority ?: Task::PRIORITY_NORMAL,
+                'priority_label' => __('leadhub::tasks.priorities.'.($task->priority ?: Task::PRIORITY_NORMAL)),
+                'due_at' => $task->due_at?->format('Y-m-d H:i'),
+                'is_overdue' => $task->isOverdue(),
+                'is_open' => $task->status === Task::STATUS_OPEN,
+                'assignee_name' => $task->assignee_id ? $this->users->label($task->assignee_id) : null,
+                'edit_url' => cp_route('leadhub.tasks.edit', $task->id),
+                'complete_url' => cp_route('leadhub.tasks.complete', $task->id),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * "New task on this deal", pre-filled with the deal and its contact. Null
+     * when the tasks module is off — the route would 404.
+     */
+    protected function createTaskUrl(Opportunity $opportunity): ?string
+    {
+        if (! config('leadhub.features.tasks', false)) {
+            return null;
+        }
+
+        return cp_route('leadhub.tasks.create').'?'.http_build_query(array_filter([
+            'opportunity' => (string) $opportunity->id,
+            'contact' => (string) ($opportunity->contact_id ?? ''),
+        ]));
     }
 
     protected function guard(Request $request): void

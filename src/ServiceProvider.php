@@ -29,6 +29,7 @@ use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
 use Goldnead\Leadhub\Crm\DestinationManager;
+use Goldnead\Leadhub\Integrations\Notifications\NotificationsBridge;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
@@ -218,6 +219,31 @@ class ServiceProvider extends AddonServiceProvider
         // still booting, guarantees the callback runs after ALL providers and
         // addons have booted.
         $this->registerWebhookManagerBridge();
+        $this->registerNotificationTypes();
+    }
+
+    /**
+     * Register the task-assignment notification type and the open-task digest
+     * source with goldnead/statamic-notifications. No-op when it is absent.
+     *
+     * This has to happen in a provider, and it has to happen in every process.
+     * The notifications type registry is per process: a type registered where
+     * the notification is produced is unknown to the scheduler, falls back to
+     * the in_app default there and is silently dropped from the digest. Queued
+     * behind app->booted() for the same reason as the webhook bridge — sibling
+     * addon boot order is not guaranteed, and `notifications` may not be bound
+     * yet when this provider boots.
+     */
+    protected function registerNotificationTypes(): self
+    {
+        $boot = fn () => $this->app->make(NotificationsBridge::class)->boot();
+
+        $this->app->booted(function () use ($boot): void {
+            $boot();
+            $this->app->booted($boot);
+        });
+
+        return $this;
     }
 
     public function bootAddon(): void

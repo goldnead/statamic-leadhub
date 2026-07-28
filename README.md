@@ -153,11 +153,13 @@ Assign them to roles in **CP → Users → Roles**.
 
 Assign an owner to any lead and keep your team in the loop by e-mail.
 
-- **Owner** — pick an assignee on the contact detail page (any user with `view leadhub`). The change is recorded on the timeline. Filter the contacts list by `?assigned_to=<id>`, `?assigned_to=none`, or `?mine`.
+- **Owner** — pick an assignee on the contact detail page. The change is recorded on the timeline. Filter the contacts list by `?assigned_to=<id>`, `?assigned_to=none`, or `?mine`.
+- **Who can be picked** — the users who may `view leadhub` **and** belong to the current brand, per `goldnead/statamic-brand-context` (`Users → Brand Members`). Superusers are not exempt. A user with no membership anywhere counts as a member of every brand, so an install that has recorded no memberships — every install, until somebody records one — sees the same list it saw before. The same list backs the task assignee and the opportunity owner, and the same list is what a write is validated against.
 - **Notifications** — three Laravel notifications, all opt-in:
   - **New lead** — fired when a contact is first created
   - **Lead assigned** — fired when a lead gets an owner
   - **Daily follow-up digest** — a once-a-day summary of due / overdue follow-ups
+- **Task assigned** — when `goldnead/statamic-notifications` is installed, handing a task to somebody notifies them there (in-app, mail, or digest, per their preferences), and open tasks are contributed to the digest. Assigning a task to yourself notifies nobody. Switch it off with `leadhub.notifications.on_task_assignment`. Without that addon the whole path is a no-op.
 
 Enable the feature and set recipients in `config/leadhub.php` (or via env):
 

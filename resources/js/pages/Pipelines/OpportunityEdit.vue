@@ -9,6 +9,10 @@ const props = defineProps([
     'stages',           // [{ value, label }] — of this opportunity's pipeline
     'companyOptions',
     'assignableUsers',
+    'tasks',            // the tasks hanging on this deal — every one, done included
+    'tasksEnabled',
+    'canManageTasks',
+    'createTaskUrl',
     'updateUrl',
     'deleteUrl',
     'cancelUrl',
@@ -52,6 +56,15 @@ function submit() {
     }, {
         onError: (e) => { errors.value = e || {}; },
         onFinish: () => { processing.value = false; },
+    });
+}
+
+const taskList = computed(() => props.tasks || []);
+
+function completeTask(task) {
+    router.post(task.complete_url, {}, {
+        preserveScroll: true,
+        onError: (e) => { errors.value = e || {}; },
     });
 }
 
@@ -127,5 +140,73 @@ function destroy() {
                 <Button :text="__('Cancel')" variant="default" @click="router.visit(cancelUrl)" />
             </div>
         </form>
+
+        <!--
+            The tasks on this deal. Until v1.9.0 the link ran one way only: a
+            task could name an opportunity, the opportunity could not name its
+            tasks — and the delete refusal ("this opportunity still has 3
+            tasks") pointed at records the screen never showed. Everything
+            here is listed, completed tasks included, because that is what the
+            refusal counts.
+        -->
+        <div v-if="tasksEnabled" class="mt-8" data-leadhub-opportunity-tasks>
+            <Panel :heading="`${__('leadhub::tasks.title')} (${taskList.length})`">
+                <Card>
+                    <div class="p-1">
+                        <Text v-if="!taskList.length" size="sm" variant="subtle" data-leadhub-opportunity-tasks-empty>
+                            {{ __('leadhub::pipelines.opportunity_tasks_empty') }}
+                        </Text>
+
+                        <ul v-else class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <li
+                                v-for="task in taskList"
+                                :key="task.id"
+                                class="flex flex-wrap items-center gap-2 py-2"
+                                :data-leadhub-opportunity-task="task.id"
+                            >
+                                <a
+                                    :href="task.edit_url"
+                                    class="font-medium hover:underline"
+                                    :class="task.is_open ? '' : 'line-through text-gray-500 dark:text-gray-400'"
+                                >{{ task.title }}</a>
+
+                                <Badge v-if="task.priority === 'high'" color="orange" :text="task.priority_label" />
+                                <Badge v-if="!task.is_open" color="green" :text="__('leadhub::tasks.filters.done')" />
+                                <Badge v-if="task.is_overdue" color="red" :text="__('leadhub::tasks.filters.overdue')" />
+
+                                <Text size="sm" variant="subtle" class="ms-auto">
+                                    <span v-if="task.due_at">{{ task.due_at }}</span>
+                                    <span v-if="task.assignee_name"> · {{ task.assignee_name }}</span>
+                                    <span v-else> · {{ __('leadhub::tasks.unassigned') }}</span>
+                                </Text>
+
+                                <Button
+                                    v-if="task.is_open"
+                                    :text="__('Mark complete')"
+                                    size="sm"
+                                    variant="default"
+                                    :data-leadhub-opportunity-complete-task="task.id"
+                                    @click="completeTask(task)"
+                                />
+                            </li>
+                        </ul>
+
+                        <div v-if="canManageTasks && createTaskUrl" class="mt-4">
+                            <Button
+                                :text="__('leadhub::tasks.new')"
+                                icon="plus"
+                                size="sm"
+                                data-leadhub-opportunity-new-task
+                                @click="router.visit(createTaskUrl)"
+                            />
+                        </div>
+                    </div>
+                </Card>
+            </Panel>
+
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-3">
+                {{ __('leadhub::pipelines.opportunity_tasks_hint') }}
+            </p>
+        </div>
     </div>
 </template>

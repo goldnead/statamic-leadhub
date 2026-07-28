@@ -30,6 +30,11 @@ return [
     'opportunity_deleted' => 'Opportunity deleted.',
     'opportunity_has_tasks' => 'This opportunity still has :count task(s). Complete or delete them first.',
 
+    // The task panel on the opportunity form (v1.10.0). The refusal above used
+    // to name a count nothing on screen let you check.
+    'opportunity_tasks_empty' => 'No tasks on this opportunity yet.',
+    'opportunity_tasks_hint' => 'Every task counts, completed ones included — deleting the opportunity is refused while any of them is still attached.',
+
     'validation' => [
         'contact_not_found' => 'That contact does not exist.',
         'company_not_found' => 'That company does not exist.',

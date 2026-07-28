@@ -24,6 +24,13 @@ return [
     'any_assignee' => 'Alle',
     'mine' => 'Meine Aufgaben',
 
+    // Benachrichtigungen (goldnead/statamic-notifications). Wer sich selbst
+    // eine Aufgabe zuweist, wird nicht benachrichtigt.
+    'notifications' => [
+        'assigned_label' => 'Aufgabe zugewiesen',
+        'assigned_message' => 'Dir wurde eine Aufgabe zugewiesen: :title',
+    ],
+
     'priorities' => [
         'low' => 'Niedrig',
         'normal' => 'Normal',

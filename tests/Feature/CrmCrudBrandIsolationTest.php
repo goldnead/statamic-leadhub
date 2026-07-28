@@ -232,27 +232,31 @@ it('does not offer brand A contacts in the brand B picker', function (): void {
 // ------------------------------------------------------------- Assignee list
 
 /**
- * The assignee list is NOT brand-scoped, and this test says so on purpose.
+ * The assignee list, now that users carry a brand.
  *
- * "Assignees are the CP users of the respective brand" was the decision. There
- * is no brand membership for users to implement it with: `statamic-brand-context`
- * scopes Eloquent models through `HasBrand`, and a Statamic user is not one of
- * them — there is no `brand_id`, no pivot, no per-brand role. So the list is
- * what `Support\UserDirectory` can actually derive: everyone who may view
- * LeadHub, in every brand.
+ * This test used to pin the opposite: it asserted that both brands were offered
+ * the same names, because there was nothing to narrow them with. brand-context
+ * 1.5.0 shipped `brand_user` and `BrandMembers`, so `Support\UserDirectory`
+ * asks two questions instead of one — the LeadHub permission and the brand
+ * membership — and the pin turns into its mirror image.
  *
- * What is isolated is the work, not the person — the assignee filter above
- * proves that brand B never sees brand A's tasks even for the same user. The
- * missing half is written up as gap 5 in GAPS.md; asserting the current
- * behaviour here means the day somebody adds user-brand membership, this test
- * fails and points at the decision instead of letting it drift.
+ * The isolation is the smaller half. The half that decides whether an upgrade
+ * is survivable is the transition rule, and it lives in
+ * tests/Feature/AssigneeBrandMembershipTest.php in full. What stays here is the
+ * one line that belongs to this file: from brand B, a user of brand A is not on
+ * offer.
  */
-it('offers the same assignee list in both brands, because users carry no brand', function (): void {
-    $inLeadhub = User::make()->email('assignable-everywhere@example.com')->makeSuper();
-    $inLeadhub->save();
+it('does not offer a user of another brand as an assignee', function (): void {
+    $inBrandA = User::make()->email('assignable-in-a@example.com')->makeSuper();
+    $inBrandA->save();
+
+    $unassigned = User::make()->email('assignable-everywhere@example.com')->makeSuper();
+    $unassigned->save();
 
     $outsider = User::make()->email('outsider@example.com');
     $outsider->save();
+
+    Goldnead\BrandContext\Facades\BrandMembers::attach($inBrandA, $this->brandA);
 
     $listFor = function ($brand) {
         BrandContext::setCurrent($brand);
@@ -264,8 +268,14 @@ it('offers the same assignee list in both brands, because users carry no brand',
     $a = $listFor($this->brandA);
     $b = $listFor($this->brandB);
 
-    expect($b)->toBe($a)
-        ->and($a)->toContain((string) $inLeadhub->id())
-        // The one boundary that does hold: no LeadHub permission, no assignment.
-        ->and($a)->not->toContain((string) $outsider->id());
+    expect($a)->toContain((string) $inBrandA->id())
+        ->and($b)->not->toContain((string) $inBrandA->id())
+        // Nobody assigned this one anywhere, so the transition rule keeps them
+        // in both — the upgrade path, asserted where it would be missed.
+        ->and($a)->toContain((string) $unassigned->id())
+        ->and($b)->toContain((string) $unassigned->id())
+        // The boundary that held all along: no LeadHub permission, no
+        // assignment, in either brand.
+        ->and($a)->not->toContain((string) $outsider->id())
+        ->and($b)->not->toContain((string) $outsider->id());
 });

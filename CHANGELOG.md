@@ -6,6 +6,139 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.10.0] — 2026-07-28
+
+Three surfaces that existed on one side only: a list of people that ignored the
+brand it was rendered in, an assignment nobody was told about, and a link
+between a task and a deal that could only be seen from the task.
+
+### Assignee and owner lists are now the people of this brand
+
+The decision behind task assignment in 1.7.0 was "assignees are the CP users of
+the respective brand". It could not be built. `goldnead/statamic-brand-context`
+isolates Eloquent models through a global scope, and a Statamic user is not one
+of them — no `brand_id`, no membership pivot, no per-brand role — so what
+shipped was every LeadHub user in every brand. The work itself was isolated and
+asserted; the list of names was too wide, and it had been too wide for contact
+ownership since 1.0.
+
+brand-context 1.5.0 added the missing half: a `brand_user` table and a
+`BrandMembers` facade. `Support\UserDirectory::assignable()` now asks two
+questions instead of one — the LeadHub permission, then the brand membership —
+and both consumers get it at once, because the task forms, the task filter, the
+contact owner select and the opportunity owner select all read from that one
+method. The validation side moves with it: `ResolvesCrmReferences::isAssignableUser()`
+checks against the same narrowed list, so a hand-crafted request cannot park
+work on somebody else's brand.
+
+**Superusers are not exempt.** `can()` answers true for them, so the permission
+half never removes a superuser — the brand half does. Holding every permission
+is not the same as belonging to a brand, and a superuser who has been assigned
+to one has said which one they work in.
+
+**The transition rule is the part that matters on upgrade day.** A user with no
+membership anywhere counts as a member of every brand. Every install upgrading
+into this feature starts with an empty pivot table, so filtering strictly would
+empty every assignee dropdown and every owner select at once — and it would read
+as a permissions failure, not as a feature: the names are gone, nobody knows
+why, and the fix is invisible. The rule lives inside `BrandMembers::filter()`
+and is deliberately not re-implemented, pre-filtered or tightened here. Writing
+the obvious strict filter instead turns five tests in
+`AssigneeBrandMembershipTest` red, including the one that says an unassigned
+user must still be assignable — which is the upgrade path, stated as an
+assertion.
+
+Nothing changes for a single-brand install, and nothing changes for a
+multi-brand install until somebody assigns a user in **Users → Brand Members**.
+
+### A task assignment reaches the person it was handed to
+
+Since 1.9.0 a reassignment writes a timeline entry and fires
+`LeadHubTaskAssigned`, so the history existed and an outside system could
+subscribe to it. Nobody was told. The colleague holding the task found out by
+opening the task list.
+
+This release notifies them, through `goldnead/statamic-notifications` rather
+than through a fourth Laravel mail notification beside the three in
+`Services\LeadHubNotifier`. That class is this addon's own second invention of
+the pattern, which is what justified extracting the shared one; a third would
+have given the recipient two inboxes, no preferences and no digest. The
+integration is optional in exactly the way the webhook-manager bridge is: when
+the addon is absent, `Integrations\Notifications\NotificationsBridge::available()`
+is false and every call is a no-op.
+
+**The type is registered from the ServiceProvider, not from the controller**,
+and that is not a style preference. The notifications type registry lives per
+process. A type registered where the notification is produced is unknown to the
+scheduled digest process, falls back to the `in_app` default there and is
+silently skipped — the notification exists, is never summarised, and nothing
+logs a word about it. Removing the provider registration leaves every delivery
+test green and turns exactly the two registration tests red, which is what that
+failure mode looks like from the outside.
+
+**Assigning a task to yourself notifies nobody.** Contact assignment currently
+does notify on self-assignment; that is the behaviour this deliberately does not
+copy. Unassigning notifies nobody either. The dedupe key is scoped to the moment
+rather than to the pair, so a double-submitted form is one notification and a
+task that travels A → B → A reaches A twice.
+
+The digest covered follow-ups only. `Integrations\Notifications\TaskDigestSource`
+contributes open and overdue tasks under its own handle (`leadhub-tasks`; the
+bundled follow-up source owns `leadhub`), so somebody carrying ten open tasks
+and no follow-up no longer gets a weekly mail that says nothing about their
+work. It reads through the query builder and applies the brand filter by hand,
+like the bundled source, because the global scope does not apply there.
+
+### The tasks on a deal are visible from the deal
+
+1.9.0 let a task point at an opportunity, and only the task form could show it.
+From the deal's side the link existed exclusively as the reason `destroy()`
+refused — "this opportunity still has 3 tasks", naming records the screen never
+showed. The opportunity edit form now carries a task panel.
+
+It lists **every** task, completed ones included, because that is what the
+deletion rule counts. A panel filtered to open work would produce the one screen
+it exists to prevent: an empty list beside a refusal that names a number.
+
+No new route and no new route parameter. The panel travels in the edit payload
+and links to the task routes that already exist — the cheapest possible way not
+to repeat 1.8.1, where a generic parameter name was eaten by a sibling addon's
+application-wide `Route::bind()`.
+
+### Added
+
+- `Integrations\Notifications\NotificationsBridge`,
+  `Integrations\Notifications\TaskDigestSource`,
+  `Services\TaskAssignmentNotifier`, and the `crm.task_assigned` notification
+  type.
+- `leadhub.notifications.on_task_assignment` (default `true`).
+- `tasks`, `tasksEnabled`, `canManageTasks` and `createTaskUrl` on the
+  opportunity edit payload, and the panel in `Pipelines/OpportunityEdit.vue`.
+- `leadhub::tasks.notifications.*` and `leadhub::pipelines.opportunity_tasks_*`
+  in both locales.
+- `scripts/test-notifications.sh` and a `notifications-integration` CI job,
+  mirroring the webhook-manager pair. It stages the working tree rather than
+  `HEAD`, so a test written five minutes ago is actually in the copy — archiving
+  `HEAD` runs an empty suite and reports success.
+
+### Changed
+
+- `Support\UserDirectory::assignable()` filters through
+  `BrandMembers::filter()`. In a single-brand install, and in a multi-brand
+  install with no memberships recorded, the list is unchanged.
+
+### Tests
+
+- `AssigneeBrandMembershipTest` (11), `OpportunityTaskPanelTest` (6),
+  `TaskAssignmentNotificationTest` (10), and
+  `Integration/TaskAssignedNotificationLiveTest` (9, skipped unless the
+  notifications addon is installed).
+- The assignee pin in `CrmCrudBrandIsolationTest` turns into its mirror image:
+  it asserted that both brands were offered the same names, and now asserts that
+  a user of brand A is not offered in brand B while an unassigned user still is.
+- Default suite: 427 passed, 20 skipped. Flat: 189 passed, 258 skipped, **0
+  failed**.
+
 ## [1.9.0] — 2026-07-28
 
 Three things this addon had built and could not reach, and one it had been

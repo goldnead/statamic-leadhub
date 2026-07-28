@@ -9,14 +9,16 @@ Everything below refers to the eloquent driver. The CRM-core modules
 (companies, tasks, pipelines) are eloquent-only by design and sit behind the
 `features.*` flags in `config/leadhub.php`.
 
-State as of v1.9.0. Gaps 1, 2, 3, 4, 6 and 8 are closed. What closing them
-turned up is written down as gaps 5, 9, 10 and 11.
+State as of v1.10.0. Gaps 1, 2, 3, 4, 5, 6, 8, 10 and 11 are closed.
 
-Still open: **5** (users carry no brand — belongs in `statamic-brand-context`,
-not here), **7** (the free-text company and the linked records still do not
-converge), **9** (three indexes above half the InnoDB key limit, deliberately
-deferred because narrowing them needs `->change()` on live tables) and the two
-new ones, **10** and **11**.
+Still open: **7** (the free-text company and the linked records still do not
+converge) and **9** (three indexes above half the InnoDB key limit, deliberately
+deferred because narrowing them needs `->change()` on live tables).
+
+Gap 5 was the one that could not be closed here at all: it needed a user-to-brand
+membership, which is a `statamic-brand-context` concern. That package shipped it
+in 1.5.0 and v1.10.0 consumed it — which is what the "where it belongs" section
+below was for.
 
 ---
 
@@ -441,6 +443,25 @@ in the count of strings, not the difficulty.
 
 ## 5. Users carry no brand, so "the assignees of this brand" cannot be expressed
 
+> **Closed in v1.10.0 (2026-07-28).** `statamic-brand-context` 1.5.0 added the
+> `brand_user` table and the `BrandMembers` facade — option 2 below, the one
+> listed as "the real answer" — and `Support\UserDirectory::assignable()` now
+> asks the LeadHub permission first and the brand membership second. Both
+> consumers were fixed at once, because the task forms, the task filter, the
+> contact owner select and the opportunity owner select all read from that one
+> method; `ResolvesCrmReferences::isAssignableUser()` validates against the same
+> narrowed list. Superusers are not exempt.
+>
+> The half worth reading twice is the **transition rule**: a user with no
+> membership anywhere counts as a member of every brand, so an install upgrading
+> into this feature loses no names on the day of the upgrade. That rule lives in
+> `BrandMembers::filter()` and is deliberately not re-implemented here. Writing
+> the obvious strict filter instead turns five tests in
+> `AssigneeBrandMembershipTest` red, one of them being "an unassigned user must
+> still be assignable" — the upgrade path as an assertion. Covered by
+> `AssigneeBrandMembershipTest` and the rewritten assignee case in
+> `CrmCrudBrandIsolationTest`.
+
 **Found while building gap 2 in v1.7.0.**
 
 ### What exists
@@ -645,6 +666,25 @@ the third to 296. `status` on tasks is a small enum-like set and could be
 
 ## 10. Task assignment is on the timeline and still does not reach a person
 
+> **Closed in v1.10.0 (2026-07-28).** Through `goldnead/statamic-notifications`,
+> not through a fourth Laravel mail notification beside the three in
+> `LeadHubNotifier` — a third invention of the pattern would have given the
+> recipient two inboxes, no preferences and no digest. `NotificationsBridge`
+> registers the `crm.task_assigned` type and a `leadhub-tasks` digest source
+> **from the ServiceProvider**, because the type registry lives per process and
+> a type registered in the calling path is unknown to the scheduler, where it
+> falls back to `in_app` and the digest skips it without a word.
+>
+> The two questions this document said to decide first were decided as: tasks
+> get their own digest source rather than a merged "your work" mail (one handle,
+> switchable on its own, and the follow-up source keeps working untouched); and
+> assigning a task to **yourself notifies nobody**, which is the behaviour
+> contact assignment has and this deliberately does not copy. The integration is
+> optional in the same way the webhook-manager bridge is. Covered by
+> `TaskAssignmentNotificationTest` (absent-addon contract and the wiring) and
+> `Integration/TaskAssignedNotificationLiveTest` (delivery and digest, run
+> through `scripts/test-notifications.sh`).
+
 **Found while closing gap 6 in v1.9.0.**
 
 Reassigning a task now writes a timeline entry and fires
@@ -675,6 +715,15 @@ the part with a decision in it.
 ---
 
 ## 11. The link between a task and a deal can only be seen from the task
+
+> **Closed in v1.10.0 (2026-07-28).** `Pipelines/OpportunityEdit.vue` has a task
+> panel, fed from the edit payload — no new route and no new route parameter, so
+> there is no new name for a sibling addon's application-wide `Route::bind()` to
+> eat. It lists **every** task, completed ones included, because that is what the
+> deletion rule counts: a panel filtered to open work would show an empty list
+> beside "this opportunity still has 1 task", which is the one screen it exists
+> to prevent. Covered by `OpportunityTaskPanelTest`, including the case that
+> pins the panel count and the refusal to the same number.
 
 **Found while closing gap 8 in v1.9.0.**
 
