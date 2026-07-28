@@ -295,6 +295,20 @@ Dedicated database tables: `leadhub_contacts`, `leadhub_events`, `leadhub_notes`
 - Required for queued exports past the threshold
 - Standard Laravel migrations (`php artisan migrate`)
 
+Five identifiers are unique per brand rather than globally: a contact's
+normalised email address, a tag slug, a pipeline slug, an event `dedupe_key`, a
+form mapping's `form_handle` and a segment handle. To check that the database is
+actually enforcing that — which is not the same question as whether the
+migrations ran:
+
+```bash
+php artisan leadhub:brand-integrity            # reports; changes nothing
+php artisan leadhub:brand-integrity --repair   # rebuilds the indexes only
+```
+
+It prints every colliding row it finds and never deletes one. See the 1.10.1
+entry in the CHANGELOG for when you would need it.
+
 ### `flat` (Statamic-native)
 
 Stores leads as YAML files under `content/leadhub/`, with a Stache-style JSON index for fast lookups.

@@ -6,6 +6,208 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.10.1] — 2026-07-30
+
+### Fixed — updating with two contacts on one address dropped the dedupe index and did not replace it
+
+**Affected: any install created before 1.4.0 that holds two contacts with the
+same normalised email address, updating to 1.4.0 or later.** An install that has
+already run `2026_07_24_100000` is untouched by this, because a migration
+recorded as run never runs again — for those, only the second half below (the
+nullable `brand_id`) applies.
+
+**How to tell whether it happened to you.** Update to 1.10.1 and run:
+
+```
+php artisan leadhub:brand-integrity
+```
+
+It reads the indexes that are on the six brand-scoped LeadHub tables right now
+and the rows that are in them, and says plainly whether each identifier is still
+unique inside its brand. It changes nothing.
+
+Three other fingerprints, in case the update is still in front of you rather
+than behind you:
+
+- `php artisan migrate` stopped with `SQLSTATE[23000] … UNIQUE constraint
+  failed: leadhub_contacts.brand_id, leadhub_contacts.email_normalized`
+  (SQLite) or `SQLSTATE[23000] … 1062 Duplicate entry` (MySQL);
+- running it a second time stopped with something else entirely —
+  `duplicate column name: brand_id`, or `1060 Duplicate column name
+  'brand_id'` — which is the interrupted first step complaining, not the actual
+  problem, and is the message most likely to send you looking in the wrong
+  place;
+- `select * from migrations where migration like '%add_brand_id_to_leadhub%'`
+  returns nothing, while `leadhub_contacts` already has a `brand_id` column.
+
+**What was wrong.** `2026_07_24_100000` had no guard of any kind: no
+`hasTable`, no `hasColumn`, no `hasIndex`, and no duplicate check. Its third
+step drops `leadhub_contacts_email_normalized_index` and then builds a unique
+over `(brand_id, email_normalized)`. Before 1.4.0 that column was never unique —
+two contacts with the same normalised address are ordinary data on any install
+that took the same person's enquiry twice, not a corrupt state — so on such an
+install the statement after the drop fails.
+
+**What that cost.** Not the abort. The state it left behind. Neither engine
+rolls DDL back, and the statement that failed came *after* the one that dropped
+the index. So the update ended with `leadhub_contacts` carrying neither the old
+index nor the new unique, and with the migration not recorded, so nothing in the
+install knew. Form submissions kept creating contacts; they stopped being
+deduplicated. `ContactResolver` looks a contact up before deciding whether to
+create one, so the duplicates that follow are not immediate — they arrive
+whenever two writes race, or an import runs, or anything writes the table
+without going through it.
+
+Two further defects in the same file, both of which only bite once the first one
+has fired:
+
+- **A second run died on `duplicate column name: brand_id`.** Step 1 added
+  `brand_id` to seventeen tables unguarded. After an abort, some of them have it
+  and some do not, and re-running re-added it. SQLite makes that half state
+  permanent, because DDL is not rolled back there either.
+- **The `brands` lookup came after seventeen ALTERs.** Migrating with
+  `goldnead/statamic-brand-context` not yet installed threw *after* the schema
+  had already been changed. It now refuses before touching anything, and says
+  what to install.
+
+**What changed.** The whole migration is re-runnable: it checks for a brand
+before altering anything, adds `brand_id` only where it is missing, drops only
+indexes that are actually present, does nothing at all where the wanted index is
+already in place, and stops with the offending values named rather than a bare
+integrity error where the rows cannot carry the index. Re-running it on a
+half-migrated install finishes the update and puts the dedupe unique back.
+
+**If duplicates are what stopped it.** They are real records of real people,
+each with its own timeline, notes, tasks and opportunities, so nothing here
+deletes them. `php artisan migrate` refuses and names the addresses it found;
+`leadhub:brand-integrity` prints every colliding row with its id, name, status
+and date. Which of them is *the* contact — and what happens to the history
+hanging off the other — is a question about people, not about rows. Merge or
+remove by hand, then migrate again. `leadhub:brand-integrity --repair` rebuilds
+the indexes alone once nothing is in the way, and refuses while anything is.
+
+NULL is excluded throughout, deliberately: a unique constrains no NULL on any
+engine, so contacts without an address and events without a `dedupe_key` are not
+collisions. On a real install they are the majority of both tables, and a check
+that reported them would abort every upgrade.
+
+### Fixed — the six brand-scoped uniques did not apply to rows without a brand
+
+This one affects every install on 1.4.0 through 1.10.0, including the ones the
+above never touched.
+
+`brand_id` was added nullable, and all six brand-scoped uniques lead with it:
+`(brand_id, email_normalized)`, `(brand_id, slug)`, `(brand_id, dedupe_key)`,
+`(brand_id, form_handle)`, `(brand_id, handle)`. A SQL unique does not constrain
+NULL. For any row without a `brand_id`, all five of those identifiers were
+completely unconstrained — the index was present, read as an enforced rule, and
+enforced nothing.
+
+The models stamp `brand_id` on create, which is why the hole never opened in
+ordinary use. It is reachable from everything that writes these tables without
+going through Eloquent: a raw insert, an upsert, a CSV import, a fix run from
+tinker — and, in this addon's own history, `EloquentSegmentRepository`, which
+wrote `leadhub_segment_contact` with no brand at all until 1.9.0.
+
+`2026_07_30_000001` makes the column NOT NULL on those six tables. It is
+idempotent, a no-op on a fresh install, and it stamps rows that have no brand
+onto the default one first. Where that would collide with a row that already has
+one, the behaviour differs by column and the difference is the point: a `slug`,
+a `handle` or a `form_handle` is a machine identifier, so a colliding one is
+suffixed and the rename written to the log — the pattern
+`goldnead/statamic-automations` 1.5.4 arrived at. An `email_normalized` or a
+`dedupe_key` is not: rewriting an address is a lie about a person's record, and
+rewriting a dedupe key re-opens the door for the duplicate it exists to keep
+out. Those two abort and name the rows instead.
+
+The remaining eleven tables keep a nullable, denormalised `brand_id`. None of
+them constrains anything with it, and changing nullability on MySQL rebuilds the
+table with `ALGORITHM=COPY`. `leadhub_events` is tightened despite being a log
+that grows without bound, because its unique *is* the idempotency promise made
+to every webhook and import that retries — expect that ALTER to be the long one
+on a large install.
+
+### Added — `php artisan leadhub:brand-integrity`
+
+Reports whether the six identifiers are actually unique inside their brand. It
+does not ask whether a migration ran — that is the mistake this whole release is
+about. It reads the indexes that are on the tables, reads the rows, and prints
+what it finds: missing or wrong indexes, rows without a `brand_id`, a nullable
+`brand_id`, and every colliding value with its rows.
+
+It never deletes anything. `--repair` rebuilds the indexes and nothing else, and
+refuses while there is anything for one to reject.
+
+### Added — the migrations are finally tested against a database with data in it
+
+This is the actual finding. Not the missing duplicate check — the fact that no
+migration path in this addon was ever run over anything but empty tables, so a
+defect that only exists when rows are present had nowhere to be caught. Seven
+releases went out green.
+
+`tests/Migrations/` is a suite of its own, on a connection of its own, and it is
+in both `phpunit.xml` and the new `phpunit.mysql.xml`, because the failure
+behaves differently on each engine and one run cannot speak for the other.
+
+It does not name the migration that was broken. It walks
+`database/migrations/` and runs the files one at a time, seeding every LeadHub
+table that exists before each one — so every migration in the addon meets rows
+written by an older schema, including migrations added long after this was
+written. `tests/Fixtures/released-migrations/` holds the migration sets as
+published in 1.3.0, 1.4.0 and 1.10.0, and the suite installs each of them, puts
+data in and upgrades forward: twenty-seven records per batch across all
+seventeen tables, contacts with and without an address, events with and without
+a `dedupe_key`.
+
+The half-migrated install is not described from memory, it is produced: the
+suite runs the 1.10.0 migrations exactly as published, watches them die,
+confirms the dedupe index is gone, and only then applies the current ones and
+requires the constraint back.
+
+**Every check is behavioural.** "The migration ran" and "the constraint is
+there" are not the same statement, and mistaking one for the other is the whole
+defect. So nothing here asserts that `migrate` exited zero, or that an index of
+a given name exists. It writes the row the constraint is supposed to refuse and
+requires the database to refuse it — for all six identifiers, not just the one
+that broke.
+
+Demonstrated rather than asserted: with the 1.10.0 file put back in place, seven
+of the fourteen cases fail. The cases that keep passing are the fresh-install
+ones, which is exactly the coverage that existed before and exactly why none of
+this was found.
+
+### Changed — the index key-length probe can read the schema it is measuring
+
+`tests/Unit/IndexKeyLengthTest.php` compiles the migrations through Laravel's
+MySQL grammar in pretend mode to measure index bytes without a server. Under
+`pretend()` a `select` returns nothing, so a migration that asks
+`Schema::hasColumn()` or `Schema::getIndexes()` before deciding what to build was
+being told the table is empty of everything — which, now that
+`2026_07_24_100000` branches on exactly those answers, would have had the probe
+measuring a schema no install ever holds.
+
+It now runs two connections interleaved: the probe compiles the DDL through
+MySQL's grammar, and a real SQLite database one file behind answers every
+question the migrations ask about the current schema. It also tracks dropped
+indexes and `modify` statements, so what it measures is the schema the last
+migration leaves rather than every index that was ever created.
+
+The NOT NULL assertion, which until now covered only `leadhub_scoring_rules`,
+now covers `brand_id` on all six brand-scoped tables. It is deliberately not
+extended to the second column of each pair: a contact without an email address
+and an event without a `dedupe_key` are ordinary, and the unique not applying to
+them is the wanted behaviour rather than a hole. What must never be nullable is
+the column that scopes the rule.
+
+### Changed — the suite can be pointed at a real MySQL server
+
+`phpunit.mysql.xml`, ported from `goldnead/statamic-notifications` 1.0.4. Point
+`DB_HOST`/`DB_PORT`/`DB_DATABASE`/`DB_USERNAME`/`DB_PASSWORD` at a throwaway
+database and the identical suite runs against InnoDB. SQLite has no key-length
+limit, no utf8mb4 byte arithmetic and no fixed column widths, and it reports a
+different error for the same broken migration; every migration defect this
+family has shipped was invisible on SQLite alone.
+
 ## [1.10.0] — 2026-07-28
 
 Three surfaces that existed on one side only: a list of people that ignored the

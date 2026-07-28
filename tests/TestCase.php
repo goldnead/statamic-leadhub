@@ -100,11 +100,7 @@ abstract class TestCase extends OrchestraTestCase
         $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
 
         $app['config']->set('database.default', 'sqlite');
-        $app['config']->set('database.connections.sqlite', [
-            'driver' => 'sqlite',
-            'database' => ':memory:',
-            'prefix' => '',
-        ]);
+        $app['config']->set('database.connections.sqlite', $this->testingConnection());
 
         $app['config']->set('statamic.users.repository', 'file');
         $app['config']->set('leadhub.default_status', 'new');
@@ -135,6 +131,48 @@ abstract class TestCase extends OrchestraTestCase
         $stacheRoot = sys_get_temp_dir().'/leadhub-stache-'.getmypid();
         $app['config']->set('statamic.stache.stores.collections.directory', $stacheRoot.'/content/collections');
         $app['config']->set('statamic.stache.stores.entries.directory', $stacheRoot.'/content/collections');
+    }
+
+    /**
+     * In-memory SQLite by default, so the suite keeps running anywhere with no
+     * setup. Set `DB_DRIVER=mysql` to point the identical suite at a real MySQL
+     * server instead — see phpunit.mysql.xml.
+     *
+     * SQLite is not a substitute for that run. It has no InnoDB key-length
+     * limit, no utf8mb4 byte arithmetic, no fixed column widths, and it reports
+     * a different error for the same broken migration. Every migration defect
+     * this addon has shipped was invisible on SQLite alone.
+     * `tests/Unit/IndexKeyLengthTest.php` closes part of that gap without a
+     * server; this closes it with one.
+     *
+     * The connection keeps the name `sqlite` whatever the driver is, so that
+     * nothing in the suite that names a connection has to know which engine is
+     * underneath it.
+     *
+     * @return array<string, mixed>
+     */
+    protected function testingConnection(): array
+    {
+        if (env('DB_DRIVER', 'sqlite') !== 'mysql') {
+            return [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+                'prefix' => '',
+            ];
+        }
+
+        return [
+            'driver' => 'mysql',
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '3306'),
+            'database' => env('DB_DATABASE', 'leadhub_test'),
+            'username' => env('DB_USERNAME', 'root'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+        ];
     }
 
     /**

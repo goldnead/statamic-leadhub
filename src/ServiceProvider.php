@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub;
 
+use Goldnead\Leadhub\Console\BrandIntegrityCommand;
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
@@ -147,6 +148,7 @@ class ServiceProvider extends AddonServiceProvider
         FireDueFollowupsCommand::class,
         SweepSegmentsCommand::class,
         ImportScoringRulesCommand::class,
+        BrandIntegrityCommand::class,
     ];
 
     public function register(): void

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Ported from statamic-notifications v1.0.4, where an oversized unique index
@@ -17,18 +18,24 @@ use Illuminate\Support\Facades\DB;
  * connection, nothing to install in CI — and measures the DDL MySQL would have
  * received. It reads the real migration files, so it cannot drift from them.
  *
- * LeadHub's own reason for having it now: v1.8.0 adds `leadhub_scoring_rules`
- * with a unique over `(brand_id, event_type)`. That is exactly the shape that
- * broke notifications, which is why `event_type` is varchar(100) and not the
- * default 255.
- *
- * Difference from the notifications original: LeadHub's `brand_id` was
- * retrofitted by an ALTER rather than declared in a CREATE, so the compiler
- * below reads added columns too. And two backfill migrations call
- * Schema::hasTable(), which would need a real connection — those are skipped by
- * name-checking their source, not swallowed silently.
+ * It also asserts the second, quieter property: a SQL unique does not constrain
+ * NULL, on any engine, so an index that leads with a nullable column enforces
+ * nothing at all for the rows where that column is null.
  */
 const INNODB_MAX_KEY_BYTES = 3072;
+
+/**
+ * The six identifiers this addon promises to keep unique inside a brand, and
+ * the table each lives on. Every one of them leads with `brand_id`.
+ */
+const LEADHUB_BRAND_SCOPED_UNIQUES = [
+    'leadhub_contacts' => 'email_normalized',
+    'leadhub_tags' => 'slug',
+    'leadhub_events' => 'dedupe_key',
+    'leadhub_form_mappings' => 'form_handle',
+    'leadhub_pipelines' => 'slug',
+    'leadhub_segments' => 'handle',
+];
 
 it('keeps every index the migrations create inside the InnoDB key limit', function () {
     $schema = compileLeadhubMigrationsForMysql();
@@ -39,7 +46,7 @@ it('keeps every index the migrations create inside the InnoDB key limit', functi
         $bytes = 0;
 
         foreach ($index['columns'] as $column) {
-            $width = $schema['columns'][$index['table']][$column] ?? null;
+            $width = $schema['columns'][$index['table']][$column]['bytes'] ?? null;
 
             expect($width)->not->toBeNull(
                 "Index {$index['name']} covers unknown column {$column}."
@@ -84,7 +91,8 @@ it('leaves room in every index for one more column', function () {
     $schema = compileLeadhubMigrationsForMysql();
 
     foreach ($schema['indexes'] as $index) {
-        $bytes = collect($index['columns'])->sum(fn ($column) => $schema['columns'][$index['table']][$column] ?? 0);
+        $bytes = collect($index['columns'])
+            ->sum(fn ($column) => $schema['columns'][$index['table']][$column]['bytes'] ?? 0);
 
         if (array_key_exists($index['name'], LEADHUB_WIDE_INDEXES)) {
             expect($bytes)->toBe(
@@ -116,33 +124,90 @@ it('scopes the scoring rules unique to the brand, with a narrow event type', fun
         ->and($unique['columns'])->toBe(['brand_id', 'event_type']);
 
     // varchar(100), not the default 255: 400 bytes instead of 1020.
-    expect($schema['columns']['leadhub_scoring_rules']['event_type'])->toBe(400);
+    expect($schema['columns']['leadhub_scoring_rules']['event_type']['bytes'])->toBe(400);
 });
 
-it('declares brand_id NOT NULL on the scoring rules table', function () {
-    // A unique index does not constrain NULLs. With a nullable brand_id the
-    // unique would enforce nothing at all for rows without a tenant — the rows
-    // where a duplicate rule would do the most damage, because both copies
-    // would compute.
-    $ddl = leadhubCompiledDdl();
+it('builds every brand-scoped unique over a brand_id that cannot be NULL', function () {
+    // A unique index does not constrain NULL. Where the column it leads with is
+    // nullable, the constraint does not apply to rows without a brand at all —
+    // the index is present, reads as an enforced rule, and enforces nothing.
+    // Until 1.10.1 this was asserted for the scoring table alone, which was the
+    // only one born with a NOT NULL brand_id; the other six retrofitted theirs
+    // by ALTER and kept it nullable for six releases, so `email_normalized`,
+    // `slug`, `dedupe_key`, `form_handle` and `handle` were all unconstrained
+    // for any row an import or a raw insert left without a brand.
+    //
+    // Deliberately *not* asserted for the second column of each pair: a contact
+    // with no email address and an event with no dedupe_key are ordinary, and
+    // the unique not applying to them is the wanted behaviour rather than a
+    // hole. What must never be nullable is the column that scopes the rule.
+    $schema = compileLeadhubMigrationsForMysql();
 
-    $create = collect($ddl)->first(fn ($sql) => str_starts_with($sql, 'create table `leadhub_scoring_rules`'));
+    $tables = array_merge(array_keys(LEADHUB_BRAND_SCOPED_UNIQUES), ['leadhub_scoring_rules']);
 
-    expect($create)->not->toBeNull()
-        ->and($create)->toContain('`brand_id` bigint unsigned not null');
+    foreach ($tables as $table) {
+        $brandId = $schema['columns'][$table]['brand_id'] ?? null;
+
+        expect($brandId)->not->toBeNull("No brand_id column was compiled for {$table}.");
+
+        expect($brandId['nullable'])->toBeFalse(
+            "{$table}.brand_id is nullable, and a unique that leads with it therefore guarantees nothing ".
+            'for rows without a brand — including the uniqueness its name claims.'
+        );
+    }
+});
+
+it('carries a brand-scoped unique for each of the six identifiers', function () {
+    // The counterpart to the assertion above: the NOT NULL is only worth
+    // anything while the index it protects is still there. This is what the
+    // schema ends up holding after the last migration, drops included.
+    $schema = compileLeadhubMigrationsForMysql();
+
+    $uniques = collect($schema['indexes'])->where('unique', true)->keyBy('name');
+
+    foreach (LEADHUB_BRAND_SCOPED_UNIQUES as $table => $column) {
+        $name = $table.'_brand_id_'.$column.'_unique';
+
+        expect($uniques->has($name))->toBeTrue("{$table} has no brand-scoped unique over {$column}.");
+        expect($uniques[$name]['columns'])->toBe(['brand_id', $column]);
+    }
 });
 
 /**
- * Every statement the addon's migrations would send to MySQL.
+ * Runs every migration in the addon against a MySQL connection that is never
+ * opened, and returns the column definitions and index definitions MySQL would
+ * see after the last migration.
  *
- * @return list<string>
+ * Two connections, because a migration that branches on the schema needs both
+ * halves and no single connection can give them:
+ *
+ * - the **probe** compiles the DDL. Its grammar is MySQL's, `pretend()` stops
+ *   every statement before it reaches a driver, and the rendered SQL is what
+ *   gets measured. Under `pretend()` a `select` returns an empty array, so
+ *   anything asked of it about the current schema comes back as "nothing is
+ *   there".
+ * - the **state** is a real SQLite database the same migrations are run against
+ *   for real, one file behind. It answers `Schema::hasTable()`,
+ *   `Schema::hasColumn()`, `Schema::getColumns()` and `Schema::getIndexes()`.
+ *
+ * That split is not incidental. Since 1.10.1 `2026_07_24_100000` asks which
+ * indexes are present before dropping any and whether each table already has
+ * `brand_id`, and `2026_07_30_000001` asks whether `brand_id` is still
+ * nullable. A probe that answered "nothing is there" to all of it would measure
+ * a schema no install ever holds — and would go green on exactly the defect
+ * this file is here to catch.
+ *
+ * The two run interleaved, probe first: the DDL for migration N is compiled
+ * against the schema as it stood after N-1, which is what the server sees.
+ *
+ * @return array{columns: array<string, array<string, array{bytes: int, nullable: bool}>>, indexes: list<array{table: string, name: string, unique: bool, columns: list<string>}>}
  */
-function leadhubCompiledDdl(): array
+function compileLeadhubMigrationsForMysql(): array
 {
-    static $queries = null;
+    static $compiled = null;
 
-    if ($queries !== null) {
-        return $queries;
+    if ($compiled !== null) {
+        return $compiled;
     }
 
     config()->set('database.connections.key_length_probe', [
@@ -157,58 +222,108 @@ function leadhubCompiledDdl(): array
         'prefix' => '',
     ]);
 
+    config()->set('database.connections.key_length_state', [
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+        'prefix' => '',
+        'foreign_key_constraints' => false,
+    ]);
+
     $previous = DB::getDefaultConnection();
-    DB::setDefaultConnection('key_length_probe');
+
+    DB::purge('key_length_probe');
+    DB::purge('key_length_state');
+
+    $probe = DB::connection('key_length_probe');
+    $state = DB::connection('key_length_state');
+
+    // pretend() renders every logged statement with its bindings substituted,
+    // and substituting a *string* binding goes through PDO::quote. Without a
+    // PDO the probe would try to reach a MySQL server after all — for the query
+    // log, not for the query. A throwaway SQLite handle quotes strings and is
+    // never asked to run anything: pretending short-circuits every statement
+    // before it reaches the driver, and the grammar stays MySQL's, which is the
+    // thing being measured.
+    $probe->setPdo(new PDO('sqlite::memory:'));
+
+    // The brand every existing row is backfilled onto. brand-context creates
+    // this table; the state database only needs enough of it to answer the
+    // lookups the migrations make.
+    $state->getSchemaBuilder()->create('brands', function ($table) {
+        $table->id();
+        $table->string('handle');
+        $table->boolean('is_default')->default(false);
+    });
+
+    $state->table('brands')->insert(['handle' => 'default', 'is_default' => true]);
+
+    // A connection resolves its schema grammar lazily, inside
+    // getSchemaBuilder(). The oracle is constructed directly, so it has to be
+    // asked for explicitly or every Blueprint the probe compiles gets a null
+    // grammar.
+    $probe->useDefaultSchemaGrammar();
+
+    $oracle = new LeadhubProbeSchemaBuilder($probe, $state);
+
+    $queries = [];
 
     try {
-        // pretend() short-circuits every statement before a PDO instance is
-        // needed, so this compiles the DDL without a server anywhere in sight.
-        $log = DB::connection('key_length_probe')->pretend(function () {
-            foreach (glob(__DIR__.'/../../database/migrations/*.php') as $file) {
-                try {
-                    (require $file)->up();
-                } catch (\Throwable $e) {
-                    // Data backfills ask the schema what exists (Schema::hasTable),
-                    // which needs a live connection. They create no indexes, so
-                    // skipping them costs nothing — but only they may be skipped:
-                    // anything else failing here is a real problem and is re-thrown.
-                    if (! str_contains((string) file_get_contents($file), 'Schema::hasTable')) {
-                        throw $e;
-                    }
-                }
-            }
-        });
+        foreach (glob(__DIR__.'/../../database/migrations/*.php') as $file) {
+            $migration = require $file;
+
+            // 1. What MySQL would be sent, decided on the schema as it stands.
+            DB::setDefaultConnection('key_length_probe');
+            app()->instance('db.schema', $oracle);
+            Schema::clearResolvedInstance('db.schema');
+
+            $queries = array_merge($queries, $probe->pretend(fn () => $migration->up()));
+
+            // 2. Advance the real schema, so the next file branches on truth.
+            DB::setDefaultConnection('key_length_state');
+            app()->forgetInstance('db.schema');
+            Schema::clearResolvedInstance('db.schema');
+
+            $migration->up();
+        }
     } finally {
         DB::setDefaultConnection($previous);
+        app()->forgetInstance('db.schema');
+        Schema::clearResolvedInstance('db.schema');
         DB::purge('key_length_probe');
+        DB::purge('key_length_state');
     }
 
-    return $queries = array_column($log, 'query');
-}
-
-/**
- * Column widths and index definitions as MySQL would see them.
- *
- * @return array{columns: array<string, array<string, int>>, indexes: list<array{table: string, name: string, unique: bool, columns: list<string>}>}
- */
-function compileLeadhubMigrationsForMysql(): array
-{
     $columns = [];
     $indexes = [];
 
-    foreach (leadhubCompiledDdl() as $sql) {
+    foreach (array_column($queries, 'query') as $sql) {
         if (preg_match('/^create table `(\w+)` \((.*)\)(?: default character set| collate|$)/s', $sql, $match)) {
             foreach (leadhubSplitTopLevel($match[2]) as $definition) {
                 if (preg_match('/^`(\w+)` (.+)$/', trim($definition), $column)) {
-                    $columns[$match[1]][$column[1]] = leadhubMysqlIndexBytes($column[2]);
+                    $columns[$match[1]][$column[1]] = describeLeadhubMysqlColumn($column[2]);
                 }
             }
 
             continue;
         }
 
+        // Columns added later (`Schema::table(…)->…`) and columns redefined by
+        // `->change()`, which MySQL compiles to `modify`. Both overwrite what
+        // the create-table statement said, so the last word wins — that is the
+        // shape the index is finally built on, and it is how brand_id turns
+        // from nullable into not null.
+        if (preg_match('/^alter table `(\w+)` ((?:add|modify) .+)$/', $sql, $match)) {
+            foreach (leadhubSplitTopLevel($match[2]) as $definition) {
+                if (preg_match('/^(?:add|modify) `(\w+)` (.+)$/', trim($definition), $column)) {
+                    $columns[$match[1]][$column[1]] = describeLeadhubMysqlColumn($column[2]);
+                }
+            }
+        }
+
+        // Keyed by name, so an index that is rebuilt later in the chain counts
+        // once, in the shape the last migration left it.
         if (preg_match('/^alter table `(\w+)` add (unique|index) `(\w+)`\((.+)\)$/', $sql, $match)) {
-            $indexes[] = [
+            $indexes[$match[1].'.'.$match[3]] = [
                 'table' => $match[1],
                 'name' => $match[3],
                 'unique' => $match[2] === 'unique',
@@ -217,26 +332,70 @@ function compileLeadhubMigrationsForMysql(): array
                     explode(',', $match[4])
                 ),
             ];
-
-            continue;
         }
 
-        // Columns added later. LeadHub's brand_id arrived this way, and every
-        // brand-scoped unique below covers it — without this branch the widths
-        // of exactly the columns under test would be unknown.
-        if (preg_match('/^alter table `(\w+)` add (.+)$/', $sql, $match)) {
-            foreach (explode(', add ', $match[2]) as $definition) {
-                if (preg_match('/^`(\w+)` (.+)$/', trim($definition), $column)) {
-                    $columns[$match[1]][$column[1]] = leadhubMysqlIndexBytes($column[2]);
-                }
-            }
+        if (preg_match('/^alter table `(\w+)` drop index `(\w+)`$/', $sql, $match)) {
+            unset($indexes[$match[1].'.'.$match[2]]);
         }
     }
 
-    return ['columns' => $columns, 'indexes' => $indexes];
+    return $compiled = ['columns' => $columns, 'indexes' => array_values($indexes)];
 }
 
-/** Splits a column list on commas that are not inside parentheses. */
+/**
+ * Compiles against MySQL's grammar, answers questions from a real database.
+ *
+ * Everything that writes goes to the probe connection and is measured.
+ * Everything that reads is delegated, because the probe has nothing to read: it
+ * has no schema, and `pretend()` would answer "empty" to every question a
+ * migration asks about the one it is modifying.
+ */
+class LeadhubProbeSchemaBuilder extends \Illuminate\Database\Schema\MySqlBuilder
+{
+    public function __construct(
+        \Illuminate\Database\Connection $probe,
+        private \Illuminate\Database\Connection $state,
+    ) {
+        parent::__construct($probe);
+    }
+
+    public function hasTable($table)
+    {
+        return $this->state->getSchemaBuilder()->hasTable($table);
+    }
+
+    public function hasColumn($table, $column)
+    {
+        return $this->state->getSchemaBuilder()->hasColumn($table, $column);
+    }
+
+    public function hasColumns($table, $columns)
+    {
+        return $this->state->getSchemaBuilder()->hasColumns($table, $columns);
+    }
+
+    public function getTables($schema = null)
+    {
+        return $this->state->getSchemaBuilder()->getTables();
+    }
+
+    public function getColumnListing($table)
+    {
+        return $this->state->getSchemaBuilder()->getColumnListing($table);
+    }
+
+    public function getColumns($table)
+    {
+        return $this->state->getSchemaBuilder()->getColumns($table);
+    }
+
+    public function getIndexes($table)
+    {
+        return $this->state->getSchemaBuilder()->getIndexes($table);
+    }
+}
+
+/** Splits a definition list on commas that are not inside parentheses. */
 function leadhubSplitTopLevel(string $list): array
 {
     $parts = [];
@@ -261,6 +420,21 @@ function leadhubSplitTopLevel(string $list): array
     }
 
     return array_merge($parts, [$buffer]);
+}
+
+/**
+ * Worst-case index bytes and nullability for one compiled column definition.
+ *
+ * @return array{bytes: int, nullable: bool}
+ */
+function describeLeadhubMysqlColumn(string $type): array
+{
+    return [
+        'bytes' => leadhubMysqlIndexBytes($type),
+        // Laravel's MySQL grammar always states one or the other, and `not
+        // null` is what a NOT NULL column reads as. Anything else is nullable.
+        'nullable' => ! str_contains($type, 'not null'),
+    ];
 }
 
 /** Worst-case bytes this column type occupies in an index under utf8mb4. */

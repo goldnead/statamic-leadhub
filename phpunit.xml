@@ -15,6 +15,17 @@
             <directory suffix="Test.php">./tests/Feature</directory>
         </testsuite>
         <!--
+            The migration path itself, against tables that already hold rows.
+            Every other suite meets a database RefreshDatabase has migrated to
+            head; these install an earlier release, put data in and migrate
+            forward. Present in both configurations on purpose — the failure
+            that prompted them aborts with a unique violation on SQLite and with
+            ERROR 1062 on MySQL, and neither engine rolls the half state back.
+        -->
+        <testsuite name="Migrations">
+            <directory suffix="Test.php">./tests/Migrations</directory>
+        </testsuite>
+        <!--
             Live integration with the optional goldnead/statamic-webhook-manager
             peer addon. These tests skip themselves when the addon is not
             installed, so they are a no-op in the default suite; install the peer
