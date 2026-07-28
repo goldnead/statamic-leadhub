@@ -486,6 +486,31 @@ contact page: resolve through `Services\CompanyResolver::resolveOrCreate()`
 
 ---
 
+## 8. A task cannot be attached to an opportunity from the CP
+
+**Found while proving out gap 1 in the browser (v1.7.0 QA run).**
+
+`leadhub_tasks.opportunity_id` is a real column with a `Task::opportunity()`
+relation, and `OpportunityController::destroy()` refuses to delete a deal while
+tasks still point at it. Nothing in the Control Panel can set it: the task form
+offers a contact and nothing else, and the opportunity form has no task list.
+The column can only be written through the facade or a source projector.
+
+The consequence is visible in the QA evidence: the screenshot proving the
+opportunity delete lock had to have its blocking task created on the console,
+because there is no way to make one through the interface. A refusal a user
+cannot reach through the UI is a refusal they also cannot resolve through it.
+
+**Where.** An opportunity picker on `resources/js/pages/Tasks/Create.vue` and
+`Edit.vue` (options scoped to the selected contact, otherwise the list is
+meaningless), `opportunity_id` in `StoreTaskRequest`/`UpdateTaskRequest`
+validated through the model like every other reference, and a task panel on
+`Pipelines/OpportunityEdit.vue`.
+
+**Effort.** Half a day. The picker is the same shape as the contact picker.
+
+---
+
 ## Closed since this document was written
 
 Two observations from the same QA run were recorded here as bugs rather than
