@@ -27,7 +27,7 @@ const errors = ref({});
 const processing = ref(false);
 
 const companySelectOptions = computed(() => [
-    { value: '', label: __('None') },
+    { value: '', label: __('No company') },
     ...(props.companyOptions || []),
 ]);
 

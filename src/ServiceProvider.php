@@ -152,6 +152,21 @@ class ServiceProvider extends AddonServiceProvider
     {
         parent::register();
 
+        // Two layers, and they are not the same mechanism.
+        //
+        // `addNamespace` serves __('leadhub::nav.dashboard') — the PHP layer,
+        // rendered server-side. `addJsonPath` serves __('Tasks') — Statamic's
+        // *string* translations, which is what the Vue components call and
+        // what reaches the browser through Statamic's JavascriptComposer. The
+        // addon shipped only the first for eight releases, which is why a
+        // German install had German navigation and English headings.
+        //
+        // Note that JSON strings from every package merge into one global
+        // dictionary: a key here overrides that string across the whole
+        // Control Panel, not only inside this addon. Which is why the addon's
+        // en.json/de.json deliberately contain no key that Statamic itself
+        // already translates, and TranslationParityTest fails if one appears.
+        //
         // Register the leadhub:: translation namespace eagerly. Using
         // loadTranslationsFrom() alone is unreliable because Statamic's boot
         // sequence resolves the translator early — before our after-resolving
@@ -162,10 +177,12 @@ class ServiceProvider extends AddonServiceProvider
 
         $this->app->resolving('translator', function ($translator) use ($langPath) {
             $translator->addNamespace('leadhub', $langPath);
+            $translator->addJsonPath($langPath);
         });
 
         if ($this->app->resolved('translator')) {
             $this->app['translator']->addNamespace('leadhub', $langPath);
+            $this->app['translator']->addJsonPath($langPath);
         }
 
         $this->bindRepositories();

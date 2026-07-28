@@ -21,6 +21,8 @@ return [
     'source_ingested' => 'Activity recorded from :source',
     'task_created' => 'Task ":title" created',
     'task_completed' => 'Task ":title" completed',
+    'task_assigned' => 'Task ":task" assigned to :owner',
+    'task_unassigned' => 'Task ":task" has no owner any more',
     'opportunity_created' => 'Opportunity ":title" created',
     'opportunity_stage_changed' => 'Opportunity moved from ":from" to ":to"',
     'opportunity_won' => 'Opportunity ":title" won',

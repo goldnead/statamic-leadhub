@@ -21,6 +21,8 @@ return [
     'source_ingested' => 'Aktivität aus :source erfasst',
     'task_created' => 'Aufgabe ":title" erstellt',
     'task_completed' => 'Aufgabe ":title" erledigt',
+    'task_assigned' => 'Aufgabe ":task" an :owner übergeben',
+    'task_unassigned' => 'Aufgabe ":task" hat keinen Bearbeiter mehr',
     'opportunity_created' => 'Opportunity ":title" erstellt',
     'opportunity_stage_changed' => 'Opportunity von ":from" nach ":to" verschoben',
     'opportunity_won' => 'Opportunity ":title" gewonnen',

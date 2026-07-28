@@ -234,13 +234,13 @@ function restore(row) {
             <template #prepended-row-actions="{ row }">
                 <DropdownItem
                     v-if="row.can_edit"
-                    :text="__('Open')"
+                    :text="__('Open contact')"
                     :href="row.edit_url"
                     icon="external-link"
                 />
                 <DropdownItem
                     v-if="row.can_archive && !row.archived_at"
-                    :text="__('Archive')"
+                    :text="__('Archive contact')"
                     icon="archive"
                     @click="archive(row)"
                 />

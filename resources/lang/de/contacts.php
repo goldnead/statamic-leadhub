@@ -30,6 +30,7 @@ return [
     ],
     'validation' => [
         'identifier_required' => 'Gib mindestens eine E-Mail-Adresse oder eine Telefonnummer ein.',
+        'tag_not_found' => 'Das Tag :id gibt es nicht.',
     ],
     'create' => [
         'button' => 'Kontakt erstellen',

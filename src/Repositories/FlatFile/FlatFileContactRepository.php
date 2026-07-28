@@ -67,6 +67,7 @@ class FlatFileContactRepository implements ContactRepository
         $attributes['created_at'] = $attributes['created_at'] ?? now()->toIso8601String();
         $attributes['updated_at'] = $attributes['updated_at'] ?? now()->toIso8601String();
         $attributes['tag_ids'] = $attributes['tag_ids'] ?? [];
+        $attributes = $this->withNormalizedIdentifiers($attributes);
 
         $this->writeYaml($uuid, $attributes);
         $this->builder->rebuildContacts($this->index);
@@ -300,14 +301,38 @@ class FlatFileContactRepository implements ContactRepository
             $attrs['tag_ids'] = $contact->getRelation('tags')->pluck('id')->map(fn ($id) => (string) $id)->values()->all();
         }
 
-        // Drop columns that don't make sense in flat-file (or rebuild from relations).
-        unset($attrs['email_normalized']);
+        return $this->withNormalizedIdentifiers($attrs);
+    }
 
-        if (isset($contact->email)) {
-            $attrs['email_normalized'] = \Goldnead\Leadhub\Support\EmailNormalizer::normalize($contact->email);
+    /**
+     * Derive `email_normalized` and `phone_normalized` from the raw values.
+     *
+     * The eloquent driver gets these for free: Contact::booted() computes them
+     * in the `creating` and `updating` hooks. The flat-file driver never runs
+     * a model save, so nothing computed them on create — it only wrote back
+     * whatever the caller happened to pass. A contact created through the CP
+     * therefore had no `email_normalized`, and `findByEmailNormalized()` — the
+     * lookup the whole form-submission dedupe path runs through — could not
+     * find it. Every repeat submission from the same address created a second
+     * contact.
+     *
+     * Normalizing here rather than in the caller keeps the two drivers
+     * answering the same question the same way, which is the entire promise of
+     * the repository contract.
+     */
+    protected function withNormalizedIdentifiers(array $attributes): array
+    {
+        unset($attributes['email_normalized'], $attributes['phone_normalized']);
+
+        if (filled($attributes['email'] ?? null)) {
+            $attributes['email_normalized'] = \Goldnead\Leadhub\Support\EmailNormalizer::normalize($attributes['email']);
         }
 
-        return $attrs;
+        if (filled($attributes['phone'] ?? null)) {
+            $attributes['phone_normalized'] = \Goldnead\Leadhub\Support\PhoneNormalizer::normalize($attributes['phone']);
+        }
+
+        return $attributes;
     }
 
     /* -------- filtering -------- */

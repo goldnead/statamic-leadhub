@@ -57,6 +57,10 @@ class WebhookManagerBridge
         // makes "score crossed a threshold" usable from outside the addon
         // instead of a line in a timeline nobody polls.
         \Goldnead\Leadhub\Events\LeadHubContactScoreChanged::class => ['leadhub.score.changed', 'LeadHub — engagement score changed'],
+        // Same reasoning for reassignment: "this task is now yours" is the
+        // moment an outside system (a chat notification, a rota, a dashboard)
+        // wants to hear about, and a timeline entry alone cannot tell it.
+        \Goldnead\Leadhub\Events\LeadHubTaskAssigned::class => ['leadhub.task.assigned', 'LeadHub — task assigned'],
         LeadHubContactEnteredSegment::class => ['leadhub.segment.entered', 'LeadHub — entered segment'],
         LeadHubContactLeftSegment::class => ['leadhub.segment.left', 'LeadHub — left segment'],
     ];

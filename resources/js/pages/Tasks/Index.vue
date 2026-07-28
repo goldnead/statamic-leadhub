@@ -19,7 +19,7 @@ const filters = [
     { value: 'open', label: __('Open') },
     { value: 'today', label: __('Due today') },
     { value: 'overdue', label: __('Overdue') },
-    { value: 'done', label: __('Done') },
+    { value: 'done', label: __('Completed') },
 ];
 
 // Assignee options mirror the contact list's owner filter: everybody, a named

@@ -226,8 +226,8 @@ const showCrm = computed(() =>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 shrink-0">
-                                        <Badge v-if="task.is_overdue" color="red" size="sm" :text="__('overdue')" />
-                                        <Badge v-else-if="task.is_completed" color="green" size="sm" :text="__('done')" />
+                                        <Badge v-if="task.is_overdue" color="red" size="sm" :text="__('Overdue')" />
+                                        <Badge v-else-if="task.is_completed" color="green" size="sm" :text="__('Completed')" />
                                         <Badge v-else color="default" size="sm" :text="task.priority" />
                                         <Button
                                             v-if="!task.is_completed"
@@ -368,7 +368,7 @@ const showCrm = computed(() =>
                         <div v-if="activeFollowup" class="text-sm space-y-3">
                             <div class="flex items-center gap-2">
                                 <Badge :color="activeFollowup.is_overdue ? 'red' : 'default'" :text="activeFollowup.due_at" />
-                                <Text v-if="activeFollowup.is_overdue" size="xs" variant="danger">{{ __('overdue') }}</Text>
+                                <Text v-if="activeFollowup.is_overdue" size="xs" variant="danger">{{ __('Overdue') }}</Text>
                             </div>
                             <Text v-if="activeFollowup.note">{{ activeFollowup.note }}</Text>
                             <div class="flex gap-2">
@@ -386,7 +386,7 @@ const showCrm = computed(() =>
                             <Text v-if="followupErrors.note" size="xs" variant="danger" data-leadhub-followup-error>
                                 {{ followupErrors.note }}
                             </Text>
-                            <Button :text="__('Schedule')" variant="primary" @click="setFollowup" />
+                            <Button :text="__('Schedule follow-up')" variant="primary" @click="setFollowup" />
                         </div>
                     </Card>
                 </Panel>
@@ -452,7 +452,7 @@ const showCrm = computed(() =>
                         <div class="space-y-2">
                             <Button
                                 v-if="canArchive && !contact.archived_at"
-                                :text="__('Archive')"
+                                :text="__('Archive contact')"
                                 variant="default"
                                 class="w-full"
                                 @click="archive"

@@ -33,6 +33,14 @@ class SendFollowupDigestCommand extends Command
         $buckets = [];
 
         $collect = function ($followup, bool $overdue) use ($contacts, $users, $fallback, &$buckets) {
+            // A follow-up with no contact cannot be reported to anybody. The
+            // repository contract types `find()` as string|int, so passing the
+            // null straight through was a fatal TypeError rather than a
+            // skipped row — one malformed record took the whole digest down.
+            if (blank($followup->contact_id)) {
+                return;
+            }
+
             $contact = $contacts->find($followup->contact_id);
             if (! $contact instanceof Contact) {
                 return;

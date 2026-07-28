@@ -231,7 +231,7 @@ function appendStage(pipeline) {
                         />
 
                         <Text v-if="stage.opportunities_count" size="xs" variant="subtle" class="pb-2">
-                            {{ stage.opportunities_count }} {{ __('opportunities') }}
+                            {{ stage.opportunities_count }} {{ __('Opportunities') }}
                         </Text>
                     </div>
 

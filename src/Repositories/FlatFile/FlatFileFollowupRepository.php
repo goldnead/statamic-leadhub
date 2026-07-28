@@ -74,6 +74,16 @@ class FlatFileFollowupRepository implements FollowupRepository
         // Mirror as the active followup on the contact YAML.
         $contactPath = 'contacts/'.$contact->id.'.yaml';
         $data = $this->files->readYaml($contactPath);
+
+        // A contact YAML that does not exist yet would be created here holding
+        // nothing but the follow-up. That file is invisible to the index,
+        // which skips records without a uuid, and yet visible to every scan in
+        // this class that globs the directory — so the digest command found a
+        // follow-up whose contact_id resolved to null and crashed on it. Stamp
+        // the identity so the two views of the same directory agree.
+        $data['uuid'] = $data['uuid'] ?? (string) $contact->uuid ?: (string) $contact->id;
+        $data['id'] = $data['id'] ?? $data['uuid'];
+
         $data['active_followup'] = $record;
         $this->files->writeYaml($contactPath, $data);
 
@@ -271,7 +281,16 @@ class FlatFileFollowupRepository implements FollowupRepository
                 continue;
             }
 
-            $af['contact_id'] = $data['uuid'] ?? null;
+            // Fall back to the id embedded in the follow-up record itself. The
+            // contact YAML is the primary source, but a file written before
+            // the identity stamp above has no uuid, and a follow-up whose
+            // contact cannot be named is one the digest cannot deliver.
+            $af['contact_id'] = $data['uuid'] ?? $data['id'] ?? ($af['contact_id'] ?? null);
+
+            if (blank($af['contact_id'])) {
+                continue;
+            }
+
             $followup = $this->hydrator->followup($af);
             $followup->setRelation('contact', $this->hydrator->contact($data));
 

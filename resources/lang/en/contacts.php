@@ -30,6 +30,7 @@ return [
     ],
     'validation' => [
         'identifier_required' => 'Enter at least an email address or a phone number.',
+        'tag_not_found' => 'Tag :id does not exist.',
     ],
     'create' => [
         'button' => 'Create contact',

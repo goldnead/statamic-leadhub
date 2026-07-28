@@ -5,6 +5,7 @@ import { Header, Panel, Card, Button, Field, Input, Textarea, Select, DatePicker
 import { toDateTimeString } from '../../support/datetime';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 import ContactPicker from '../../support/ContactPicker.vue';
+import OpportunityPicker from '../../support/OpportunityPicker.vue';
 
 const props = defineProps([
     'task',             // { contact_id, assignee_id, priority }
@@ -12,6 +13,9 @@ const props = defineProps([
     'priorityOptions',
     'contactOptions',
     'contactSearchUrl',
+    'pipelinesEnabled',
+    'opportunityOptions',
+    'opportunitySearchUrl',
     'storeUrl',
     'cancelUrl',
 ]);
@@ -22,6 +26,7 @@ const form = ref({
     contact_id: props.task?.contact_id || '',
     priority: props.task?.priority || 'normal',
     assignee_id: props.task?.assignee_id || '',
+    opportunity_id: props.task?.opportunity_id || '',
     due_at: null,
 });
 
@@ -45,6 +50,7 @@ function submit() {
         ...form.value,
         contact_id: form.value.contact_id || null,
         assignee_id: form.value.assignee_id || null,
+        opportunity_id: form.value.opportunity_id || null,
         // The CP DatePicker is reka-ui: its model is an
         // @internationalized/date object, never a string. Sending it raw is
         // what made follow-ups uncreatable in v1.4.
@@ -62,7 +68,7 @@ function submit() {
     <div class="max-w-2xl mx-auto">
         <Header :title="__('New task')" icon="tasks" />
 
-        <ErrorSummary :errors="errors" :fields="['title', 'description', 'contact_id', 'priority', 'assignee_id', 'due_at']" />
+        <ErrorSummary :errors="errors" :fields="['title', 'description', 'contact_id', 'priority', 'assignee_id', 'opportunity_id', 'due_at']" />
 
         <form @submit.prevent="submit">
             <Panel>
@@ -76,6 +82,20 @@ function submit() {
                                 v-model="form.contact_id"
                                 :options="contactOptions"
                                 :search-url="contactSearchUrl"
+                            />
+                        </Field>
+                        <Field
+                            v-if="pipelinesEnabled"
+                            :label="__('Opportunity')"
+                            :error="errors.opportunity_id"
+                            :instructions="__('Only the selected contact\'s open opportunities are offered.')"
+                            class="sm:col-span-2"
+                        >
+                            <OpportunityPicker
+                                v-model="form.opportunity_id"
+                                :contact-id="form.contact_id"
+                                :options="opportunityOptions"
+                                :search-url="opportunitySearchUrl"
                             />
                         </Field>
                         <Field :label="__('Assignee')" :error="errors.assignee_id">

@@ -2,10 +2,13 @@
 
 namespace Goldnead\Leadhub\Http\Requests;
 
+use Goldnead\Leadhub\Http\Requests\Concerns\ResolvesCrmReferences;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateContactRequest extends FormRequest
 {
+    use ResolvesCrmReferences;
+
     public function authorize(): bool
     {
         return $this->user()?->can('edit leadhub contacts') ?? false;
@@ -25,8 +28,20 @@ class UpdateContactRequest extends FormRequest
             'status' => ['sometimes', 'string', 'in:'.implode(',', $statuses)],
             'assigned_to' => 'sometimes|nullable|string',
             'consent' => 'sometimes|boolean',
+            // See StoreContactRequest: `integer|exists:leadhub_tags,id` is a
+            // database assumption in a driver-agnostic request. It made every
+            // tag change on a flat-file install fail validation, which looked
+            // exactly like a successful save because both redirect back.
             'tag_ids' => 'sometimes|array',
-            'tag_ids.*' => 'integer|exists:leadhub_tags,id',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            foreach ($this->unknownTagIds((array) $this->input('tag_ids', [])) as $id) {
+                $validator->errors()->add('tag_ids', __('leadhub::contacts.validation.tag_not_found', ['id' => $id]));
+            }
+        });
     }
 }

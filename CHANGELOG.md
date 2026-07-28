@@ -6,6 +6,197 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.9.0] — 2026-07-28
+
+Three things this addon had built and could not reach, and one it had been
+carrying red for months.
+
+### The flat-file driver's failing tests were not the tests' fault
+
+Seven to eight tests had been failing under `LEADHUB_DRIVER=flat` since well
+before 1.5. Every release since proved them pre-existing, established they were
+unrelated to the work at hand, and left them alone. That was the right call
+each time and the wrong conclusion overall: they were reporting real defects,
+and the plan that was going to make them go away — retiring the flat driver —
+was revoked once it turned out adriangoldner.com keeps five live lists on it.
+
+Five of the eight were the driver. One was the test. Two were neither, and are
+the more interesting finding.
+
+- **A UUID was being cast to an integer.** `Contact` auto-increments under the
+  eloquent driver, so Eloquent adds an implicit `id => int` cast. The flat
+  driver stores a UUID in `id`, and `(int) 'e3d35f29-…'` is `0`. This was not
+  cosmetic: `FlatFileEventRepository` builds its log path from `$contact->id`,
+  so **every contact whose UUID began with a hex letter wrote its timeline into
+  `events/0.jsonl` and read back everybody else's** — roughly two contacts in
+  five, silently sharing one history. The hydrator now tells each instance its
+  key is a string, which removes the implicit cast.
+
+- **An event payload could not be read back.** `Event` casts `payload` to
+  `array`. A database row hands that cast a JSON string; a flat record arrives
+  already decoded, so `json_decode()` was handed an array. That is a
+  `TypeError`, and a 500 on any contact detail page showing a timeline entry
+  with a payload. The hydrator now re-encodes values whose cast expects JSON,
+  which keeps its own promise: the raw attribute map looks like a database row
+  and Eloquent's cast machinery does the rest.
+
+- **Nothing normalized an email on create.** The eloquent driver derives
+  `email_normalized` in `Contact::booted()`. The flat driver wrote back
+  whatever it was handed, and the CP store action hands it nothing — so a
+  contact created through the Control Panel was invisible to
+  `findByEmailNormalized()`, which is the lookup the entire form-submission
+  dedupe path runs through. Every repeat submission from the same address
+  created a second contact.
+
+- **`findByPhoneNormalized()` queried an index bucket that was never built.**
+  It had returned `null` for every contact since 1.0.
+
+- **A follow-up could create a contact file with no contact in it.** Writing a
+  follow-up for a contact with no YAML yet produced a file holding only the
+  follow-up. The index skips records without a UUID, so that file was invisible
+  to the index and visible to every directory scan — and the digest command
+  then called `find(null)` and died on the type declaration. One malformed
+  record took the whole digest down rather than being skipped.
+
+- **`exists:leadhub_tags,id` in a driver-agnostic form request.** Two wrongs:
+  a tag id is a database id under one driver and a UUID under the other, so
+  `integer` is wrong half the time; and `exists` queries a table the flat
+  driver never writes to. Every tag change on a flat install therefore failed
+  validation — and looked exactly like a success, because a validation failure
+  and a successful save both redirect back. The rule was already documented as
+  a trap in `ResolvesCrmReferences` (it also bypasses the brand scope); these
+  two requests had simply never been converted. Resolution now goes through the
+  tag repository.
+
+- **`CrmSyncTest` was the test's fault.** It asserted `Event::where(…)`, an
+  Eloquent query, against a driver that deliberately writes timeline entries to
+  files. It now asserts through the `EventRepository` contract. `SyncLog` stays
+  an Eloquent query, because sync logs are database rows in both drivers.
+
+- **The eighth test was flaky, and the flakiness was the finding.** It failed
+  in the suite and passed alone. `RefreshDatabase` rolls the database back
+  between tests; nothing rolled the flat-file store back, and its path is per
+  *process*, not per test. So every test inherited every record written by
+  every test before it — which is how a foreign contact's `events/0.jsonl` (see
+  the integer cast above) reached a test that never created it. The test bed
+  now empties the store and its index before each test. Both have to go: the
+  staleness check compares a directory mtime against the index's `rebuilt_at`
+  at one-second resolution, so deleting only the files leaves an index that
+  does not know it is stale.
+
+`tests/Feature/FlatFileDriverRegressionTest.php` pins the driver-side five. The
+timeline-sharing test uses fixed UUIDs rather than generated ones, because with
+random pairs it reproduced the bug about two times in five and would have
+passed for the wrong reason more often than it caught anything.
+
+### The Control Panel is now German in German
+
+`resources/lang/de/` has been complete since 1.6.0 and none of it reached a
+page heading, because the headings do not come from there. The Vue components
+call `__('Tasks')`, which is Statamic's *string* translation layer and reads
+`{locale}.json` from every registered package path. This addon shipped none, in
+any locale, for eight releases. A German install got German navigation, a
+German timeline and English headings — and not only in the CRM modules, but in
+contacts and segments too.
+
+`resources/lang/en.json` and `de.json` now ship 198 strings, harvested from all
+447 `__()` call sites in `resources/js` rather than guessed, and the provider
+registers the JSON path alongside the existing `leadhub::` namespace.
+
+One property of this layer is worth stating plainly, because it is a trap:
+**JSON strings from every package merge into one global dictionary**, so a key
+here overrides that string across the whole Control Panel, not just inside this
+addon. Translating `Save` would rename Statamic's own save button everywhere.
+The addon therefore ships no key Statamic already covers, and where its own
+usage disagreed with Statamic's translation the *source string* was changed
+rather than the translation overridden: `Archive` (a noun in Statamic, a button
+verb here) became `Archive contact`, `Schedule` became `Schedule follow-up`,
+`None` became `No company`, and `Done` became `Completed`. Three keys that
+existed in two spellings (`Overdue`/`overdue`, `Done`/`done`,
+`Opportunities`/`opportunities`) were collapsed, and `Open` was split, because
+it was serving both the adjective and the verb from one key.
+
+`TranslationParityTest` was extended to this layer the same way it guards the
+PHP one — both directions, plus three rules the PHP layer does not need: every
+`__()` key in the Vue sources must be covered by this addon or by Statamic, no
+shipped string may be one nothing renders, and no key may shadow a Statamic
+one. It also fails if a `__()` call ever passes something other than a plain
+literal, since such a string could not be harvested and would be silently
+unchecked.
+
+### Reassigning a task leaves a trace
+
+Contact assignment has written a timeline entry since 1.0. Task assignment
+changed a column and nothing else, in a module whose entire purpose is that
+you can answer "who gave me this, and when". It was deliberately left out of
+1.7.0 because it needs a new event type, and an event type is public surface.
+
+So it is registered as one: `Event::TYPE_TASK_ASSIGNED`,
+`TimelineService::recordTaskAssigned()`, a `LeadHubTaskAssigned` event, and
+`leadhub.task.assigned` in the webhook-manager trigger map. A timeline entry
+alone cannot tell an outside system that work changed hands.
+
+Two decisions worth recording. The comparison runs on assignee **ids**, not on
+display labels, because two accounts can share a name. And a task with no
+contact has no timeline to be written to — the event fires anyway rather than
+both being dropped, which would be the version of this feature that looks built
+and is not.
+
+### A task can be attached to an opportunity
+
+`leadhub_tasks.opportunity_id` has been a real column with a real relation and
+a real delete lock built on it, and nothing in the Control Panel could set it.
+The evidence is in the 1.7.0 QA run: the screenshot proving the opportunity
+delete refusal had to have its blocking task created on the console, because
+there was no way to make one through the interface. A refusal a user cannot
+reach through the UI is one they cannot resolve through it either.
+
+The picker is scoped to the selected contact, and refuses anything else. A flat
+list of every deal in the install is not a picker, and a task attached to
+another contact's deal is a data error no screen would surface again. With no
+contact selected the field is disabled and says why, rather than showing an
+empty dropdown — an enabled empty dropdown reads as "this contact has no
+deals", which is a different claim. A closed deal stays visible while a task
+still hangs on it, or saving the edit form would silently detach it.
+
+The option feed takes the contact as a **query** parameter rather than a route
+parameter. `{contact}` and `{opportunity}` are exactly the kind of generic name
+a sibling addon may already have claimed with `Route::bind()`, and that binding
+is application-wide — which is what 1.8.1 fixed for `{rule}`. A query string
+cannot be captured that way.
+
+### Added
+
+- `Event::TYPE_TASK_ASSIGNED`, `Events\LeadHubTaskAssigned`,
+  `TimelineService::recordTaskAssigned()`, and the `leadhub.task.assigned`
+  webhook-manager trigger.
+- An opportunity picker on the task create and edit forms, a
+  `GET /tasks/opportunity-options` feed, `opportunity_id` on
+  `StoreTaskRequest`/`UpdateTaskRequest` validated through the model, and
+  `Support\OpportunityPicker`.
+- `resources/lang/en.json` and `resources/lang/de.json` (198 strings), and
+  `addJsonPath()` in the provider.
+- `resources/js/support/OpportunityPicker.vue`.
+
+### Fixed
+
+- Flat-file driver: UUID keys cast to integers, colliding event logs, JSON
+  payloads that could not be read back, unnormalized email and phone on create,
+  an unbuilt `by_phone_normalized` index bucket, and follow-ups creating
+  identity-less contact files.
+- `SendFollowupDigestCommand` skips a follow-up with no contact instead of
+  raising a `TypeError`.
+- `exists:leadhub_tags,id` removed from `StoreContactRequest` and
+  `UpdateContactRequest`.
+
+### Tests
+
+- `FlatFileDriverRegressionTest`, `TaskAssignmentHistoryTest`,
+  `TaskOpportunityLinkTest`, and seven new cases in `TranslationParityTest`.
+- The test bed empties the flat-file store between tests.
+- Default suite: 400 passed, 11 skipped. Flat: 189 passed, 222 skipped, **0
+  failed** — for the first time in this addon's history.
+
 ## [1.8.1] — 2026-07-29
 
 **Fixes a defect in 1.8.0 that only appears alongside another addon.** The

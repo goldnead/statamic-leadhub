@@ -47,6 +47,7 @@ class Event extends Model
     public const TYPE_SOURCE_INGESTED = 'source_ingested';
     public const TYPE_TASK_CREATED = 'task_created';
     public const TYPE_TASK_COMPLETED = 'task_completed';
+    public const TYPE_TASK_ASSIGNED = 'task_assigned';
     public const TYPE_OPPORTUNITY_CREATED = 'opportunity_created';
     public const TYPE_OPPORTUNITY_STAGE_CHANGED = 'opportunity_stage_changed';
     public const TYPE_OPPORTUNITY_WON = 'opportunity_won';

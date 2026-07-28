@@ -110,6 +110,41 @@ class TimelineService
         );
     }
 
+    /**
+     * A task changing hands, on the timeline of the contact the task hangs on.
+     *
+     * Like every other entry, the sentence is composed here and stored, not
+     * rendered later — so the line keeps naming the person it named at the
+     * time, even after that account is renamed or removed. The ids stay in the
+     * payload for anything that needs to do more than read.
+     *
+     * A task without a contact has no timeline to be written to. The event
+     * still fires in that case; see TaskController::update().
+     */
+    public function recordTaskAssigned(
+        Contact $contact,
+        string $taskTitle,
+        ?string $fromLabel,
+        ?string $toLabel,
+        ?string $fromId = null,
+        ?string $toId = null,
+    ): Event {
+        return $this->record(
+            $contact,
+            Event::TYPE_TASK_ASSIGNED,
+            $toLabel
+                ? __('leadhub::timeline.task_assigned', ['task' => $taskTitle, 'owner' => $toLabel])
+                : __('leadhub::timeline.task_unassigned', ['task' => $taskTitle]),
+            [
+                'task' => $taskTitle,
+                'from' => $fromLabel,
+                'to' => $toLabel,
+                'from_id' => $fromId,
+                'to_id' => $toId,
+            ],
+        );
+    }
+
     public function recordNoteAdded(Contact $contact, string $body): Event
     {
         return $this->record(

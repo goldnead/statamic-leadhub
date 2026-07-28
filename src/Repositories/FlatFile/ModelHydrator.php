@@ -70,9 +70,52 @@ class ModelHydrator
         // attached separately via setRelation() by the caller.
         unset($data['notes'], $data['events'], $data['followups'], $data['tags']);
 
-        $model->setRawAttributes($data, sync: true);
+        // These models are auto-incrementing integers under the eloquent
+        // driver, so Eloquent adds an implicit `id => int` cast. The flat-file
+        // driver puts a UUID in `id`, and that cast quietly turned it into an
+        // integer: `(int) 'e3d35f29-…'` is 0, `(int) '58d2b561-…'` is 58.
+        //
+        // The consequence was not cosmetic. FlatFileEventRepository builds its
+        // log path from `$contact->id`, so every contact whose UUID begins
+        // with a hex letter — roughly two in five — wrote its timeline into
+        // the same `events/0.jsonl` and read back everybody else's. Telling
+        // the instance its key is a string is what removes the implicit cast.
+        $model->setIncrementing(false);
+        $model->setKeyType('string');
+
+        $model->setRawAttributes($this->encodeJsonCasts($model, $data), sync: true);
         $model->exists = true;
 
         return $model;
+    }
+
+    /**
+     * Re-encode values whose cast expects JSON.
+     *
+     * A database row hands Eloquent a JSON *string* and the cast decodes it.
+     * Flat-file records arrive already decoded, so `payload` reached an
+     * `array` cast as a PHP array and `json_decode()` was handed an array —
+     * a TypeError, and a 500 on any contact detail page with a timeline entry
+     * that carried a payload.
+     *
+     * Encoding here rather than special-casing the reader keeps the promise
+     * this class makes: the raw attribute map looks like a database row, and
+     * Eloquent's own cast machinery does the rest.
+     */
+    protected function encodeJsonCasts(Model $model, array $data): array
+    {
+        $jsonCasts = ['array', 'json', 'object', 'collection'];
+
+        foreach ($model->getCasts() as $attribute => $cast) {
+            if (! in_array($cast, $jsonCasts, true)) {
+                continue;
+            }
+
+            if (array_key_exists($attribute, $data) && (is_array($data[$attribute]) || is_object($data[$attribute]))) {
+                $data[$attribute] = json_encode($data[$attribute]);
+            }
+        }
+
+        return $data;
     }
 }

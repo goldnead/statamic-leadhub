@@ -2,12 +2,15 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
+use Goldnead\Leadhub\Events\LeadHubTaskAssigned;
 use Goldnead\Leadhub\Http\Requests\StoreTaskRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateTaskRequest;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Services\TaskService;
+use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactPicker;
+use Goldnead\Leadhub\Support\OpportunityPicker;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -109,11 +112,18 @@ class TaskController extends Controller
                 'contact_id' => $request->string('contact')->toString() ?: '',
                 'assignee_id' => $this->userId($request),
                 'priority' => Task::PRIORITY_NORMAL,
+                'opportunity_id' => $request->string('opportunity')->toString() ?: '',
             ],
             'assignableUsers' => $this->users->assignable(),
             'priorityOptions' => $this->priorityOptions(),
             'contactOptions' => $this->contactOptions($request->string('contact')->toString() ?: null),
             'contactSearchUrl' => cp_route('leadhub.contacts.options'),
+            'pipelinesEnabled' => (bool) config('leadhub.features.pipelines', false),
+            'opportunityOptions' => $this->opportunityOptionsFor(
+                $request->string('contact')->toString() ?: null,
+                $request->string('opportunity')->toString() ?: null,
+            ),
+            'opportunitySearchUrl' => cp_route('leadhub.tasks.opportunityOptions'),
             'storeUrl' => cp_route('leadhub.tasks.store'),
             'cancelUrl' => cp_route('leadhub.tasks.index'),
         ]);
@@ -134,10 +144,18 @@ class TaskController extends Controller
             ? Contact::query()->find($validated['contact_id'])
             : null;
 
-        app(TaskService::class)->create(
-            collect($validated)->except('contact_id')->put('created_by', $this->userId($request) ?: null)->all(),
-            $contact,
-        );
+        $attributes = collect($validated)
+            ->except('contact_id')
+            ->put('created_by', $this->userId($request) ?: null)
+            ->all();
+
+        // Blank means "no deal", not the string "". A foreign key column
+        // takes null.
+        if (array_key_exists('opportunity_id', $attributes) && blank($attributes['opportunity_id'])) {
+            $attributes['opportunity_id'] = null;
+        }
+
+        app(TaskService::class)->create($attributes, $contact);
 
         return redirect(cp_route('leadhub.tasks.index'))
             ->with('success', __('leadhub::tasks.created'));
@@ -161,11 +179,18 @@ class TaskController extends Controller
                 // ISO for the picker, human-readable for the summary line.
                 'due_at' => $model->due_at?->format('Y-m-d H:i'),
                 'assignee_id' => (string) ($model->assignee_id ?? ''),
+                'opportunity_id' => (string) ($model->opportunity_id ?? ''),
             ],
             'assignableUsers' => $this->users->assignable(),
             'priorityOptions' => $this->priorityOptions(),
             'contactOptions' => $this->contactOptions((string) ($model->contact_id ?? '') ?: null),
             'contactSearchUrl' => cp_route('leadhub.contacts.options'),
+            'pipelinesEnabled' => (bool) config('leadhub.features.pipelines', false),
+            'opportunityOptions' => $this->opportunityOptionsFor(
+                $model->contact_id,
+                (string) ($model->opportunity_id ?? '') ?: null,
+            ),
+            'opportunitySearchUrl' => cp_route('leadhub.tasks.opportunityOptions'),
             'updateUrl' => cp_route('leadhub.tasks.update', $model->id),
             'cancelUrl' => cp_route('leadhub.tasks.index'),
         ]);
@@ -178,18 +203,44 @@ class TaskController extends Controller
         $model = Task::query()->findOrFail($task);
         $validated = $request->validated();
 
-        // Reassignment writes no timeline entry and fires no event. Contact
-        // assignment does both, but doing the same for tasks means a new
-        // Event::TYPE_* constant and a new webhook-manager trigger — a change
-        // to the addon's public surface, which does not belong in a UI
-        // release. Noted in GAPS.md.
+        // Captured before filling. The comparison has to happen on the ids,
+        // not on the labels: two accounts can share a display name, and a
+        // label is a rendering of the id rather than the thing itself.
+        $oldAssignee = $model->assignee_id === null ? null : (string) $model->assignee_id;
+
         $model->fill($validated);
 
         if (array_key_exists('contact_id', $validated)) {
             $model->contact_id = filled($validated['contact_id']) ? $validated['contact_id'] : null;
         }
 
+        if (array_key_exists('opportunity_id', $validated)) {
+            $model->opportunity_id = filled($validated['opportunity_id']) ? $validated['opportunity_id'] : null;
+        }
+
+        $newAssignee = $model->assignee_id === null ? null : (string) $model->assignee_id;
+        $assignmentChanged = $oldAssignee !== $newAssignee;
+
         $model->save();
+
+        if ($assignmentChanged) {
+            // The timeline entry needs a contact to hang on; a task without
+            // one is still a real reassignment, so the event fires either way.
+            // Silently dropping both would be the version of this feature that
+            // looks built and is not.
+            if ($model->contact_id && $contact = Contact::query()->find($model->contact_id)) {
+                app(TimelineService::class)->recordTaskAssigned(
+                    $contact,
+                    (string) $model->title,
+                    $oldAssignee ? $this->users->label($oldAssignee) : null,
+                    $newAssignee ? $this->users->label($newAssignee) : null,
+                    $oldAssignee,
+                    $newAssignee,
+                );
+            }
+
+            event(new LeadHubTaskAssigned($model, $oldAssignee, $newAssignee));
+        }
 
         return redirect(cp_route('leadhub.tasks.index'))
             ->with('success', __('leadhub::tasks.updated'));
@@ -248,5 +299,36 @@ class TaskController extends Controller
     protected function contactOptions(?string $selectedId = null): array
     {
         return app(ContactPicker::class)->options(null, $selectedId);
+    }
+
+    /**
+     * Open opportunities of one contact, for the picker on the task form.
+     *
+     * The list has to be refetched whenever the contact selection changes,
+     * which is why this is an endpoint rather than a payload baked into the
+     * form: a task form that offered every deal in the install would be
+     * offering the wrong ones.
+     */
+    public function opportunityOptions(Request $request)
+    {
+        $this->authorizeOrFail($request, 'manage leadhub tasks');
+        abort_unless(config('leadhub.features.tasks', false), 404);
+        abort_unless(config('leadhub.features.pipelines', false), 404);
+
+        return response()->json([
+            'options' => app(OpportunityPicker::class)->optionsForContact(
+                $request->string('contact')->toString() ?: null,
+                $request->string('selected')->toString() ?: null,
+            ),
+        ]);
+    }
+
+    protected function opportunityOptionsFor(mixed $contactId, ?string $selectedId = null): array
+    {
+        if (! config('leadhub.features.pipelines', false)) {
+            return [];
+        }
+
+        return app(OpportunityPicker::class)->optionsForContact($contactId, $selectedId);
     }
 }

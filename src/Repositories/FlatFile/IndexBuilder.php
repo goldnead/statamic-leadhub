@@ -45,6 +45,7 @@ class IndexBuilder
     {
         $items = [];
         $byEmail = [];
+        $byPhone = [];
         $byStatus = [];
         $bySourceForm = [];
 
@@ -57,6 +58,7 @@ class IndexBuilder
 
             $id = (string) $data['uuid'];
             $emailNormalized = $data['email_normalized'] ?? null;
+            $phoneNormalized = $data['phone_normalized'] ?? null;
             $status = $data['status'] ?? null;
             $sourceForm = $data['source_form'] ?? null;
 
@@ -71,6 +73,7 @@ class IndexBuilder
                     'last_name' => $data['last_name'] ?? null,
                     'full_name' => $data['full_name'] ?? null,
                     'phone' => $data['phone'] ?? null,
+                    'phone_normalized' => $phoneNormalized,
                     'company' => $data['company'] ?? null,
                     'status' => $status,
                     'source_form' => $sourceForm,
@@ -87,6 +90,14 @@ class IndexBuilder
                 $byEmail[$emailNormalized] = $id;
             }
 
+            // FlatFileContactRepository::findByPhoneNormalized() has queried
+            // this bucket since 1.0 and nothing ever built it, so a phone-only
+            // contact could never be found by phone — the lookup returned null
+            // every time and the caller created a duplicate.
+            if ($phoneNormalized) {
+                $byPhone[$phoneNormalized] = $id;
+            }
+
             if ($status) {
                 $byStatus[$status] = $byStatus[$status] ?? [];
                 $byStatus[$status][] = $id;
@@ -101,6 +112,7 @@ class IndexBuilder
         $index->setData([
             'items' => $items,
             'by_email_normalized' => $byEmail,
+            'by_phone_normalized' => $byPhone,
             'by_status' => $byStatus,
             'by_source_form' => $bySourceForm,
         ]);

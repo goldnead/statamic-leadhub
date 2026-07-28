@@ -33,5 +33,7 @@ return [
     'validation' => [
         'contact_not_found' => 'Diesen Kontakt gibt es nicht.',
         'assignee_not_assignable' => 'Diesem Nutzer lassen sich keine LeadHub-Aufgaben zuweisen.',
+        'opportunity_not_found' => 'Diese Opportunity gibt es nicht.',
+        'opportunity_contact_mismatch' => 'Diese Opportunity gehört zu einem anderen Kontakt. Wähle zuerst den Kontakt.',
     ],
 ];

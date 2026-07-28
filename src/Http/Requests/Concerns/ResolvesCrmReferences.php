@@ -4,7 +4,9 @@ namespace Goldnead\Leadhub\Http\Requests\Concerns;
 
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Pipeline;
+use Goldnead\Leadhub\Models\Tag;
 use Goldnead\Leadhub\Support\UserDirectory;
 
 /**
@@ -34,6 +36,43 @@ trait ResolvesCrmReferences
     {
         return $id !== null && $id !== ''
             && Pipeline::query()->whereKey($id)->exists();
+    }
+
+    /** The opportunity itself, so the caller can also check who it belongs to. */
+    protected function findOpportunity(mixed $id): ?Opportunity
+    {
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        return Opportunity::query()->whereKey($id)->first();
+    }
+
+    /**
+     * Tag ids, resolved through the tag repository rather than
+     * `exists:leadhub_tags,id`.
+     *
+     * The `exists` rule is a raw query against a table. That is wrong twice
+     * over here: it bypasses the brand scope like every other `exists` in this
+     * file's docblock, and — the reason it was found — under the flat-file
+     * storage driver the table is empty, because tags live in `tags.yaml`.
+     * The rule therefore rejected every tag on a flat install, so no tag could
+     * be attached to a contact through the CP at all.
+     *
+     * @param  array<int, mixed>  $ids
+     * @return array<int, string> the ids that could not be resolved
+     */
+    protected function unknownTagIds(array $ids): array
+    {
+        $repository = app(\Goldnead\Leadhub\Contracts\Repositories\TagRepository::class);
+
+        return collect($ids)
+            // A non-scalar cannot be an id and must not reach the cast below.
+            ->map(fn ($id) => is_scalar($id) ? (string) $id : null)
+            ->reject(fn (?string $id) => $id !== null && $repository->find($id) instanceof Tag)
+            ->map(fn (?string $id) => $id ?? '')
+            ->values()
+            ->all();
     }
 
     /**

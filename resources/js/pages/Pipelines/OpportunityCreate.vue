@@ -40,7 +40,7 @@ const stageOptions = computed(() => {
 });
 
 const companySelectOptions = computed(() => [
-    { value: '', label: __('None') },
+    { value: '', label: __('No company') },
     ...(props.companyOptions || []),
 ]);
 

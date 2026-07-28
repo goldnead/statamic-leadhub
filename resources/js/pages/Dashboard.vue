@@ -96,7 +96,7 @@ function statusColor(key) {
                         <div class="mt-2 flex items-baseline gap-2">
                             <Heading size="2xl" :text="String(tile.value)" />
                             <Text v-if="tile.overdue > 0" size="sm" variant="danger">
-                                +{{ tile.overdue }} {{ __('overdue') }}
+                                +{{ tile.overdue }} {{ __('Overdue') }}
                             </Text>
                         </div>
                     </Card>

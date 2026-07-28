@@ -92,6 +92,14 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
     Route::prefix('tasks')->name('tasks.')->group(function () {
         Route::get('/', [TaskController::class, 'index'])->name('index');
         Route::get('/create', [TaskController::class, 'create'])->name('create');
+        // Option feed for the opportunity picker on the task form. The
+        // contact is a query parameter, not a route parameter, deliberately:
+        // a route parameter named `contact` or `opportunity` is generic
+        // enough for a sibling addon to have claimed with Route::bind(), and
+        // that binding is application-wide (v1.8.1). A query string cannot be
+        // captured that way. Registered before the `/{task}` wildcards.
+        Route::get('/opportunity-options', [TaskController::class, 'opportunityOptions'])
+            ->name('opportunityOptions');
         Route::post('/', [TaskController::class, 'store'])->name('store');
         Route::post('/{task}/complete', [TaskController::class, 'complete'])->whereNumber('task')->name('complete');
         Route::get('/{task}/edit', [TaskController::class, 'edit'])->whereNumber('task')->name('edit');

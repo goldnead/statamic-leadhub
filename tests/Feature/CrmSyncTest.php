@@ -1,6 +1,7 @@
 <?php
 
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Jobs\SyncContactToCrmJob;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
@@ -33,26 +34,46 @@ function aContact(string $email = 'crm@example.com')
     ]);
 }
 
+/**
+ * Timeline entries go through the repository, not through the Event model.
+ *
+ * CrmSyncService records the outcome on the contact timeline, which is a
+ * repository concern: the eloquent driver writes a `leadhub_events` row, the
+ * flat-file driver appends to a per-contact JSON-Lines log. `Event::where(…)`
+ * only ever sees the first of those, so under LEADHUB_DRIVER=flat these two
+ * tests asserted the absence of a table the driver deliberately does not use
+ * — and had been red for months for a defect that was never there.
+ *
+ * SyncLog below is a different matter and stays an Eloquent query: sync logs
+ * are database rows in both drivers.
+ */
+function timelineCountOfType($contact, string $type): int
+{
+    return app(EventRepository::class)->countOfType($contact, $type);
+}
+
 it('pushes a contact to a webhook destination and logs success', function (): void {
     Http::fake(['hooks.test/*' => Http::response(['ok' => true], 200)]);
 
-    $results = app(CrmSyncService::class)->syncContact(aContact(), 'created');
+    $contact = aContact();
+    $results = app(CrmSyncService::class)->syncContact($contact, 'created');
 
     expect($results['zap']->success)->toBeTrue();
     Http::assertSent(fn ($req) => $req->url() === 'https://hooks.test/abc'
         && $req->hasHeader('X-LeadHub-Signature'));
     expect(SyncLog::where('destination', 'zap')->where('status', 'success')->exists())->toBeTrue();
-    expect(Event::where('type', Event::TYPE_CRM_SYNC_SUCCEEDED)->exists())->toBeTrue();
+    expect(timelineCountOfType($contact, Event::TYPE_CRM_SYNC_SUCCEEDED))->toBe(1);
 });
 
 it('logs a failure when the remote returns an error', function (): void {
     Http::fake(['hooks.test/*' => Http::response('boom', 500)]);
 
-    $results = app(CrmSyncService::class)->syncContact(aContact('fail@example.com'), 'created');
+    $contact = aContact('fail@example.com');
+    $results = app(CrmSyncService::class)->syncContact($contact, 'created');
 
     expect($results['zap']->success)->toBeFalse();
     expect(SyncLog::where('status', 'failed')->exists())->toBeTrue();
-    expect(Event::where('type', Event::TYPE_CRM_SYNC_FAILED)->exists())->toBeTrue();
+    expect(timelineCountOfType($contact, Event::TYPE_CRM_SYNC_FAILED))->toBe(1);
 });
 
 it('does not sync for events the destination ignores', function (): void {

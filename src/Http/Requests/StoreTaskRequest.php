@@ -39,6 +39,7 @@ class StoreTaskRequest extends FormRequest
             ])],
             'due_at' => 'nullable|date',
             'assignee_id' => 'nullable|string|max:255',
+            'opportunity_id' => 'nullable',
         ];
     }
 
@@ -54,6 +55,45 @@ class StoreTaskRequest extends FormRequest
             if (! $this->isAssignableUser($this->input('assignee_id'))) {
                 $validator->errors()->add('assignee_id', __('leadhub::tasks.validation.assignee_not_assignable'));
             }
+
+            $this->validateOpportunity($validator, $this->resolvedContactId());
         });
+    }
+
+    /**
+     * The contact the opportunity has to belong to. On create that is simply
+     * what the form posted; UpdateTaskRequest overrides it, because a PATCH
+     * that only changes the deal does not resend the contact and would
+     * otherwise be rejected for a mismatch against nothing.
+     */
+    protected function resolvedContactId(): mixed
+    {
+        return $this->input('contact_id');
+    }
+
+    /**
+     * The deal a task hangs on, checked through the model so the brand scope
+     * applies, and checked against the selected contact so the form cannot
+     * park a task on somebody else's deal by posting a stray id.
+     */
+    protected function validateOpportunity($validator, mixed $contactId): void
+    {
+        $opportunityId = $this->input('opportunity_id');
+
+        if (blank($opportunityId)) {
+            return;
+        }
+
+        $opportunity = $this->findOpportunity($opportunityId);
+
+        if (! $opportunity) {
+            $validator->errors()->add('opportunity_id', __('leadhub::tasks.validation.opportunity_not_found'));
+
+            return;
+        }
+
+        if (blank($contactId) || (string) $opportunity->contact_id !== (string) $contactId) {
+            $validator->errors()->add('opportunity_id', __('leadhub::tasks.validation.opportunity_contact_mismatch'));
+        }
     }
 }

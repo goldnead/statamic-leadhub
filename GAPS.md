@@ -9,8 +9,14 @@ Everything below refers to the eloquent driver. The CRM-core modules
 (companies, tasks, pipelines) are eloquent-only by design and sit behind the
 `features.*` flags in `config/leadhub.php`.
 
-State as of v1.8.0. Gaps 1, 2 and 3 are closed; what closing them turned up is
-written down as gaps 5, 6 and 9.
+State as of v1.9.0. Gaps 1, 2, 3, 4, 6 and 8 are closed. What closing them
+turned up is written down as gaps 5, 9, 10 and 11.
+
+Still open: **5** (users carry no brand — belongs in `statamic-brand-context`,
+not here), **7** (the free-text company and the linked records still do not
+converge), **9** (three indexes above half the InnoDB key limit, deliberately
+deferred because narrowing them needs `->change()` on live tables) and the two
+new ones, **10** and **11**.
 
 ---
 
@@ -340,6 +346,31 @@ Rule management:
 
 ## 4. The Control Panel screens are English in every locale
 
+> **Closed in v1.9.0 (2026-07-28).** `resources/lang/en.json` and `de.json`
+> ship 198 strings, harvested from all 447 `__()` call sites in `resources/js`
+> rather than guessed, and `ServiceProvider::register()` calls `addJsonPath()`
+> alongside the existing `addNamespace()`. Both decisions the section below
+> asks for were taken as: **English source strings as keys** (the cheap option,
+> and the one that matches how the pages are already written), and **German
+> only**, so the parity test stays a pair rather than a matrix.
+>
+> The prerequisite about duplicating Statamic's own vocabulary turned out to be
+> more than a size question, and is the one thing worth carrying forward: JSON
+> strings from every package merge into a **single global dictionary**, so a
+> key here overrides that string across the whole Control Panel, not only
+> inside this addon. Translating "Save" would rename Statamic's save button
+> everywhere. The addon therefore ships no key Statamic already covers, and
+> where its usage disagreed with Statamic's translation the *source string* was
+> changed rather than the translation overridden — `Archive` became
+> `Archive contact`, `Schedule` became `Schedule follow-up`, `None` became
+> `No company`, `Done` became `Completed`. `TranslationParityTest` fails if a
+> shadowing key ever appears.
+>
+> The placeholder prerequisite was moot: not one `__()` call in the Vue layer
+> passes a replacement argument. The test asserts that every call passes a
+> plain literal, because one that does not could not be harvested and would be
+> silently unchecked.
+
 ### What exists
 
 `resources/lang/en/` and `resources/lang/de/` are complete against each other
@@ -457,7 +488,21 @@ before that is a decision in brand-context, not work here.
 
 ## 6. Task assignment writes no history
 
-**Found while building gap 2 in v1.7.0.**
+> **Closed in v1.9.0 (2026-07-28).** `Event::TYPE_TASK_ASSIGNED`,
+> `TimelineService::recordTaskAssigned()`, `Events\LeadHubTaskAssigned`, both
+> locales, and `leadhub.task.assigned` in the webhook-manager trigger map — the
+> public-surface change this section said a UI release was the wrong place for.
+>
+> Two decisions the section did not anticipate. The change is detected on
+> assignee **ids**, not on the display labels, because two accounts can share a
+> name. And a task with no contact has no timeline to be written to: the event
+> fires anyway rather than both being dropped, which would be the version of
+> this feature that looks built and is not. Covered by
+> `TaskAssignmentHistoryTest`.
+>
+> **Still not built:** the notification. Contacts have `LeadAssignedNotification`
+> and tasks still have no equivalent, and the follow-up digest still does not
+> include tasks. That is a deliberate remainder, not an oversight — see gap 10.
 
 ### What exists
 
@@ -517,6 +562,26 @@ contact page: resolve through `Services\CompanyResolver::resolveOrCreate()`
 
 ## 8. A task cannot be attached to an opportunity from the CP
 
+> **Closed in v1.9.0 (2026-07-28).** An opportunity picker on the task create
+> and edit forms, a `GET /tasks/opportunity-options` feed, `opportunity_id`
+> validated through the model in both task requests, and
+> `Support\OpportunityPicker`. Covered by `TaskOpportunityLinkTest`.
+>
+> The picker is scoped to the selected contact and refuses anything else, as
+> this section proposed. Three things it did not say: with no contact selected
+> the field is **disabled and says why** rather than showing an empty dropdown,
+> because an enabled empty dropdown reads as "this contact has no deals", which
+> is a different claim; a **closed** deal stays visible while a task still
+> hangs on it, or saving the edit form would silently detach it; and the option
+> feed takes the contact as a **query** parameter, because `{contact}` and
+> `{opportunity}` are exactly the kind of generic route-parameter name a
+> sibling addon may already have claimed with `Route::bind()` — the
+> application-wide binding that broke the scoring routes in v1.8.1.
+>
+> **Not built:** the task panel on `Pipelines/OpportunityEdit.vue`. The link can
+> be made and unmade from the task side, and reading it from the deal side is
+> still only possible through the delete refusal.
+
 **Found while proving out gap 1 in the browser (v1.7.0 QA run).**
 
 `leadhub_tasks.opportunity_id` is a real column with a `Task::opportunity()`
@@ -575,6 +640,50 @@ the third to 296. `status` on tasks is a small enum-like set and could be
 `varchar(32)`.
 
 **Effort.** Half a day including the data check. Position 12 of the Hub register.
+
+---
+
+## 10. Task assignment is on the timeline and still does not reach a person
+
+**Found while closing gap 6 in v1.9.0.**
+
+Reassigning a task now writes a timeline entry and fires
+`LeadHubTaskAssigned`, so the history exists and an outside system can
+subscribe to it. Nobody is told. Contact assignment notifies through
+`LeadHubNotifier::assigned()` and `LeadAssignedNotification`, gated on
+`features.notifications`; tasks have no equivalent, and the follow-up digest
+still covers follow-ups only.
+
+The practical shape of the gap: a colleague who is handed a task finds out by
+opening the task list. Which is the same position gap 2 described for the
+column, one layer up.
+
+**Where.** `src/Notifications/` — a `TaskAssignedNotification` alongside the
+contact one; a `notify()` call in `TaskController::update()` next to the
+existing timeline write; `SendFollowupDigestCommand` extended to bucket tasks
+as well as follow-ups, which is the larger half.
+
+**Decide first.** Whether the digest becomes a single "your work" mail or tasks
+get their own. One mail is kinder to the inbox and means the command stops
+being about follow-ups; two are simpler to build and easier to switch off
+independently. Also whether an assignment to *yourself* notifies — contacts
+currently do, which most people read as noise.
+
+**Effort.** Half a day for the immediate notification; the digest question is
+the part with a decision in it.
+
+---
+
+## 11. The link between a task and a deal can only be seen from the task
+
+**Found while closing gap 8 in v1.9.0.**
+
+The task forms can attach and detach an opportunity. `Pipelines/OpportunityEdit.vue`
+has no task panel, so from the deal's side the tasks hanging on it are visible
+only indirectly, through the delete refusal that names them. `Opportunity::tasks()`
+is a real relation and the data is one query away.
+
+**Effort.** Two hours. It is a panel, not a feature.
 
 ---
 

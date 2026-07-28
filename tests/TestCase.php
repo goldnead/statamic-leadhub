@@ -16,6 +16,17 @@ abstract class TestCase extends OrchestraTestCase
     {
         parent::setUp();
 
+        // RefreshDatabase rolls the database back between tests. Nothing rolled
+        // the flat-file storage back, and its path is per *process*, not per
+        // test — so under LEADHUB_DRIVER=flat every test inherited every
+        // contact, tag and follow-up written by every test before it in the
+        // same process. That is what made the flat suite's failures depend on
+        // which tests ran first: a count assertion saw somebody else's
+        // records, and a detail page 404'd against an index rebuilt for a
+        // different test's data. Give each test the empty store the eloquent
+        // driver's tests get for free.
+        $this->purgeFlatFileStorage();
+
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         // Statamic's AddonServiceProvider runs bootAddon() inside
@@ -24,6 +35,27 @@ abstract class TestCase extends OrchestraTestCase
         // register. Force it so HTTP feature tests can actually hit the
         // CP routes with the right ACLs in place.
         $this->bootAddons();
+    }
+
+    /**
+     * Empty the flat-file store and its JSON index.
+     *
+     * Both have to go. Deleting the YAML while leaving the index would be
+     * worse than leaving both: IndexBuilder decides staleness by comparing the
+     * contacts directory's mtime against the index's `rebuilt_at`, both at
+     * one-second resolution, so a stale index written in the same second as
+     * the deletion is not detected as stale and a test reads records whose
+     * files are gone.
+     */
+    protected function purgeFlatFileStorage(): void
+    {
+        $tmpRoot = sys_get_temp_dir().'/leadhub-test-'.getmypid();
+
+        foreach ([$tmpRoot, storage_path('app/private/leadhub-test-'.getmypid())] as $path) {
+            if (is_dir($path)) {
+                (new \Illuminate\Filesystem\Filesystem())->deleteDirectory($path);
+            }
+        }
     }
 
     /**
