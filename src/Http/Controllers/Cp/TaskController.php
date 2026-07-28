@@ -64,6 +64,11 @@ class TaskController extends Controller
             'title' => $task->title,
             'status' => $task->status,
             'priority' => $task->priority,
+            // The raw value stays, because the badge colour keys off it; the
+            // label is what a human reads. Rendering the value was the last
+            // untranslated surface in the tasks list — "high" in an otherwise
+            // German screen — even though this translation already existed.
+            'priority_label' => __('leadhub::tasks.priorities.'.$task->priority),
             'due_at' => $task->due_at?->format('Y-m-d H:i'),
             'is_overdue' => $task->isOverdue(),
             'assignee_id' => $task->assignee_id,

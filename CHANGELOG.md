@@ -116,6 +116,13 @@ existed in two spellings (`Overdue`/`overdue`, `Done`/`done`,
 `Opportunities`/`opportunities`) were collapsed, and `Open` was split, because
 it was serving both the adjective and the verb from one key.
 
+One surface stayed English even after that, and only the browser found it: the
+priority badge in the task list and on the contact page rendered the raw column
+value — `high` in an otherwise German screen — although
+`leadhub::tasks.priorities.*` had translated it since 1.6.0. The controllers now
+hand down a `priority_label` next to the value; the value stays, because the
+badge colour keys off it.
+
 `TranslationParityTest` was extended to this layer the same way it guards the
 PHP one — both directions, plus three rules the PHP layer does not need: every
 `__()` key in the Vue sources must be covered by this addon or by Statamic, no

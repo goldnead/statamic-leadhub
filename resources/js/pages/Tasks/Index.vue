@@ -159,7 +159,7 @@ function destroy(row) {
             </template>
 
             <template #cell-priority="{ row }">
-                <Badge :color="priorityColor(row.priority)" :text="row.priority" />
+                <Badge :color="priorityColor(row.priority)" :text="row.priority_label || row.priority" />
             </template>
 
             <template #cell-due_at="{ row }">

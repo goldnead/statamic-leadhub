@@ -412,6 +412,7 @@ class ContactController extends Controller
                     'title' => $task->title,
                     'status' => $task->status,
                     'priority' => $task->priority,
+                    'priority_label' => __('leadhub::tasks.priorities.'.$task->priority),
                     'due_at' => $task->due_at?->format('Y-m-d H:i'),
                     'is_overdue' => $task->isOverdue(),
                     'is_completed' => $task->isCompleted(),

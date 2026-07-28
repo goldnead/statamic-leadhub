@@ -228,7 +228,7 @@ const showCrm = computed(() =>
                                     <div class="flex items-center gap-2 shrink-0">
                                         <Badge v-if="task.is_overdue" color="red" size="sm" :text="__('Overdue')" />
                                         <Badge v-else-if="task.is_completed" color="green" size="sm" :text="__('Completed')" />
-                                        <Badge v-else color="default" size="sm" :text="task.priority" />
+                                        <Badge v-else color="default" size="sm" :text="task.priority_label || task.priority" />
                                         <Button
                                             v-if="!task.is_completed"
                                             :text="__('Mark as done')"
