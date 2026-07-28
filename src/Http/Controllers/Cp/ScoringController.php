@@ -78,11 +78,11 @@ class ScoringController extends Controller
         return back()->with('success', __('leadhub::scoring.flashes.created'));
     }
 
-    public function update(UpdateScoringRuleRequest $request, int|string $rule)
+    public function update(UpdateScoringRuleRequest $request, int|string $scoringRule)
     {
         $this->abortUnlessAvailable();
 
-        $model = ScoringRule::query()->findOrFail($rule);
+        $model = ScoringRule::query()->findOrFail($scoringRule);
         $model->fill($request->validated())->save();
 
         return back()->with('success', __('leadhub::scoring.flashes.updated'));
@@ -103,12 +103,12 @@ class ScoringController extends Controller
      * to the config file. Neither is data loss, both are surprising, so the
      * screen says it in the confirmation rather than the controller refusing.
      */
-    public function destroy(Request $request, int|string $rule)
+    public function destroy(Request $request, int|string $scoringRule)
     {
         $this->authorizeOrFail($request, 'manage leadhub scoring');
         $this->abortUnlessAvailable();
 
-        ScoringRule::query()->findOrFail($rule)->delete();
+        ScoringRule::query()->findOrFail($scoringRule)->delete();
 
         return back()->with('success', __('leadhub::scoring.flashes.deleted'));
     }

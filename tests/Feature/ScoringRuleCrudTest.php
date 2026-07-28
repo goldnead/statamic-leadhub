@@ -3,6 +3,7 @@
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\ScoringRule;
 use Goldnead\Leadhub\Services\ScoringService;
+use Illuminate\Support\Facades\Route;
 use Statamic\Facades\User;
 
 /**
@@ -157,4 +158,36 @@ it('refuses the write routes without the manage permission', function (): void {
 
     expect(ScoringRule::query()->count())->toBe(1)
         ->and($rule->fresh()->points)->toBe(10);
+});
+
+/**
+ * A sibling addon's route-model binding must not swallow these routes.
+ *
+ * `Route::bind()` is application-wide, not per addon. goldnead/statamic-webhook-manager
+ * binds the parameter name `rule` to its own Rule repository in its provider,
+ * and that binding applies to every route in every package that uses the same
+ * parameter name. v1.8.0 shipped these two routes as `/scoring/{rule}`, and on
+ * any install with both addons the webhook manager resolved them against its own
+ * repository, found nothing, and returned 404 — a Hub where the delete button
+ * did nothing, while the addon's own suite was green because the sibling addon
+ * is not installed here.
+ *
+ * The binding below is exactly what that provider registers. It makes the
+ * collision reproducible without the addon, and it fails on a parameter named
+ * `rule` no matter how the controller is written.
+ */
+it('survives a sibling addon binding the parameter name "rule"', function (): void {
+    Route::bind('rule', function () {
+        abort(404);
+    });
+
+    $target = ScoringRule::create(['event_type' => 'purchase.completed', 'points' => 10]);
+
+    $this->patch(cp_route('leadhub.scoring.update', $target->id), ['points' => 12])
+        ->assertRedirect();
+    expect($target->fresh()->points)->toBe(12);
+
+    $this->delete(cp_route('leadhub.scoring.destroy', $target->id))
+        ->assertRedirect();
+    expect(ScoringRule::query()->find($target->id))->toBeNull();
 });

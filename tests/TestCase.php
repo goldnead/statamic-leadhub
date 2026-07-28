@@ -113,8 +113,15 @@ abstract class TestCase extends OrchestraTestCase
      */
     protected function defineRoutes($router): void
     {
+        // SubstituteBindings is part of Statamic's real CP middleware group and
+        // is what applies any Route::bind() a sibling addon has registered.
+        // Without it here, a route parameter whose name collides with another
+        // addon's global binding passes every test and 404s in production —
+        // which is exactly what v1.8.0 shipped. Nothing in this addon uses
+        // implicit model binding, so adding it changes no other behaviour.
         $router->name('statamic.cp.')
             ->prefix('cp')
+            ->middleware(\Illuminate\Routing\Middleware\SubstituteBindings::class)
             ->group(__DIR__.'/../routes/cp.php');
 
         // Public front-end routes (click tracking). Statamic mounts these at the

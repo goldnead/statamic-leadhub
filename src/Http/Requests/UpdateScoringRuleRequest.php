@@ -36,7 +36,7 @@ class UpdateScoringRuleRequest extends FormRequest
             }
 
             $type = (string) $this->input('event_type');
-            $current = $this->route('rule');
+            $current = $this->route('scoringRule');
 
             $exists = ScoringRule::query()
                 ->where('event_type', $type)

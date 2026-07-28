@@ -6,6 +6,37 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.8.1] — 2026-07-29
+
+**Fixes a defect in 1.8.0 that only appears alongside another addon.** The
+scoring rule write routes were `/scoring/{rule}`, and
+`goldnead/statamic-webhook-manager` registers `Route::bind('rule', …)` in its
+provider for its own Rule model. A route-model binding is application-wide, not
+per package: it applies to every route with that parameter name, in every addon.
+So on any install with both addons, editing or deleting a scoring rule was
+resolved against the webhook manager's rule repository, which had never heard of
+that id, and returned 404. The button did nothing and said nothing.
+
+The parameter is now `{scoringRule}`. Nothing else changed, and no URL a user
+would have bookmarked is affected — these are a PATCH and a DELETE.
+
+Two things about how this was missed are worth writing down, because both were
+structural rather than careless:
+
+- **The addon's own suite could not have caught it.** `SubstituteBindings` is
+  part of Statamic's real CP middleware group, but the test bed mounted the CP
+  routes without it, so a `Route::bind()` registered by anything had no effect
+  at all in tests. The middleware is now part of the test route group, which is
+  what makes the new regression test in `ScoringRuleCrudTest` fail on the old
+  parameter name and pass on the new one. Nothing in this addon uses implicit
+  model binding, so adding it changes no other behaviour.
+- **Route parameter names are a shared namespace.** `{rule}`, `{template}`,
+  `{webhook}`, `{endpoint}` are all generic enough that a sibling addon may
+  already own them. Prefer a name nobody else would pick.
+
+Found by driving the real Control Panel of a Hub that has both addons
+installed — not by a test, and not by reading the code.
+
 ## [1.8.0] — 2026-07-29
 
 The engagement score has worked since 1.2 and appeared nowhere. It moved on

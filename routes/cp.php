@@ -137,11 +137,23 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
     });
 
     // Lead scoring rules (eloquent, gated on features.scoring)
+    //
+    // The parameter is `scoringRule`, not `rule`, and that is not cosmetic.
+    // Route::bind() is application-wide: goldnead/statamic-webhook-manager
+    // registers a binding for `rule` (its own Rule model) in its provider, and
+    // a binding applies to EVERY route with that parameter name in every
+    // addon. With `{rule}` here, both write routes were resolved against the
+    // webhook manager's rule repository and 404'd on a LeadHub id that
+    // repository has never heard of — on installs that happen to have both
+    // addons, and nowhere else. Parameter names are shared namespace; a
+    // generic one is a collision waiting for a sibling.
     Route::prefix('scoring')->name('scoring.')->group(function () {
         Route::get('/', [ScoringController::class, 'index'])->name('index');
         Route::post('/', [ScoringController::class, 'store'])->name('store');
-        Route::patch('/{rule}', [ScoringController::class, 'update'])->whereNumber('rule')->name('update');
-        Route::delete('/{rule}', [ScoringController::class, 'destroy'])->whereNumber('rule')->name('destroy');
+        Route::patch('/{scoringRule}', [ScoringController::class, 'update'])
+            ->whereNumber('scoringRule')->name('update');
+        Route::delete('/{scoringRule}', [ScoringController::class, 'destroy'])
+            ->whereNumber('scoringRule')->name('destroy');
     });
 
     // Settings
