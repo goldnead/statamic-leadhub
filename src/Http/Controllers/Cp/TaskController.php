@@ -2,20 +2,37 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
+use Goldnead\Leadhub\Http\Requests\StoreTaskRequest;
+use Goldnead\Leadhub\Http\Requests\UpdateTaskRequest;
+use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Services\TaskService;
+use Goldnead\Leadhub\Support\ContactPicker;
+use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Statamic\CP\Column;
 
 class TaskController extends Controller
 {
+    public function __construct(protected UserDirectory $users)
+    {
+    }
+
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'view leadhub');
         abort_unless(config('leadhub.features.tasks', false), 404);
 
         $filter = $request->string('filter')->toString() ?: 'open';
+
+        // Assignee filter, mirroring what ContactController::index has offered
+        // since v1.0: ?mine=1 for the current user, ?assignee_id=<id> for a
+        // specific one, ?assignee_id=none for unassigned work.
+        $mine = $request->boolean('mine');
+        $assignee = $mine
+            ? ($this->userId($request) ?: null)
+            : ($request->string('assignee_id')->toString() ?: null);
 
         $query = Task::query()->with('contact');
 
@@ -26,8 +43,18 @@ class TaskController extends Controller
             default => $query->open(),
         };
 
+        if ($assignee === 'none') {
+            $query->whereNull('assignee_id');
+        } elseif ($assignee !== null) {
+            $query->forAssignee($assignee);
+        }
+
         $page = $query->orderByRaw('due_at is null, due_at asc')
             ->paginate(25, ['*'], 'page', (int) $request->input('page', 1));
+
+        $canManage = $this->userCan($request, 'manage leadhub tasks');
+        $assignableUsers = $this->users->assignable();
+        $assigneeLabels = collect($assignableUsers)->pluck('label', 'value')->all();
 
         $rows = collect($page->items())->map(fn (Task $task) => [
             'id' => (string) $task->id,
@@ -37,14 +64,23 @@ class TaskController extends Controller
             'due_at' => $task->due_at?->format('Y-m-d H:i'),
             'is_overdue' => $task->isOverdue(),
             'assignee_id' => $task->assignee_id,
+            // Fall back to UserDirectory::label() for an assignee who is no
+            // longer in the assignable list (permission revoked, account
+            // renamed). Showing a stale name beats showing a bare id.
+            'assignee_name' => $task->assignee_id
+                ? ($assigneeLabels[(string) $task->assignee_id] ?? $this->users->label($task->assignee_id))
+                : null,
             'contact_name' => $task->contact?->displayName(),
             'contact_url' => $task->contact ? cp_route('leadhub.contacts.show', $task->contact->id) : null,
             'complete_url' => cp_route('leadhub.tasks.complete', $task->id),
+            'edit_url' => cp_route('leadhub.tasks.edit', $task->id),
+            'delete_url' => cp_route('leadhub.tasks.destroy', $task->id),
         ])->all();
 
         $columns = collect([
             Column::make('title')->label(__('Title'))->sortable(false),
             Column::make('contact_name')->label(__('Contact')),
+            Column::make('assignee_name')->label(__('leadhub::tasks.assignee')),
             Column::make('priority')->label(__('Priority')),
             Column::make('due_at')->label(__('Due')),
         ])->map(fn ($c) => $c->toArray())->all();
@@ -53,18 +89,164 @@ class TaskController extends Controller
             'tasks' => $rows,
             'filter' => $filter,
             'columns' => $columns,
-            'canManage' => $this->userCan($request, 'edit leadhub contacts'),
+            'canManage' => $canManage,
+            'canComplete' => $canManage || $this->userCan($request, 'edit leadhub contacts'),
+            'assignableUsers' => $assignableUsers,
+            'assigneeFilter' => $mine ? '' : ($request->string('assignee_id')->toString() ?: ''),
+            'mine' => $mine,
+            'currentUserId' => $this->userId($request),
+            'createUrl' => $canManage ? cp_route('leadhub.tasks.create') : null,
         ]);
     }
 
+    public function create(Request $request)
+    {
+        $this->authorizeOrFail($request, 'manage leadhub tasks');
+        abort_unless(config('leadhub.features.tasks', false), 404);
+
+        return Inertia::render('leadhub::Tasks/Create', [
+            'task' => [
+                'contact_id' => $request->string('contact')->toString() ?: '',
+                'assignee_id' => $this->userId($request),
+                'priority' => Task::PRIORITY_NORMAL,
+            ],
+            'assignableUsers' => $this->users->assignable(),
+            'priorityOptions' => $this->priorityOptions(),
+            'contactOptions' => $this->contactOptions($request->string('contact')->toString() ?: null),
+            'contactSearchUrl' => cp_route('leadhub.contacts.options'),
+            'storeUrl' => cp_route('leadhub.tasks.store'),
+            'cancelUrl' => cp_route('leadhub.tasks.index'),
+        ]);
+    }
+
+    /**
+     * Created through Services\TaskService, not Task::create(), so the CP path
+     * fires LeadHubTaskCreated and writes the timeline entry exactly like the
+     * facade path. Skipping the service is the single most likely way for
+     * CP-created records to become invisible to the webhook bridge.
+     */
+    public function store(StoreTaskRequest $request)
+    {
+        abort_unless(config('leadhub.features.tasks', false), 404);
+
+        $validated = $request->validated();
+        $contact = filled($validated['contact_id'] ?? null)
+            ? Contact::query()->find($validated['contact_id'])
+            : null;
+
+        app(TaskService::class)->create(
+            collect($validated)->except('contact_id')->put('created_by', $this->userId($request) ?: null)->all(),
+            $contact,
+        );
+
+        return redirect(cp_route('leadhub.tasks.index'))
+            ->with('success', __('leadhub::tasks.created'));
+    }
+
+    public function edit(Request $request, int|string $task)
+    {
+        $this->authorizeOrFail($request, 'manage leadhub tasks');
+        abort_unless(config('leadhub.features.tasks', false), 404);
+
+        $model = Task::query()->with('contact')->findOrFail($task);
+
+        return Inertia::render('leadhub::Tasks/Edit', [
+            'task' => [
+                'id' => (string) $model->id,
+                'title' => $model->title,
+                'description' => $model->description,
+                'contact_id' => (string) ($model->contact_id ?? ''),
+                'priority' => $model->priority,
+                'status' => $model->status,
+                // ISO for the picker, human-readable for the summary line.
+                'due_at' => $model->due_at?->format('Y-m-d H:i'),
+                'assignee_id' => (string) ($model->assignee_id ?? ''),
+            ],
+            'assignableUsers' => $this->users->assignable(),
+            'priorityOptions' => $this->priorityOptions(),
+            'contactOptions' => $this->contactOptions((string) ($model->contact_id ?? '') ?: null),
+            'contactSearchUrl' => cp_route('leadhub.contacts.options'),
+            'updateUrl' => cp_route('leadhub.tasks.update', $model->id),
+            'cancelUrl' => cp_route('leadhub.tasks.index'),
+        ]);
+    }
+
+    public function update(UpdateTaskRequest $request, int|string $task)
+    {
+        abort_unless(config('leadhub.features.tasks', false), 404);
+
+        $model = Task::query()->findOrFail($task);
+        $validated = $request->validated();
+
+        // Reassignment writes no timeline entry and fires no event. Contact
+        // assignment does both, but doing the same for tasks means a new
+        // Event::TYPE_* constant and a new webhook-manager trigger — a change
+        // to the addon's public surface, which does not belong in a UI
+        // release. Noted in GAPS.md.
+        $model->fill($validated);
+
+        if (array_key_exists('contact_id', $validated)) {
+            $model->contact_id = filled($validated['contact_id']) ? $validated['contact_id'] : null;
+        }
+
+        $model->save();
+
+        return redirect(cp_route('leadhub.tasks.index'))
+            ->with('success', __('leadhub::tasks.updated'));
+    }
+
+    /**
+     * Tasks delete outright: nothing references a task. This is the other half
+     * of the deletion rule — it refuses where something hangs on the record,
+     * and it must not refuse where nothing does.
+     */
+    public function destroy(Request $request, int|string $task)
+    {
+        $this->authorizeOrFail($request, 'manage leadhub tasks');
+        abort_unless(config('leadhub.features.tasks', false), 404);
+
+        Task::query()->findOrFail($task)->delete();
+
+        return back()->with('success', __('leadhub::tasks.deleted'));
+    }
+
+    /**
+     * Completing accepts either permission on purpose. `edit leadhub contacts`
+     * is what this route has always required, and installs upgrading into
+     * v1.7.0 do not yet hold the new `manage leadhub tasks` on any role —
+     * narrowing it here would take "mark complete" away from everyone until an
+     * administrator edits their roles.
+     */
     public function complete(Request $request, int|string $task)
     {
-        $this->authorizeOrFail($request, 'edit leadhub contacts');
+        if (! $this->userCan($request, 'manage leadhub tasks')) {
+            $this->authorizeOrFail($request, 'edit leadhub contacts');
+        }
+
         abort_unless(config('leadhub.features.tasks', false), 404);
 
         $model = Task::query()->findOrFail($task);
         app(TaskService::class)->complete($model, $this->userId($request) ?: null);
 
         return back()->with('success', __('leadhub::tasks.completed'));
+    }
+
+    protected function priorityOptions(): array
+    {
+        return [
+            ['value' => Task::PRIORITY_LOW, 'label' => __('leadhub::tasks.priorities.low')],
+            ['value' => Task::PRIORITY_NORMAL, 'label' => __('leadhub::tasks.priorities.normal')],
+            ['value' => Task::PRIORITY_HIGH, 'label' => __('leadhub::tasks.priorities.high')],
+        ];
+    }
+
+    /**
+     * A first page of contacts for the picker, plus the one already selected
+     * so an edit form never shows an empty box for a contact that exists. The
+     * picker searches the rest through leadhub.contacts.options.
+     */
+    protected function contactOptions(?string $selectedId = null): array
+    {
+        return app(ContactPicker::class)->options(null, $selectedId);
     }
 }

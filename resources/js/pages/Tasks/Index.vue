@@ -1,8 +1,19 @@
 <script setup>
+import { ref, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
-import { Header, Listing, Badge, Button, DropdownItem } from '@statamic/cms/ui';
+import { Header, Listing, Badge, Button, Select, DropdownItem } from '@statamic/cms/ui';
+import ErrorSummary from '../../support/ErrorSummary.vue';
 
-const props = defineProps(['tasks', 'columns', 'filter', 'canManage']);
+const props = defineProps([
+    'tasks', 'columns', 'filter', 'canManage', 'canComplete',
+    'assignableUsers',   // [{ value, label }]
+    'assigneeFilter',    // '' | '<id>' | 'none'
+    'mine',              // bool
+    'currentUserId',
+    'createUrl',
+]);
+
+const errors = ref({});
 
 const filters = [
     { value: 'open', label: __('Open') },
@@ -11,8 +22,41 @@ const filters = [
     { value: 'done', label: __('Done') },
 ];
 
+// Assignee options mirror the contact list's owner filter: everybody, a named
+// user, or explicitly nobody. Without the last one there is no way to find the
+// work that fell through the cracks.
+const assigneeOptions = computed(() => [
+    { value: '', label: __('Anyone') },
+    { value: 'none', label: __('Unassigned') },
+    ...(props.assignableUsers || []),
+]);
+
+function navigate(params) {
+    router.get(window.location.pathname, params, { preserveState: false, preserveScroll: true });
+}
+
+function currentParams() {
+    return {
+        filter: props.filter,
+        ...(props.mine ? { mine: 1 } : {}),
+        ...(!props.mine && props.assigneeFilter ? { assignee_id: props.assigneeFilter } : {}),
+    };
+}
+
 function setFilter(value) {
-    router.get(window.location.pathname, { filter: value }, { preserveState: true, preserveScroll: true });
+    navigate({ ...currentParams(), filter: value });
+}
+
+function setAssignee(value) {
+    const params = { filter: props.filter };
+    if (value) params.assignee_id = value;
+    navigate(params);
+}
+
+function toggleMine() {
+    const params = { filter: props.filter };
+    if (!props.mine) params.mine = 1;
+    navigate(params);
 }
 
 function reloadPage() {
@@ -24,7 +68,19 @@ function priorityColor(p) {
 }
 
 function complete(row) {
-    router.post(row.complete_url, {}, { preserveScroll: true });
+    router.post(row.complete_url, {}, {
+        preserveScroll: true,
+        onError: (e) => { errors.value = e || {}; },
+        onSuccess: () => { errors.value = {}; },
+    });
+}
+
+function destroy(row) {
+    router.delete(row.delete_url, {
+        preserveScroll: true,
+        onError: (e) => { errors.value = e || {}; },
+        onSuccess: () => { errors.value = {}; },
+    });
 }
 </script>
 
@@ -32,17 +88,49 @@ function complete(row) {
     <Head :title="[__('Tasks'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="__('Tasks')" icon="tasks" />
+        <Header :title="__('Tasks')" icon="tasks">
+            <template #actions>
+                <Button
+                    v-if="createUrl"
+                    :text="__('New task')"
+                    icon="add"
+                    variant="primary"
+                    data-leadhub-new-task
+                    @click="router.visit(createUrl)"
+                />
+            </template>
+        </Header>
 
-        <div class="flex gap-1 mb-4">
-            <Button
-                v-for="f in filters"
-                :key="f.value"
-                :text="f.label"
-                size="sm"
-                :variant="filter === f.value ? 'primary' : 'ghost'"
-                @click="setFilter(f.value)"
-            />
+        <ErrorSummary :errors="errors" />
+
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+            <div class="flex gap-1">
+                <Button
+                    v-for="f in filters"
+                    :key="f.value"
+                    :text="f.label"
+                    size="sm"
+                    :variant="filter === f.value ? 'primary' : 'ghost'"
+                    @click="setFilter(f.value)"
+                />
+            </div>
+
+            <div class="flex items-center gap-2 ms-auto">
+                <Button
+                    :text="__('My tasks')"
+                    size="sm"
+                    :variant="mine ? 'primary' : 'ghost'"
+                    data-leadhub-my-tasks
+                    @click="toggleMine"
+                />
+                <Select
+                    :model-value="mine ? '' : assigneeFilter"
+                    :options="assigneeOptions"
+                    class="w-56"
+                    data-leadhub-assignee-filter
+                    @update:model-value="setAssignee"
+                />
+            </div>
         </div>
 
         <Listing
@@ -60,6 +148,16 @@ function complete(row) {
                 <span v-else class="text-gray-400">—</span>
             </template>
 
+            <template #cell-assignee_name="{ row }">
+                <span
+                    v-if="row.assignee_name"
+                    class="text-sm"
+                    :class="String(row.assignee_id) === String(currentUserId) ? 'font-medium' : ''"
+                    data-leadhub-task-assignee-cell
+                >{{ row.assignee_name }}</span>
+                <span v-else class="text-xs text-gray-400" data-leadhub-task-assignee-cell>{{ __('Unassigned') }}</span>
+            </template>
+
             <template #cell-priority="{ row }">
                 <Badge :color="priorityColor(row.priority)" :text="row.priority" />
             </template>
@@ -72,10 +170,23 @@ function complete(row) {
 
             <template #prepended-row-actions="{ row }">
                 <DropdownItem
-                    v-if="canManage && row.status !== 'done'"
+                    v-if="canComplete && row.status !== 'done'"
                     :text="__('Mark complete')"
                     icon="check"
                     @click="complete(row)"
+                />
+                <DropdownItem
+                    v-if="canManage"
+                    :text="__('Edit')"
+                    icon="edit"
+                    @click="router.visit(row.edit_url)"
+                />
+                <DropdownItem
+                    v-if="canManage"
+                    :text="__('Delete')"
+                    icon="trash"
+                    variant="destructive"
+                    @click="destroy(row)"
                 />
             </template>
         </Listing>

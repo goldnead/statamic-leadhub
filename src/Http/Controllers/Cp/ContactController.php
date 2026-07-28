@@ -141,6 +141,25 @@ class ContactController extends Controller
     }
 
     /**
+     * Contact options for the pickers on the task and opportunity forms.
+     *
+     * A JSON endpoint rather than a prop, because a `<Select>` over every
+     * contact stops working somewhere in the low thousands. Brand-scoped
+     * through the repository like every other read — a picker that offered
+     * another brand's contacts would be a leak with a friendly interface.
+     */
+    public function options(Request $request)
+    {
+        $this->authorizeOrFail($request, 'view leadhub contacts');
+
+        return response()->json([
+            'options' => app(\Goldnead\Leadhub\Support\ContactPicker::class)->options(
+                $request->string('q')->toString() ?: null,
+            ),
+        ]);
+    }
+
+    /**
      * Render the manual "create contact" form. Gated behind the
      * `features.manual_contacts` flag and the `create leadhub contacts`
      * permission.
@@ -311,6 +330,20 @@ class ContactController extends Controller
             'linkedCompanies' => $crm['companies'],
             'tasks' => $crm['tasks'],
             'opportunities' => $crm['opportunities'],
+            // Entry points into the CRM create forms with this contact already
+            // selected — this page is where a user looks first. Null (button
+            // hidden) without the matching permission.
+            'crmCreateUrls' => [
+                'task' => $crm['features']['tasks'] && $this->userCan($request, 'manage leadhub tasks')
+                    ? cp_route('leadhub.tasks.create').'?contact='.$contact->id
+                    : null,
+                'opportunity' => $crm['features']['pipelines'] && $this->userCan($request, 'manage leadhub opportunities')
+                    ? cp_route('leadhub.pipelines.opportunities.create').'?contact='.$contact->id
+                    : null,
+                'company' => $crm['features']['companies'] && $this->userCan($request, 'manage leadhub companies')
+                    ? cp_route('leadhub.companies.create')
+                    : null,
+            ],
         ]);
     }
 

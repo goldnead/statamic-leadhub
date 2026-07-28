@@ -53,6 +53,8 @@ class PipelineController extends Controller
                 'canManage' => $this->userCan($request, 'edit leadhub contacts'),
                 'closedWindow' => self::DEFAULT_CLOSED_WINDOW,
                 'closedWindowOptions' => $this->closedWindowOptions(),
+                'newOpportunityUrl' => null,
+                'canManageOpportunities' => $this->userCan($request, 'manage leadhub opportunities'),
                 'totals' => ['open' => 0.0, 'closed' => 0.0, 'won' => 0.0, 'lost' => 0.0],
             ]);
         }
@@ -93,6 +95,7 @@ class PipelineController extends Controller
                     'contact_name' => $opp->contact?->displayName(),
                     'contact_url' => $opp->contact ? cp_route('leadhub.contacts.show', $opp->contact->id) : null,
                     'move_url' => cp_route('leadhub.pipelines.move', $opp->id),
+                    'edit_url' => cp_route('leadhub.pipelines.opportunities.edit', $opp->id),
                 ])->values()->all(),
                 // The stage total counts what is actually shown in the column,
                 // closed deals included — that is the number the win column was
@@ -120,6 +123,13 @@ class PipelineController extends Controller
             'canManage' => $this->userCan($request, 'edit leadhub contacts'),
             'closedWindow' => $window,
             'closedWindowOptions' => $this->closedWindowOptions(),
+            // Entry point for creating an opportunity. Null (no button) when
+            // the user may not manage them, so the board never offers an
+            // action that would answer 403.
+            'newOpportunityUrl' => $this->userCan($request, 'manage leadhub opportunities')
+                ? cp_route('leadhub.pipelines.opportunities.create')
+                : null,
+            'canManageOpportunities' => $this->userCan($request, 'manage leadhub opportunities'),
             'totals' => [
                 'open' => (float) $opportunities->where('status', Opportunity::STATUS_OPEN)->sum('value_estimate'),
                 'closed' => (float) $closed->sum('value_estimate'),

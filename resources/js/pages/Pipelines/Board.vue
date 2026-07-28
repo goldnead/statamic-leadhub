@@ -8,7 +8,23 @@ const props = defineProps([
     'closedWindow',         // 'none' | '30d' | '90d' | '365d' | 'all'
     'closedWindowOptions',  // [{ value, label }]
     'totals',               // { open, closed, won, lost }
+    'newOpportunityUrl',    // string | null — null hides every create button
+    'canManageOpportunities',
 ]);
+
+/**
+ * Creating from a column carries the stage with it, so the form opens on the
+ * column the user pointed at rather than on the pipeline's first stage. The
+ * pipeline goes along because the create screen can switch between pipelines.
+ */
+function newOpportunity(columnId = null) {
+    if (!props.newOpportunityUrl) return;
+    const params = new URLSearchParams();
+    if (props.pipeline) params.set('pipeline', String(props.pipeline.id));
+    if (columnId !== null) params.set('stage', String(columnId));
+    const query = params.toString();
+    router.visit(query ? `${props.newOpportunityUrl}?${query}` : props.newOpportunityUrl);
+}
 
 // Feature is enabled but no pipeline exists yet: show a native empty state.
 const isEmpty = computed(() => !props.pipeline || !props.pipelines || props.pipelines.length === 0);
@@ -156,6 +172,15 @@ function onDrop(columnId) {
                         :variant="p.id === pipeline.id ? 'primary' : 'ghost'"
                         @click="switchPipeline(p.url)"
                     />
+                    <Button
+                        v-if="newOpportunityUrl"
+                        :text="__('New opportunity')"
+                        icon="add"
+                        size="sm"
+                        variant="primary"
+                        data-leadhub-new-opportunity
+                        @click="newOpportunity()"
+                    />
                     <Select
                         :model-value="closedWindow"
                         :options="closedWindowOptions"
@@ -256,21 +281,43 @@ function onDrop(columnId) {
                                 <Badge v-if="card.confidence" color="default" size="sm" :text="`${card.confidence}%`" />
                             </div>
 
-                            <div v-if="canManage" class="mt-2 flex flex-wrap gap-1 border-t border-content-border pt-2">
+                            <div v-if="canManage || canManageOpportunities" class="mt-2 flex flex-wrap items-center gap-1 border-t border-content-border pt-2">
                                 <Button
-                                    v-for="target in board.filter(c => c.id !== column.id)"
-                                    :key="target.id"
-                                    :text="`→ ${target.name}`"
+                                    v-if="canManageOpportunities"
+                                    icon="edit"
                                     size="xs"
                                     variant="ghost"
-                                    @click="moveCard(card.id, column.id, target.id)"
+                                    :aria-label="__('Edit opportunity')"
+                                    data-leadhub-edit-opportunity
+                                    @click="router.visit(card.edit_url)"
                                 />
+                                <template v-if="canManage">
+                                    <Button
+                                        v-for="target in board.filter(c => c.id !== column.id)"
+                                        :key="target.id"
+                                        :text="`→ ${target.name}`"
+                                        size="xs"
+                                        variant="ghost"
+                                        @click="moveCard(card.id, column.id, target.id)"
+                                    />
+                                </template>
                             </div>
                         </div>
 
                         <p v-if="!column.cards.length" class="text-xs text-gray-400 px-1 py-2">
                             {{ closedWindow === 'none' ? __('No open opportunities in this stage.') : __('Nothing in this stage.') }}
                         </p>
+
+                        <Button
+                            v-if="newOpportunityUrl"
+                            :text="__('New opportunity')"
+                            icon="add"
+                            size="xs"
+                            variant="ghost"
+                            class="w-full justify-center"
+                            :data-leadhub-new-opportunity-in="column.id"
+                            @click="newOpportunity(column.id)"
+                        />
                     </div>
 
                     <div

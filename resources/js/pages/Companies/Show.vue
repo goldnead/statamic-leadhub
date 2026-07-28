@@ -1,11 +1,26 @@
 <script setup>
+import { ref } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
-import { Header, Panel, Badge, Description } from '@statamic/cms/ui';
+import { Header, Panel, Badge, Button, Description } from '@statamic/cms/ui';
+import ErrorSummary from '../../support/ErrorSummary.vue';
 
-defineProps(['company', 'contacts']);
+const props = defineProps(['company', 'contacts', 'canManage']);
+
+const errors = ref({});
 
 function openContact(url) {
     if (url) router.visit(url);
+}
+
+function destroy() {
+    router.delete(props.company.delete_url, {
+        preserveScroll: true,
+        // The refusal ("this company still has N contacts") arrives as an
+        // error bag on a 422. It has to land on the screen, otherwise the
+        // delete button is indistinguishable from a broken one.
+        onError: (e) => { errors.value = e || {}; },
+        onSuccess: () => { errors.value = {}; },
+    });
 }
 </script>
 
@@ -13,7 +28,16 @@ function openContact(url) {
     <Head :title="[company.name, __('Companies'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="company.name" icon="office-building" />
+        <Header :title="company.name" icon="office-building">
+            <template #actions>
+                <div v-if="canManage" class="flex items-center gap-2">
+                    <Button :text="__('Edit')" icon="edit" variant="default" data-leadhub-edit-company @click="router.visit(company.edit_url)" />
+                    <Button :text="__('Delete')" icon="trash" variant="danger" data-leadhub-delete-company @click="destroy" />
+                </div>
+            </template>
+        </Header>
+
+        <ErrorSummary :errors="errors" />
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Panel class="lg:col-span-1">

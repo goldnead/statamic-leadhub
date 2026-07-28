@@ -11,6 +11,9 @@ return [
     'manage_tags' => 'Manage tags',
     'view_segments' => 'View segments',
     'manage_segments' => 'Manage segments',
+    'manage_companies' => 'Manage companies',
+    'manage_tasks' => 'Manage tasks',
+    'manage_opportunities' => 'Manage opportunities',
     'manage_form_mappings' => 'Manage form mappings',
     'manage_settings' => 'Manage LeadHub settings',
 ];

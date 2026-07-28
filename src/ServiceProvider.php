@@ -503,6 +503,17 @@ class ServiceProvider extends AddonServiceProvider
                                 Permission::make('manage leadhub segments')
                                     ->label(__('leadhub::permissions.manage_segments')),
                             ]),
+                        // CRM-core write access. Separate from the contact
+                        // permissions on purpose: "may edit a contact" and
+                        // "may delete the company behind fifty contacts" are
+                        // not the same authority, and the read side of these
+                        // modules already rides on `view leadhub`.
+                        Permission::make('manage leadhub companies')
+                            ->label(__('leadhub::permissions.manage_companies')),
+                        Permission::make('manage leadhub tasks')
+                            ->label(__('leadhub::permissions.manage_tasks')),
+                        Permission::make('manage leadhub opportunities')
+                            ->label(__('leadhub::permissions.manage_opportunities')),
                         Permission::make('manage leadhub form mappings')
                             ->label(__('leadhub::permissions.manage_form_mappings')),
                         Permission::make('manage leadhub settings')

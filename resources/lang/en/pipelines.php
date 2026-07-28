@@ -20,4 +20,20 @@ return [
     'stages_reordered' => 'Stage order saved.',
     'stage_not_empty' => 'This stage still holds opportunities. Move them to another stage first.',
     'stage_last' => 'A pipeline needs at least one stage.',
+
+    // Opportunity create / edit / delete
+    'opportunity' => 'Opportunity',
+    'opportunity_new' => 'New opportunity',
+    'opportunity_edit' => 'Edit opportunity',
+    'opportunity_created' => 'Opportunity created.',
+    'opportunity_updated' => 'Opportunity updated.',
+    'opportunity_deleted' => 'Opportunity deleted.',
+    'opportunity_has_tasks' => 'This opportunity still has :count task(s). Complete or delete them first.',
+
+    'validation' => [
+        'contact_not_found' => 'That contact does not exist.',
+        'company_not_found' => 'That company does not exist.',
+        'pipeline_not_found' => 'That pipeline does not exist.',
+        'stage_not_in_pipeline' => 'That stage does not belong to the selected pipeline.',
+    ],
 ];

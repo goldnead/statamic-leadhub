@@ -25,6 +25,7 @@ const props = defineProps([
     'linkedCompanies',  // [{ id, name, domain, industry, relationship_label, is_primary, url }]
     'tasks',            // [{ id, title, status, priority, due_at, is_overdue, is_completed, ... }]
     'opportunities',    // [{ id, title, status, outcome, value_estimate, stage_name, ... }]
+    'crmCreateUrls',    // { task, opportunity, company } — null hides the button
 ]);
 
 const noteBody = ref('');
@@ -238,6 +239,16 @@ const showCrm = computed(() =>
                                     </div>
                                 </li>
                             </ul>
+                            <div v-if="crmCreateUrls && crmCreateUrls.task" class="pt-3 mt-3 border-t border-content-border">
+                                <Button
+                                    :text="__('New task')"
+                                    icon="add"
+                                    size="xs"
+                                    variant="ghost"
+                                    data-leadhub-contact-new-task
+                                    @click="router.visit(crmCreateUrls.task)"
+                                />
+                            </div>
                         </Card>
                     </Panel>
 
@@ -273,6 +284,16 @@ const showCrm = computed(() =>
                                     </div>
                                 </li>
                             </ul>
+                            <div v-if="crmCreateUrls && crmCreateUrls.opportunity" class="pt-3 mt-3 border-t border-content-border">
+                                <Button
+                                    :text="__('New opportunity')"
+                                    icon="add"
+                                    size="xs"
+                                    variant="ghost"
+                                    data-leadhub-contact-new-opportunity
+                                    @click="router.visit(crmCreateUrls.opportunity)"
+                                />
+                            </div>
                         </Card>
                     </Panel>
                 </template>

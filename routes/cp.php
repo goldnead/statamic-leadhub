@@ -9,6 +9,7 @@ use Goldnead\Leadhub\Http\Controllers\Cp\TaskController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FollowupController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FormMappingController;
 use Goldnead\Leadhub\Http\Controllers\Cp\NoteController;
+use Goldnead\Leadhub\Http\Controllers\Cp\OpportunityController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SegmentController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SettingsController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SyncLogController;
@@ -23,9 +24,12 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
     // Contacts
     Route::prefix('contacts')->name('contacts.')->group(function () {
         Route::get('/', [ContactController::class, 'index'])->name('index');
-        // `create` must be registered before the `/{contact}` wildcard so it
-        // isn't swallowed as a contact id.
+        // `create` and `options` must be registered before the `/{contact}`
+        // wildcard so they aren't swallowed as a contact id.
         Route::get('/create', [ContactController::class, 'create'])->name('create');
+        // Option feed for the contact pickers on the task and opportunity
+        // forms. Brand-scoped through the repository like every other read.
+        Route::get('/options', [ContactController::class, 'options'])->name('options');
         Route::post('/', [ContactController::class, 'store'])->name('store');
         Route::get('/{contact}', [ContactController::class, 'show'])->name('show');
         Route::patch('/{contact}', [ContactController::class, 'update'])->name('update');
@@ -74,13 +78,24 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
     // Companies (CRM-core, eloquent)
     Route::prefix('companies')->name('companies.')->group(function () {
         Route::get('/', [CompanyController::class, 'index'])->name('index');
-        Route::get('/{company}', [CompanyController::class, 'show'])->name('show');
+        // `create` before the `/{company}` wildcard, or it is read as an id.
+        Route::get('/create', [CompanyController::class, 'create'])->name('create');
+        Route::post('/', [CompanyController::class, 'store'])->name('store');
+        Route::get('/{company}/edit', [CompanyController::class, 'edit'])->whereNumber('company')->name('edit');
+        Route::get('/{company}', [CompanyController::class, 'show'])->whereNumber('company')->name('show');
+        Route::patch('/{company}', [CompanyController::class, 'update'])->whereNumber('company')->name('update');
+        Route::delete('/{company}', [CompanyController::class, 'destroy'])->whereNumber('company')->name('destroy');
     });
 
     // Tasks (CRM-core, eloquent)
     Route::prefix('tasks')->name('tasks.')->group(function () {
         Route::get('/', [TaskController::class, 'index'])->name('index');
-        Route::post('/{task}/complete', [TaskController::class, 'complete'])->name('complete');
+        Route::get('/create', [TaskController::class, 'create'])->name('create');
+        Route::post('/', [TaskController::class, 'store'])->name('store');
+        Route::post('/{task}/complete', [TaskController::class, 'complete'])->whereNumber('task')->name('complete');
+        Route::get('/{task}/edit', [TaskController::class, 'edit'])->whereNumber('task')->name('edit');
+        Route::patch('/{task}', [TaskController::class, 'update'])->whereNumber('task')->name('update');
+        Route::delete('/{task}', [TaskController::class, 'destroy'])->whereNumber('task')->name('destroy');
     });
 
     // Pipelines / opportunities (CRM-core, eloquent)
@@ -88,6 +103,21 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::get('/', [PipelineController::class, 'board'])->name('board');
         Route::get('/manage', [PipelineController::class, 'manage'])->name('manage');
         Route::post('/', [PipelineController::class, 'store'])->name('store');
+
+        // Opportunity CRUD. Its own controller: PipelineController is already
+        // the board, the management screen, stage editing and the move
+        // endpoint. `create` is registered before the `{opportunity}` wildcard.
+        Route::get('/opportunities/create', [OpportunityController::class, 'create'])
+            ->name('opportunities.create');
+        Route::post('/opportunities', [OpportunityController::class, 'store'])
+            ->name('opportunities.store');
+        Route::get('/opportunities/{opportunity}/edit', [OpportunityController::class, 'edit'])
+            ->whereNumber('opportunity')->name('opportunities.edit');
+        Route::patch('/opportunities/{opportunity}', [OpportunityController::class, 'update'])
+            ->whereNumber('opportunity')->name('opportunities.update');
+        Route::delete('/opportunities/{opportunity}', [OpportunityController::class, 'destroy'])
+            ->whereNumber('opportunity')->name('opportunities.destroy');
+
         Route::post('/opportunities/{opportunity}/move', [PipelineController::class, 'move'])->name('move');
 
         // Stage management. Registered before the `/{pipeline}` board route —

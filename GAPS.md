@@ -1,7 +1,7 @@
 # GAPS
 
-Four things this addon does not do. They are not defects — nothing is broken,
-the code behaves exactly as written. They are unbuilt surfaces, found in QA runs
+Things this addon does not do. They are not defects — nothing is broken, the
+code behaves exactly as written. They are unbuilt surfaces, found in QA runs
 against a live Hub instance on 2026-07-27 and 2026-07-28 and written down here
 so the next person can start building instead of repeating the analysis.
 
@@ -9,11 +9,26 @@ Everything below refers to the eloquent driver. The CRM-core modules
 (companies, tasks, pipelines) are eloquent-only by design and sit behind the
 `features.*` flags in `config/leadhub.php`.
 
-State as of v1.6.0.
+State as of v1.7.0. Gaps 1 and 2 are closed; what closing them turned up is
+written down as gaps 5 and 6.
 
 ---
 
 ## 1. Companies, tasks and opportunities cannot be created, edited or deleted in the CP
+
+> **Closed in v1.7.0 (2026-07-28).** Create, edit and delete exist for all three
+> modules: routes, controllers, form requests, Vue screens, three new
+> permissions (`manage leadhub companies` / `… tasks` / `… opportunities`), and
+> both locales. Writes run through the services so the events and timeline
+> entries fire on the CP path too. Deletion is refused while records still hang
+> on the target, per decision L1 — the pipeline-stage rule from v1.5.0, applied
+> rather than reinvented. Reference ids are validated through the models, never
+> through `exists:`, because that rule bypasses the brand scope. Covered by
+> `CompanyCrudTest`, `TaskCrudTest`, `OpportunityCrudTest` and
+> `CrmCrudBrandIsolationTest`. The four questions below were decided as:
+> separate permissions; refuse rather than archive or hard-delete; opportunities
+> created from the board column (stage implied) and from the contact page; the
+> free-text/record convergence deliberately left alone — see gap 7.
 
 ### What exists
 
@@ -123,6 +138,15 @@ free text to record" action that the contact page is now asking for.
 ---
 
 ## 2. Task assignment exists only in the data model
+
+> **Closed in v1.7.0 (2026-07-28).** Assignee column, owner filter (including
+> "Unassigned"), a "My tasks" toggle, and an assignee field on the create and
+> edit forms — the same shapes `ContactController::index` has used since 1.0.
+> Assignees are validated against `Support\UserDirectory::assignable()`.
+> `TaskAssignmentTest`. Of the three questions below: assignment does **not**
+> notify and does **not** write a timeline entry (gap 6), and `open` remains the
+> default filter — "my tasks" is a toggle, never the default, because silently
+> narrowing the list changes what people believe their task list is.
 
 ### What exists
 
@@ -355,6 +379,113 @@ in the count of strings, not the difficulty.
 
 ---
 
+## 5. Users carry no brand, so "the assignees of this brand" cannot be expressed
+
+**Found while building gap 2 in v1.7.0.**
+
+### What exists
+
+`Support\UserDirectory::assignable()` returns every Statamic user who may
+`view leadhub`, sorted by name. That is the list the task form, the contact
+form and the task filter all use.
+
+### What is missing
+
+A brand. The decision behind task assignment was "assignees are the CP users of
+the respective brand", and there is nothing to build that on:
+`goldnead/statamic-brand-context` isolates **Eloquent models** through
+`Concerns\HasBrand` and a global scope, and a Statamic user is not an Eloquent
+model of that kind — no `brand_id` column, no membership pivot, no per-brand
+role. So in a multi-brand install every LeadHub user is offered as an assignee
+in every brand.
+
+### What is not affected
+
+The work itself. Tasks are brand-scoped like everything else, so brand B asking
+for a user's tasks is never shown brand A's — including `?mine=1`. That half is
+asserted in `tests/Feature/CrmCrudBrandIsolationTest.php`, together with a test
+that pins the current, unscoped assignee list so this decision cannot drift
+silently.
+
+### Where it belongs
+
+Not here. A user-to-brand membership is a `statamic-brand-context` concern, and
+building a LeadHub-local version of it would mean every sibling addon inventing
+its own. The smallest honest options, in order of cost:
+
+1. A permission per brand (`view leadhub crm-b`) — no schema, but the
+   permission list grows with the brand list and roles become unreadable.
+2. A `brand_user` pivot in brand-context plus a `UserDirectory` filter — the
+   real answer, and the one that would also fix owner selection on contacts,
+   which has the same hole and has had it since 1.0.
+
+### Effort
+
+Half a day in LeadHub once brand-context offers the membership. Everything
+before that is a decision in brand-context, not work here.
+
+---
+
+## 6. Task assignment writes no history
+
+**Found while building gap 2 in v1.7.0.**
+
+### What exists
+
+Contact assignment records a timeline entry (`TimelineService::recordAssigned`)
+and notifies (`LeadHubNotifier::assigned()`, gated on `features.notifications`).
+
+### What is missing
+
+The same for tasks. Reassigning a task from the CP changes `assignee_id` and
+nothing else: no timeline entry, no event, no notification. "Who gave me this,
+and when" is not answerable.
+
+This was left out of v1.7.0 on purpose. It needs a new `Event::TYPE_*` constant
+and a matching webhook-manager trigger, which is a change to this addon's
+**public surface** — the webhook bridge maps every trigger to a LeadHub event
+class, and `WebhookManagerBridgeTest` enforces that mapping. A UI release is
+the wrong place for that.
+
+### Files that would be touched
+
+- `src/Models/Event.php` — a `TYPE_TASK_ASSIGNED` constant.
+- `src/Services/TimelineService.php` — `recordTaskAssigned()`.
+- `resources/lang/en/timeline.php` **and** `resources/lang/de/timeline.php` —
+  the summary line in both, or `TranslationParityTest` fails.
+- `src/Events/` — a `LeadHubTaskAssigned` event, plus the webhook-manager
+  trigger map.
+- `src/Http/Controllers/Cp/TaskController::update()` — the comparison is already
+  in place; only the recording is missing.
+- Optionally `src/Notifications/` — contacts have `LeadAssignedNotification`,
+  tasks have no equivalent, and the follow-up digest would become a candidate
+  for including tasks.
+
+### Effort
+
+About a day, of which the UI is the smallest part.
+
+---
+
+## 7. The free-text company and the linked company records still do not converge
+
+**Restated in v1.7.0.** `leadhub_contacts.company` is a string off the form;
+`linkedCompanies` are `Company` records. v1.5.0 made the difference visible on
+the contact page and v1.7.0 added a way to create the record — but nothing
+connects the two. A contact whose form said "Muster GmbH" still has no link to
+the `Muster GmbH` record sitting one screen away, and creating that record from
+the contact page does not link it either.
+
+The obvious next step is a "promote this text to a company record" action on the
+contact page: resolve through `Services\CompanyResolver::resolveOrCreate()`
+(which already deduplicates by normalized name and derived domain), then
+`link()`. What has to be decided first is what happens to the string afterwards
+— cleared, kept as the original wording, or kept and allowed to drift.
+
+**Effort.** Half a day, most of it in deciding the above.
+
+---
+
 ## Closed since this document was written
 
 Two observations from the same QA run were recorded here as bugs rather than
@@ -371,6 +502,8 @@ again:
   `tests/Feature/TranslationParityTest.php` compares both locales key by key in
   both directions, so this cannot reopen quietly.
 
-Note for gap 1 above: every new CRM screen brings new strings with it, and the
+Note for gap 4 above: every CRM screen brings new strings with it, and the
 parity test means an untranslated one fails the suite. Write the German
-counterpart in the same commit as the English original.
+counterpart in the same commit as the English original. The v1.7.0 screens
+follow that rule for the PHP layer; their Vue headings and buttons are English
+in every locale like all the others, which is exactly gap 4.

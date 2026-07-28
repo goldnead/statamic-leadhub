@@ -6,6 +6,125 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.7.0] — 2026-07-28
+
+LeadHub was a CRM you could not type into. Companies, tasks and opportunities
+appeared in the navigation, read completely, and had no write routes at all —
+every one of those records could only come into existence through a form
+submission, the facade, or `tinker`. This release adds the missing half.
+
+Also here: task assignment, which has been a column with a scope and no screen
+since 1.1.
+
+### Added
+
+- **Create, edit and delete for companies, tasks and opportunities in the
+  Control Panel.** Routes, controller actions, form requests, Vue screens,
+  permissions and both locales. Entry points where a user actually looks: a
+  "New company" button on the companies index, "New task" on the tasks index,
+  "New opportunity" on the board — once in the header and once per column, so
+  creating from a column carries that column's stage with it — plus "New task"
+  and "New opportunity" on the contact page, prefilled with that contact.
+  Opportunities got their own `OpportunityController`: `PipelineController` is
+  already the board, the management screen, stage editing and the move
+  endpoint.
+
+  Three decisions are worth knowing about, and all three are in the code:
+
+  - **Writes go through the services, not the models.** `TaskService::create()`,
+    `OpportunityService::create()`, and `LeadHubCompanyCreated` fired by hand
+    on the company path. A controller calling `Task::create()` directly would
+    have produced records the webhook-manager bridge and the segment listeners
+    never hear about — visible only as "the CP-created ones are missing", weeks
+    later. Creating an opportunity straight into a terminal stage therefore
+    closes it, instead of leaving an open deal in the "Won" column.
+  - **Reference ids are validated through the models, never through
+    `exists:`.** Laravel's `exists` rule compiles to a raw query builder
+    statement, so it never passes a model and the `HasBrand` global scope does
+    not apply — `exists:leadhub_contacts,id` cheerfully confirms a contact of
+    another brand. `Http\Requests\Concerns\ResolvesCrmReferences` does every
+    lookup through the model query instead. `CrmCrudBrandIsolationTest` fails
+    on that specific point if it is changed back.
+  - **Dates use the two normalizers from 1.6.0.**
+    `resources/js/support/datetime.js` on the way out,
+    `Support\DateValueNormalizer` through `NormalizesDatePickerValues` on the
+    way in, and `granularity="minute"` rather than the `with-time` attribute
+    that is not a prop of that component. This is the third time the CP date
+    picker has come up; it is now the third place that handles it identically.
+
+- **Deletion is refused while something still hangs on the record**, with a
+  message that says what. A company with linked contacts or with opportunities
+  cannot be deleted; an opportunity with tasks cannot be deleted; a task, which
+  nothing references, deletes outright. This is the rule v1.5.0 established for
+  pipeline stages, applied rather than reinvented. The alternatives were both
+  worse: a hard delete cascades the contact links away and leaves every
+  `opportunity.company_id` pointing at nothing (that FK does not cascade) plus
+  timeline entries naming a company that is gone, and archiving would have
+  added a third state to every list, filter and report permanently. Two tests
+  per module, because a lock that is too tight is as much a defect as a missing
+  one: one proving the refusal, one proving a record with nothing attached
+  still deletes.
+
+- **Task assignment reaches the screen.** An assignee column on the task list,
+  an owner filter including "Unassigned", a "My tasks" toggle, and an assignee
+  field on the create and edit forms. `assignee_id` has been a real column with
+  `scopeForAssignee()` since 1.1 and `TaskController::index` has been handing it
+  to the Vue page all along — nothing read it. Contacts have had all of this
+  since 1.0 (`?mine=1`, `?assigned_to=`); tasks now use the same shapes so the
+  two lists behave alike. Assignees are validated against
+  `Support\UserDirectory::assignable()`, so a hand-crafted request cannot park
+  work on an account that cannot open the module.
+
+- **Three new permissions**: `manage leadhub companies`, `manage leadhub tasks`,
+  `manage leadhub opportunities`, under `view leadhub`. The read side of these
+  modules stays on `view leadhub`. Separate from the contact permissions on
+  purpose: "may edit a contact" and "may delete the company behind fifty
+  contacts" are not the same authority. **Upgrade note:** no existing role
+  holds these, so the new buttons are invisible to non-super users until an
+  administrator grants them. `POST /tasks/{task}/complete` deliberately still
+  accepts `edit leadhub contacts` as well, so nobody loses "mark complete" in
+  the meantime.
+
+- **`GET /leadhub/contacts/options`** and `Support\ContactPicker` — a
+  brand-scoped option feed for the contact pickers on the task and opportunity
+  forms. The addon had no contact picker, and a `<Select>` over every contact
+  stops working somewhere in the low thousands, so the forms get a first page
+  and the CP `<Combobox>` queries the endpoint as you type.
+
+- **`resources/js/support/ErrorSummary.vue`** — the collected error box above a
+  form, for messages whose key is not a field on the screen (a refused
+  deletion, most of all). Every new screen renders per-field errors through
+  `<Field :error>` and this above it, and every write call has an `onError`
+  branch. Same shape as `statamic-marketing` v1.5.3: one pattern across the
+  addons rather than one per screen. A rejected input that looks like a dead
+  button is the defect the QA run found most often; none of the new screens can
+  produce it.
+
+### Notes
+
+- Suite: **324 passed + 4 skipped** on the eloquent driver, up from 268 + 4.
+  56 new tests across `CompanyCrudTest`, `TaskCrudTest`, `OpportunityCrudTest`,
+  `TaskAssignmentTest` and `CrmCrudBrandIsolationTest`, every one of them
+  against the real route (request → controller), because the gap being closed
+  was never a missing model — it was a missing HTTP surface, and a test against
+  `Company::create()` would have passed for a year while the CP had no button.
+- The flat driver keeps its 7 pre-existing failures (`ContactCreateTest` ×3,
+  `CpRoutesTest`, `CrmSyncTest` ×2, `NotificationsTest`), unchanged in count and
+  location with these changes stashed and applied. They are untouched here and
+  tracked separately.
+- **Not done, deliberately:** reassignment writes no timeline entry and fires no
+  event. Contact assignment does both, but the equivalent for tasks needs a new
+  `Event::TYPE_*` constant and a new webhook-manager trigger — a change to this
+  addon's public surface, which does not belong in a UI release. Written up as
+  gap 6 in `GAPS.md`.
+- **Open, and named:** "assignees are the CP users of the respective brand"
+  cannot be implemented today. `statamic-brand-context` scopes Eloquent models;
+  a Statamic user is not one — there is no `brand_id`, no pivot, no per-brand
+  role — so the assignable list is what `UserDirectory` can actually derive:
+  everyone who may view LeadHub, in every brand. What *is* isolated is the
+  work: the assignee filter never shows another brand's tasks, and there is a
+  test for that. Gap 5 in `GAPS.md`.
+
 ## [1.6.0] — 2026-07-28
 
 The two loose ends v1.5.0 wrote down instead of fixing: the third pivot's brand
