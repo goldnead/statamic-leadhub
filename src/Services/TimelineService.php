@@ -168,6 +168,37 @@ class TimelineService
         );
     }
 
+    /**
+     * A score change on the timeline.
+     *
+     * The summary is composed here and stored, not rendered later — the same
+     * decision v1.6.0 made for every other entry type. It means the line keeps
+     * saying what it said when it happened, even after the rule that produced
+     * it was edited or deleted; a timeline that silently rewrites its own past
+     * is worse than one in the wrong language.
+     *
+     * The full numbers stay in the payload so a later screen can do arithmetic
+     * on them without re-parsing the sentence.
+     */
+    public function recordScoreChanged(
+        Contact $contact,
+        int $from,
+        int $to,
+        int $delta,
+        ?string $reason = null,
+    ): Event {
+        return $this->record(
+            $contact,
+            Event::TYPE_SCORE_CHANGED,
+            __('leadhub::timeline.score_changed', [
+                'from' => $from,
+                'to' => $to,
+                'delta' => ($delta > 0 ? '+' : '').$delta,
+            ]),
+            ['from' => $from, 'to' => $to, 'delta' => $delta, 'reason' => $reason],
+        );
+    }
+
     public function recordContactArchived(Contact $contact): Event
     {
         return $this->record(

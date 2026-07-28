@@ -1,9 +1,9 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
     Header, Button, Listing, Badge, Icon, EmptyStateMenu, EmptyStateItem,
-    DropdownItem,
+    DropdownItem, Panel, Field, Input,
 } from '@statamic/cms/ui';
 
 const props = defineProps([
@@ -21,11 +21,61 @@ const props = defineProps([
     'hasFormConnected',   // bool
     'configureFormsUrl',  // string
     'createUrl',          // string | null — manual "create contact" (feature-gated)
+    'scoringEnabled',     // bool — features.scoring; hides the score column and filter
+    'scoreSort',          // 'asc' | 'desc' | null — current server-side score sort
 ]);
+
+// Engagement score filter. Server-side, because sorting and filtering client
+// side would only ever reach the 25 rows of the current page — and "who are my
+// hottest leads" is exactly the question that must not stop at page one.
+const scoreMin = ref(props.filters?.score_min ?? '');
+const scoreMax = ref(props.filters?.score_max ?? '');
+
+function currentQuery(overrides) {
+    const params = {};
+    for (const [k, v] of Object.entries(props.filters || {})) {
+        if (v !== null && v !== undefined && v !== '') params[k] = v;
+    }
+    Object.assign(params, overrides);
+    for (const key of Object.keys(params)) {
+        if (params[key] === null || params[key] === undefined || params[key] === '') delete params[key];
+    }
+    return params;
+}
+
+function applyScoreFilter() {
+    router.get(window.location.pathname, currentQuery({
+        score_min: scoreMin.value,
+        score_max: scoreMax.value,
+        page: null,
+    }), { preserveScroll: true });
+}
+
+function resetScoreFilter() {
+    scoreMin.value = '';
+    scoreMax.value = '';
+    router.get(window.location.pathname, currentQuery({
+        score_min: null, score_max: null, sort: null, direction: null, page: null,
+    }), { preserveScroll: true });
+}
+
+function sortByScore() {
+    const next = props.scoreSort === 'desc' ? 'asc' : 'desc';
+    router.get(window.location.pathname, currentQuery({
+        sort: 'engagement_score', direction: next, page: null,
+    }), { preserveScroll: true });
+}
+
+function scoreColor(score) {
+    if (score >= 20) return 'green';
+    if (score >= 5) return 'amber';
+    return 'default';
+}
 
 function anyFilterActive() {
     const f = props.filters || {};
-    return !!(f.status || f.source_form || f.tag_id || f.has_followup || f.search || f.from || f.to || f.archived);
+    return !!(f.status || f.source_form || f.tag_id || f.has_followup || f.search || f.from || f.to || f.archived
+        || f.score_min !== undefined || f.score_max !== undefined);
 }
 
 const isEmpty = computed(() => props.contacts.length === 0 && ! anyFilterActive());
@@ -104,6 +154,31 @@ function restore(row) {
             />
         </Header>
 
+        <Panel v-if="scoringEnabled" class="mb-4">
+            <div class="p-4 flex flex-wrap gap-2 items-end">
+                <Field :label="__('leadhub::contacts.index.filter_score')">
+                    <div class="flex gap-2 items-center">
+                        <Input v-model="scoreMin" type="number" class="w-24" :placeholder="__('leadhub::contacts.index.filter_score_min')" />
+                        <span class="text-gray-400">–</span>
+                        <Input v-model="scoreMax" type="number" class="w-24" :placeholder="__('leadhub::contacts.index.filter_score_max')" />
+                    </div>
+                </Field>
+                <Button :text="__('leadhub::contacts.index.filter_score_apply')" variant="default" @click="applyScoreFilter" />
+                <Button
+                    :text="__('leadhub::contacts.index.sort_by_score')"
+                    :icon="scoreSort === 'asc' ? 'arrow-up' : 'arrow-down'"
+                    :variant="scoreSort ? 'primary' : 'default'"
+                    @click="sortByScore"
+                />
+                <Button
+                    v-if="scoreSort || filters.score_min !== undefined || filters.score_max !== undefined"
+                    :text="__('leadhub::contacts.index.filter_score_reset')"
+                    variant="ghost"
+                    @click="resetScoreFilter"
+                />
+            </div>
+        </Panel>
+
         <Listing
             :items="contacts"
             :columns="columns"
@@ -122,6 +197,10 @@ function restore(row) {
 
             <template #cell-status="{ row }">
                 <Badge :color="statusColor(row.status)" :text="row.status_label" />
+            </template>
+
+            <template #cell-engagement_score="{ row }">
+                <Badge :color="scoreColor(row.engagement_score)" :text="String(row.engagement_score)" />
             </template>
 
             <template #cell-tags="{ row }">

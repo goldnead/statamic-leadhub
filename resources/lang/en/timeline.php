@@ -25,6 +25,7 @@ return [
     'opportunity_stage_changed' => 'Opportunity moved from ":from" to ":to"',
     'opportunity_won' => 'Opportunity ":title" won',
     'opportunity_lost' => 'Opportunity ":title" lost',
+    'score_changed' => 'Engagement score :from → :to (:delta)',
     'assigned' => 'Assigned to :owner',
     'unassigned' => 'Owner removed',
     'actor_system' => 'System',

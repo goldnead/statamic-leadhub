@@ -14,6 +14,7 @@ return [
     'manage_companies' => 'Manage companies',
     'manage_tasks' => 'Manage tasks',
     'manage_opportunities' => 'Manage opportunities',
+    'manage_scoring' => 'Manage scoring rules',
     'manage_form_mappings' => 'Manage form mappings',
     'manage_settings' => 'Manage LeadHub settings',
 ];

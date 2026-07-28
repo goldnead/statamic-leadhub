@@ -10,6 +10,7 @@ use Goldnead\Leadhub\Http\Controllers\Cp\FollowupController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FormMappingController;
 use Goldnead\Leadhub\Http\Controllers\Cp\NoteController;
 use Goldnead\Leadhub\Http\Controllers\Cp\OpportunityController;
+use Goldnead\Leadhub\Http\Controllers\Cp\ScoringController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SegmentController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SettingsController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SyncLogController;
@@ -133,6 +134,14 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
             ->whereNumber('pipeline')->whereNumber('stage')->name('stages.destroy');
 
         Route::get('/{pipeline}', [PipelineController::class, 'board'])->whereNumber('pipeline')->name('board.show');
+    });
+
+    // Lead scoring rules (eloquent, gated on features.scoring)
+    Route::prefix('scoring')->name('scoring.')->group(function () {
+        Route::get('/', [ScoringController::class, 'index'])->name('index');
+        Route::post('/', [ScoringController::class, 'store'])->name('store');
+        Route::patch('/{rule}', [ScoringController::class, 'update'])->whereNumber('rule')->name('update');
+        Route::delete('/{rule}', [ScoringController::class, 'destroy'])->whereNumber('rule')->name('destroy');
     });
 
     // Settings

@@ -14,6 +14,7 @@ return [
     'manage_companies' => 'Firmen verwalten',
     'manage_tasks' => 'Aufgaben verwalten',
     'manage_opportunities' => 'Opportunities verwalten',
+    'manage_scoring' => 'Scoring-Regeln verwalten',
     'manage_form_mappings' => 'Formular-Zuordnungen verwalten',
     'manage_settings' => 'LeadHub-Einstellungen verwalten',
 ];

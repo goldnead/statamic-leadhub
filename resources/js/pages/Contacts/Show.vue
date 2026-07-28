@@ -414,6 +414,18 @@ const showCrm = computed(() =>
                 <Panel :heading="__('Details')">
                     <Card>
                         <dl class="text-sm space-y-1.5">
+                            <!--
+                                Engagement score. `!== null` and not a falsy
+                                check: 0 is the score every contact starts at
+                                and is exactly the value somebody looks here to
+                                confirm. The controller sends null when the
+                                scoring feature is off, which is the only case
+                                that hides the row.
+                            -->
+                            <div v-if="contact.engagement_score !== null && contact.engagement_score !== undefined" class="flex justify-between items-center">
+                                <dt class="text-gray-500">{{ __('leadhub::contacts.detail.engagement_score') }}</dt>
+                                <dd><Badge color="blue" :text="String(contact.engagement_score)" /></dd>
+                            </div>
                             <div class="flex justify-between"><dt class="text-gray-500">{{ __('Consent') }}</dt><dd>{{ contact.consent ? '✓' : '—' }}</dd></div>
                             <div class="flex justify-between"><dt class="text-gray-500">{{ __('Created') }}</dt><dd>{{ contact.created_at }}</dd></div>
                             <div class="flex justify-between"><dt class="text-gray-500">{{ __('Last activity') }}</dt><dd>{{ contact.last_activity_at }}</dd></div>

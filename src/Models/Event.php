@@ -51,6 +51,7 @@ class Event extends Model
     public const TYPE_OPPORTUNITY_STAGE_CHANGED = 'opportunity_stage_changed';
     public const TYPE_OPPORTUNITY_WON = 'opportunity_won';
     public const TYPE_OPPORTUNITY_LOST = 'opportunity_lost';
+    public const TYPE_SCORE_CHANGED = 'score_changed';
 
     protected static function booted(): void
     {

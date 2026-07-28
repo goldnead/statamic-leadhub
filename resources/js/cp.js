@@ -26,6 +26,7 @@ import FormsEdit from './pages/Forms/Edit.vue';
 import TagsIndex from './pages/Tags/Index.vue';
 import SegmentsIndex from './pages/Segments/Index.vue';
 import SegmentsEdit from './pages/Segments/Edit.vue';
+import ScoringIndex from './pages/Scoring/Index.vue';
 import Settings from './pages/Settings.vue';
 import SyncLog from './pages/SyncLog.vue';
 
@@ -51,6 +52,7 @@ Statamic.booting(() => {
     Statamic.$inertia.register('leadhub::Tags/Index', TagsIndex);
     Statamic.$inertia.register('leadhub::Segments/Index', SegmentsIndex);
     Statamic.$inertia.register('leadhub::Segments/Edit', SegmentsEdit);
+    Statamic.$inertia.register('leadhub::Scoring/Index', ScoringIndex);
     Statamic.$inertia.register('leadhub::Settings', Settings);
     Statamic.$inertia.register('leadhub::SyncLog', SyncLog);
 });

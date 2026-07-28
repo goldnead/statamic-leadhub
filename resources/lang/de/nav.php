@@ -11,6 +11,7 @@ return [
     'forms' => 'Formulare',
     'tags' => 'Tags',
     'segments' => 'Segmente',
+    'scoring' => 'Scoring',
     'settings' => 'Einstellungen',
     'sync_log' => 'Sync-Log',
 ];

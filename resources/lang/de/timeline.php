@@ -25,6 +25,7 @@ return [
     'opportunity_stage_changed' => 'Opportunity von ":from" nach ":to" verschoben',
     'opportunity_won' => 'Opportunity ":title" gewonnen',
     'opportunity_lost' => 'Opportunity ":title" verloren',
+    'score_changed' => 'Engagement-Score :from → :to (:delta)',
     'assigned' => 'Zugewiesen an :owner',
     'unassigned' => 'Zuweisung entfernt',
     'actor_system' => 'System',

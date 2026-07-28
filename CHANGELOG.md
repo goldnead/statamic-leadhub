@@ -6,6 +6,149 @@ All notable changes to `goldnead/statamic-leadhub` are documented here. The form
 
 _Nothing yet._
 
+## [1.8.0] — 2026-07-29
+
+The engagement score has worked since 1.2 and appeared nowhere. It moved on
+every scored activity, a QA run watched a contact go from 0 to 10, and the only
+place the number occurred in the entire Control Panel was as a selectable field
+in the segment rule builder — one could filter on something that could not be
+seen. This release puts it on screen, gives the point table a Control Panel, and
+gives the score a past.
+
+The expensive half of that is the point table. It could have stayed in
+`config/leadhub.php` with a read-only screen, and that would have been the right
+call for a single-tenant install. It is the wrong call here, because the table
+in the config file is one table for every brand: a Hub running three brands
+could not decide that a purchase is worth more to one of them than to another
+without deciding it for all three. That, and not the editing, is why the rules
+moved into the database.
+
+### Added
+
+- **The engagement score on screen.** On the contact detail page in the details
+  panel, and as a column in the contact list — sortable and filterable by a
+  range, both server-side, because "who are my hottest leads" must not stop at
+  the twenty-five rows of the current page. The filter accepts a floor of `0`
+  as a filter rather than as an empty value: `0` is the score every contact
+  starts at and is exactly what somebody filters on to find the leads nothing
+  has happened to yet. Every one of these is gated on `features.scoring`; an
+  install that never enabled it does not grow a column of zeros.
+
+- **A rule screen under LeadHub → Scoring**, with create, edit, activate,
+  deactivate and delete. Rules live in the new `leadhub_scoring_rules` table and
+  are brand-scoped like everything else in this addon, which is the whole point:
+  the same activity can be worth 50 points in one brand and 3 in another.
+
+  The table models what the config block could already express, and one thing
+  more:
+
+  - `event_type` + `points`, one row per activity type;
+  - `event_type = '*'` is the catch-all — the old `scoring.default`, expressed
+    as a row so a brand can set its own baseline instead of inheriting a single
+    global value;
+  - `enabled`, the addition. A Control Panel needs a way to park a rule without
+    losing it. A disabled rule behaves exactly as an absent one and falls
+    through to the catch-all — "off" has to mean "as if it were never written",
+    because awarding zero would be a silent third behaviour.
+
+  Two schema decisions worth knowing. `brand_id` is NOT NULL, unlike every other
+  LeadHub table where it was retrofitted onto existing rows: the unique index is
+  `(brand_id, event_type)`, and a unique index does not constrain NULLs, so a
+  nullable brand column would have enforced nothing at all for exactly the rows
+  without a tenant. And `event_type` is `varchar(100)`, not the default 255 —
+  400 bytes in that index instead of 1020. Which brings us to:
+
+- **`tests/Unit/IndexKeyLengthTest.php`**, ported from `statamic-notifications`
+  v1.0.4, where an oversized unique took a release down on production while the
+  SQLite suite stayed green throughout. It compiles this addon's own migrations
+  through Laravel's MySQL grammar in pretend mode — no server, no connection —
+  and measures every index MySQL would receive. LeadHub needed it the moment it
+  gained a unique over a varchar. It found three pre-existing indexes over half
+  the key limit (`leadhub_events` and `leadhub_opportunities` on
+  `(source_type, source_id)`, `leadhub_tasks` on
+  `(assignee_id, status, due_at)`). None is broken — all three are legal at
+  ~2040 bytes of 3072 — so they are pinned at their measured width rather than
+  exempted: widening one now fails the test. Narrowing them means altering
+  columns on live tables, which is its own release. Recorded in GAPS.md.
+
+- **`php artisan leadhub:scoring:import`** — copies the config point table into
+  the rules table, per brand, with `--dry-run`, `--force` and `--brand=`.
+  Idempotent: a second run changes nothing, and a rule whose points differ from
+  the config file is left alone, because a rule that differs is a rule somebody
+  edited and an import must never be a scheduled way to silently revert the
+  Control Panel.
+
+- **A `score_changed` timeline entry** on every real score change, with the old
+  and new value, the delta and the activity that caused it. `LeadHubContactScoreChanged`
+  has fired since 1.2 and nothing listened for the purpose of recording it, so a
+  contact's score had a value and no past. The summary is composed at write time
+  and stored, like every other entry type since 1.6.0 — a timeline rendered from
+  live rules would rewrite its own history whenever a rule was edited.
+  Aggregation was the alternative and was rejected: a summarized history cannot
+  answer "what exactly awarded these 3 points", which is the only question
+  anybody opens a score history for. `leadhub.scoring.timeline` turns the
+  entries off without losing the event.
+
+- **`leadhub.score.changed` as a webhook-manager trigger.** A new event type is
+  a public surface; without the registration it is a line in a timeline nobody
+  polls. Registering it exposed a real defect in `LeadhubTrigger::build()`: it
+  assumed every LeadHub event extends `LeadHubEvent`, and `LeadHubContactScoreChanged`
+  deliberately does not — it carries a score-specific payload instead of the
+  generic actor/metadata shape. The builder would have treated the event itself
+  as the contact and produced a webhook with no source reference and a body of
+  nothing. It now resolves the contact either way and carries the event's own
+  payload as the metadata.
+
+- **A `manage leadhub scoring` permission.** Separate from the contact
+  permissions, and separate from the other CRM ones, because the point table
+  decides segment membership for every contact at once — a different blast
+  radius from editing one record.
+
+### Changed
+
+- **`config/leadhub.php` → `scoring` is now a fallback, not the live table.**
+  This is the part of the release that could have done real damage, so it is
+  worth stating plainly: **an upgrade to 1.8.0 changes no score.** With no rules
+  in the table — which is every install the moment it updates — `ScoringService`
+  reads the config file exactly as before. The table only takes over once a
+  brand has at least one rule. An empty table meaning "everything scores the
+  default" would have silently rescored every install that upgraded, and
+  because scores steer segments and segments steer who receives mail, that would
+  have been the worst outcome available to this feature. The rule screen says
+  so on its face when a brand has no rules yet, instead of leaving an empty list
+  to read as "nothing is scored here".
+
+### Deletion
+
+Scoring rules delete outright, and that is the house rule (L1) applied rather
+than suspended. The rule refuses a delete while something still hangs on the
+record; nothing hangs on a scoring rule. No table carries a rule id, timeline
+entries store numbers and a composed sentence rather than a reference, and a
+contact's `engagement_score` is a running total, not a sum recomputed from
+rules. A block here would be a lock on a door with no room behind it. What
+deleting does change is the future — the type falls to the catch-all, and
+deleting the last rule of a brand hands scoring back to the config file — so
+the confirmation dialog says that instead of the controller refusing.
+
+### Tests
+
+`ScoringRuleCrudTest`, `ContactScoreVisibilityTest`, `ScoreTimelineEntryTest`,
+`ScoringRuleImportCommandTest`, `ScoringRuleBrandIsolationTest` and
+`IndexKeyLengthTest` — all against the real routes, none against the models.
+Every test that creates a rule through the HTTP route also asks the scoring
+engine what it would now award: a test that only checked the row exists would
+pass for a screen wired to nothing.
+
+The cross-brand tests are worth calling out because they cover two different
+failures. One is visibility — brand A's rule must not appear in brand B's list
+or be reachable by id — and that one is loud. The other is arithmetic: a rule
+must not *compute* in the wrong tenant. That failure produces no screen, no
+error and no log entry; a contact simply receives the wrong number of points,
+which moves segment membership, which decides who gets mail. It is asserted
+directly (`awards each brand its own points for the same activity`,
+`does not let a brand A catch-all rule set brand B's baseline`) rather than
+inferred from the list being empty.
+
 ## [1.7.0] — 2026-07-28
 
 LeadHub was a CRM you could not type into. Companies, tasks and opportunities

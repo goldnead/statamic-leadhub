@@ -133,10 +133,28 @@ return [
     | contact's engagement_score. Map an activity/event type to a point value;
     | anything not listed uses the `default`.
     |
+    | SINCE v1.8.0 these values are a FALLBACK, not the live table. Rules are
+    | stored in `leadhub_scoring_rules` and edited per brand under
+    | LeadHub → Scoring. This block still decides for any brand that has no
+    | rules of its own, which is what keeps an upgrade from silently rescoring
+    | an install. Copy it into the table once with:
+    |
+    |     php artisan leadhub:scoring:import --dry-run
+    |     php artisan leadhub:scoring:import
+    |
+    | `default` becomes the catch-all rule ('*') and can then differ per brand.
+    |
     */
 
     'scoring' => [
         'default' => 1,
+
+        // Write a timeline entry on every real score change. On by default:
+        // without it a contact's score has a value and no history. Set to false
+        // if the entries crowd out the rest of the contact timeline — the
+        // LeadHubContactScoreChanged event fires either way.
+        'timeline' => true,
+
         'events' => [
             'submission_received' => 2,
             'LeadHubSubmissionAttached' => 2,

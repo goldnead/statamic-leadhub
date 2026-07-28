@@ -43,6 +43,8 @@ class ContactController extends Controller
     {
         $this->authorizeOrFail($request, 'view leadhub contacts');
 
+        $scoring = (bool) config('leadhub.features.scoring', false);
+
         $filters = [
             'archived' => $request->boolean('archived'),
             'status' => $request->string('status')->toString() ?: null,
@@ -59,6 +61,11 @@ class ContactController extends Controller
                 : ($request->string('assigned_to')->toString() ?: null),
             'sort' => $request->input('sort', 'created_at'),
             'direction' => $request->input('direction', 'desc'),
+            // Engagement score range. Only honoured while scoring is on —
+            // otherwise the column is a wall of zeros and filtering it is a
+            // way to hide every contact for no reason.
+            'score_min' => $scoring ? $request->input('score_min') : null,
+            'score_max' => $scoring ? $request->input('score_max') : null,
         ];
 
         $statuses = (array) config('leadhub.statuses', []);
@@ -66,7 +73,7 @@ class ContactController extends Controller
         $ownerLabels = collect($assignableUsers)->pluck('label', 'value')->all();
         $page = $this->contacts->paginate($filters, 25, (int) $request->input('page', 1));
 
-        $rows = collect($page->items())->map(function (Contact $contact) use ($statuses, $ownerLabels) {
+        $rows = collect($page->items())->map(function (Contact $contact) use ($statuses, $ownerLabels, $scoring) {
             $followups = $contact->relationLoaded('followups') ? $contact->getRelation('followups') : collect();
             $active = $followups instanceof \Illuminate\Support\Collection
                 ? $followups->whereNull('completed_at')->sortBy('due_at')->first()
@@ -85,6 +92,7 @@ class ContactController extends Controller
                     'name' => $t->name,
                 ])->all(),
                 'source_form' => $contact->source_form,
+                'engagement_score' => $scoring ? (int) $contact->engagement_score : null,
                 'owner_name' => $ownerLabels[(string) ($contact->assigned_to ?? '')] ?? null,
                 'last_activity_at' => $contact->last_activity_at?->diffForHumans(),
                 'archived_at' => $contact->archived_at?->toIso8601String(),
@@ -106,6 +114,9 @@ class ContactController extends Controller
             Column::make('display_name')->label(__('leadhub::contacts.name'))->sortable(true),
             Column::make('email')->label(__('leadhub::contacts.email')),
             Column::make('status')->label(__('leadhub::contacts.status')),
+            // The score column exists only while scoring is on. An install that
+            // never enabled the feature would otherwise grow a column of zeros.
+            ...($scoring ? [Column::make('engagement_score')->label(__('leadhub::contacts.engagement_score'))->sortable(true)] : []),
             Column::make('tags')->label(__('leadhub::contacts.tags')),
             Column::make('source_form')->label(__('leadhub::contacts.source')),
             Column::make('owner_name')->label(__('leadhub::contacts.owner')),
@@ -129,6 +140,8 @@ class ContactController extends Controller
             ])->all(),
             'exportUrl' => cp_route('leadhub.export'),
             'showArchived' => $filters['archived'],
+            'scoringEnabled' => $scoring,
+            'scoreSort' => $filters['sort'] === 'engagement_score' ? ($filters['direction'] === 'asc' ? 'asc' : 'desc') : null,
             'hasFormConnected' => $this->mappings->anyEnabled(),
             'configureFormsUrl' => cp_route('leadhub.forms.index'),
             // Manual "create contact" entry point — null (button hidden) when
@@ -287,6 +300,9 @@ class ContactController extends Controller
                     'name' => $t->name,
                 ])->values()->all(),
                 'source_form' => $contact->source_form,
+                'engagement_score' => config('leadhub.features.scoring', false)
+                    ? (int) $contact->engagement_score
+                    : null,
                 'attribution' => $attribution,
                 'consent' => (bool) $contact->consent,
                 'created_at' => $contact->created_at?->format('Y-m-d'),

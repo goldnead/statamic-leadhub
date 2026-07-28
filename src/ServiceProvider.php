@@ -6,6 +6,7 @@ use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
+use Goldnead\Leadhub\Console\ImportScoringRulesCommand;
 use Goldnead\Leadhub\Console\SweepSegmentsCommand;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
@@ -31,6 +32,7 @@ use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
+use Goldnead\Leadhub\Listeners\RecordScoreChangeOnTimeline;
 use Goldnead\Leadhub\Listeners\ReevaluateSegmentMembership;
 use Goldnead\Leadhub\Listeners\ScoreContactOnActivity;
 use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
@@ -88,6 +90,12 @@ class ServiceProvider extends AddonServiceProvider
             ReevaluateSegmentMembership::class,
         ],
         LeadHubContactsMerged::class => [],
+        // The score history. Until v1.8.0 this event fired into an empty room:
+        // it was dispatched on every real change and nothing recorded it, so a
+        // contact's score had a value and no past.
+        \Goldnead\Leadhub\Events\LeadHubContactScoreChanged::class => [
+            RecordScoreChangeOnTimeline::class,
+        ],
         LeadHubStatusChanged::class => [
             DispatchCrmSync::class,
             ReevaluateSegmentMembership::class,
@@ -137,6 +145,7 @@ class ServiceProvider extends AddonServiceProvider
         SendFollowupDigestCommand::class,
         FireDueFollowupsCommand::class,
         SweepSegmentsCommand::class,
+        ImportScoringRulesCommand::class,
     ];
 
     public function register(): void
@@ -447,6 +456,12 @@ class ServiceProvider extends AddonServiceProvider
                     ->route('leadhub.companies.index');
             }
 
+            if (config('leadhub.features.scoring', false)
+                && config('leadhub.storage.driver', 'eloquent') === 'eloquent') {
+                $items[] = $nav->item(__('leadhub::nav.scoring'))
+                    ->route('leadhub.scoring.index');
+            }
+
             $items = array_merge($items, [
                 $nav->item(__('leadhub::nav.followups'))
                     ->route('leadhub.followups.index'),
@@ -514,6 +529,12 @@ class ServiceProvider extends AddonServiceProvider
                             ->label(__('leadhub::permissions.manage_tasks')),
                         Permission::make('manage leadhub opportunities')
                             ->label(__('leadhub::permissions.manage_opportunities')),
+                        // Scoring rules are their own authority: the point
+                        // table decides segment membership for every contact at
+                        // once, which is a different blast radius from editing
+                        // one record.
+                        Permission::make('manage leadhub scoring')
+                            ->label(__('leadhub::permissions.manage_scoring')),
                         Permission::make('manage leadhub form mappings')
                             ->label(__('leadhub::permissions.manage_form_mappings')),
                         Permission::make('manage leadhub settings')

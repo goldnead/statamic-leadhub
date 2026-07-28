@@ -125,7 +125,17 @@ class EloquentContactRepository implements ContactRepository
             $query->search($filters['search']);
         }
 
-        $sort = in_array($filters['sort'] ?? null, ['created_at', 'last_activity_at', 'status'], true)
+        // Engagement score range. `!== null` rather than `! empty()`: a floor of
+        // 0 is a legitimate filter (it is the score every contact starts at)
+        // and empty() would throw it away.
+        if (($filters['score_min'] ?? null) !== null && $filters['score_min'] !== '') {
+            $query->where('engagement_score', '>=', (int) $filters['score_min']);
+        }
+        if (($filters['score_max'] ?? null) !== null && $filters['score_max'] !== '') {
+            $query->where('engagement_score', '<=', (int) $filters['score_max']);
+        }
+
+        $sort = in_array($filters['sort'] ?? null, ['created_at', 'last_activity_at', 'status', 'engagement_score'], true)
             ? $filters['sort']
             : 'created_at';
         $direction = ($filters['direction'] ?? null) === 'asc' ? 'asc' : 'desc';

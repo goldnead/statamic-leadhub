@@ -47,7 +47,18 @@ class LeadhubTrigger implements TriggerInterface
      */
     public function build(mixed $source, array $context = []): TriggerEvent
     {
-        $contact = $source instanceof LeadHubEvent ? $source->contact : $source;
+        // Not every LeadHub event extends LeadHubEvent. LeadHubContactScoreChanged
+        // carries a score-specific payload (old/new/delta/reason) instead of the
+        // generic actor/metadata shape, but it does carry the contact — and
+        // without this branch it would be handed to the payload builder as if
+        // the event itself were the contact, producing a webhook with no
+        // reference and a body full of nothing.
+        $contact = match (true) {
+            $source instanceof LeadHubEvent => $source->contact,
+            is_object($source) && property_exists($source, 'contact') => $source->contact,
+            default => $source,
+        };
+
         $reference = (string) ($contact->uuid ?? $contact->id ?? '');
 
         $payload = array_merge(
@@ -56,7 +67,14 @@ class LeadhubTrigger implements TriggerInterface
                 'uuid' => $reference !== '' ? $reference : null,
                 'leadhub_event' => $this->handle,
                 'actor' => $source instanceof LeadHubEvent ? $source->actor : null,
-                'metadata' => $source instanceof LeadHubEvent ? $source->metadata : [],
+                // For events with their own payload shape, that payload is the
+                // metadata — a score webhook without old/new/delta would say
+                // only that something changed.
+                'metadata' => match (true) {
+                    $source instanceof LeadHubEvent => $source->metadata,
+                    is_object($source) && method_exists($source, 'toArray') => $source->toArray(),
+                    default => [],
+                },
             ],
         );
 

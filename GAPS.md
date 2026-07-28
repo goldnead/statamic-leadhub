@@ -9,8 +9,8 @@ Everything below refers to the eloquent driver. The CRM-core modules
 (companies, tasks, pipelines) are eloquent-only by design and sit behind the
 `features.*` flags in `config/leadhub.php`.
 
-State as of v1.7.0. Gaps 1 and 2 are closed; what closing them turned up is
-written down as gaps 5 and 6.
+State as of v1.8.0. Gaps 1, 2 and 3 are closed; what closing them turned up is
+written down as gaps 5, 6 and 9.
 
 ---
 
@@ -217,6 +217,35 @@ event surface and need tests for the webhook bridge.
 ---
 
 ## 3. Engagement scoring computes, and is invisible
+
+> **Closed in v1.8.0 (2026-07-29).** All three sub-gaps below are built:
+> **display** (contact detail, contact list column, server-side score range
+> filter and sort, all gated on `features.scoring`), **rule management** (the
+> `leadhub_scoring_rules` table, a CP screen under LeadHub → Scoring with
+> create/edit/enable/disable/delete, and a `manage leadhub scoring` permission)
+> and **history** (`Event::TYPE_SCORE_CHANGED`, `TimelineService::recordScoreChanged()`,
+> the `RecordScoreChangeOnTimeline` listener, both locales, and
+> `leadhub.score.changed` registered as a webhook-manager trigger).
+>
+> The decisions the section below asks for were made as: **rules go to the
+> database, brand-scoped** (decision L2 — the reason is per-brand rules, not the
+> editing); **the score is shown as a number**, not a band, because thresholds
+> would be a second piece of configuration to invent and nobody asked for one;
+> **every real change gets a timeline entry**, not an aggregate, because a
+> summarized history cannot answer "what awarded these 3 points" — with
+> `leadhub.scoring.timeline` to turn it off.
+>
+> The recomputation question the section raises is answered by not answering it:
+> changing a rule affects future activity only, existing scores stand, and the
+> screen says so. Recomputing a running total from rules would need a full
+> activity history per contact, which the timeline is but the score is not.
+>
+> Upgrade safety is the fallback in `ScoringService::rulesFor()`: while a brand
+> has no rules, the config file still decides, so 1.7.0 → 1.8.0 changes no
+> score. `php artisan leadhub:scoring:import --dry-run` shows what the import
+> would write. Covered by `ScoringRuleCrudTest`, `ContactScoreVisibilityTest`,
+> `ScoreTimelineEntryTest`, `ScoringRuleImportCommandTest` and
+> `ScoringRuleBrandIsolationTest`.
 
 ### What exists
 
@@ -508,6 +537,44 @@ validated through the model like every other reference, and a task panel on
 `Pipelines/OpportunityEdit.vue`.
 
 **Effort.** Half a day. The picker is the same shape as the contact picker.
+
+---
+
+## 9. Three indexes sit above half the InnoDB key limit
+
+**What is wrong with them.** Nothing yet, and that is the point. v1.8.0 brought
+`tests/Unit/IndexKeyLengthTest.php` over from `statamic-notifications` v1.0.4,
+which compiles the migrations through Laravel's MySQL grammar and measures every
+index without a server. Three existing indexes measure over half of InnoDB's
+3072-byte limit:
+
+| Index | Table | Columns | Bytes |
+|---|---|---|---|
+| `leadhub_events_source_type_source_id_index` | `leadhub_events` | `source_type`, `source_id` | 2040 |
+| `leadhub_opportunities_source_type_source_id_index` | `leadhub_opportunities` | `source_type`, `source_id` | 2040 |
+| `leadhub_tasks_assignee_id_status_due_at_index` | `leadhub_tasks` | `assignee_id`, `status`, `due_at` | 2048 |
+
+All three are legal. The concern is the next column: one more `varchar(255)`
+puts them at ~3060 of 3072, and the one after that is the migration failing on
+MySQL with SQLSTATE 1071 — which is exactly how notifications v1.0.3 went down,
+on a suite that was green because SQLite has no key limit at all.
+
+**Why it is not fixed here.** Narrowing them means `->change()` on columns of
+live tables, which needs its own migration, its own compatibility check against
+existing data, and its own release. Smuggling it into a scoring feature would
+put a schema change nobody asked for into a release about something else.
+
+**How it is held in the meantime.** The test pins each of the three at its
+measured width rather than exempting it, so widening one fails immediately and a
+*new* index over half the limit fails outright. See `LEADHUB_WIDE_INDEXES` in
+that file.
+
+**What the fix looks like.** `source_type` and `assignee_id` are handles and
+ids, not prose: `varchar(64)` would take the first two indexes to 520 bytes and
+the third to 296. `status` on tasks is a small enum-like set and could be
+`varchar(32)`.
+
+**Effort.** Half a day including the data check. Position 12 of the Hub register.
 
 ---
 

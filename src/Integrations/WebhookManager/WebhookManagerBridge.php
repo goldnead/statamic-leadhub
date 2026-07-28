@@ -53,6 +53,10 @@ class WebhookManagerBridge
         \Goldnead\Leadhub\Events\LeadHubSourceIngested::class => ['leadhub.source.ingested', 'LeadHub — source ingested'],
         \Goldnead\Leadhub\Events\LeadHubContactsMerged::class => ['leadhub.contacts.merged', 'LeadHub — contacts merged'],
         \Goldnead\Leadhub\Events\LeadHubFollowupDue::class => ['leadhub.followup.due', 'LeadHub — follow-up due'],
+        // A new event type is a public surface. Registering it here is what
+        // makes "score crossed a threshold" usable from outside the addon
+        // instead of a line in a timeline nobody polls.
+        \Goldnead\Leadhub\Events\LeadHubContactScoreChanged::class => ['leadhub.score.changed', 'LeadHub — engagement score changed'],
         LeadHubContactEnteredSegment::class => ['leadhub.segment.entered', 'LeadHub — entered segment'],
         LeadHubContactLeftSegment::class => ['leadhub.segment.left', 'LeadHub — left segment'],
     ];

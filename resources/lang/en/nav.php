@@ -11,6 +11,7 @@ return [
     'forms' => 'Forms',
     'tags' => 'Tags',
     'segments' => 'Segments',
+    'scoring' => 'Scoring',
     'settings' => 'Settings',
     'sync_log' => 'Sync log',
 ];

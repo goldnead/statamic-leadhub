@@ -37,7 +37,7 @@ LeadHub can grow from a lead-capture layer into a lightweight CRM. These modules
 - **Tasks** (`features.tasks`) — multiple tasks per contact with priority, assignee and due date (beyond the single next-action follow-up).
 - **Pipelines & opportunities** (`features.pipelines`) — multi-pipeline deal tracking with stages, terminal won/lost outcomes, value/confidence, full stage-transition history, a **Kanban board** and a **pipeline-management** screen in the CP.
 - **Contact merge** (`features.merge`) — `LeadHub::merge()` re-parents a duplicate's timeline/notes/tasks/opportunities onto a survivor.
-- **Lead scoring** (`features.scoring`) — accumulate an `engagement_score` per activity type.
+- **Lead scoring** (`features.scoring`) — accumulate an `engagement_score` per activity type. Since v1.8.0 the score is shown on the contact and in the list (sortable, filterable by range), the point table is editable per brand under LeadHub → Scoring, and every change lands in the contact timeline.
 - **Consent / opt-out** — `do_not_contact` is honoured by every CRM connector; `LeadHub::optOut()` also actively removes the contact from supported destinations (e.g. a Brevo list).
 - **Public API & events** — a stable `Goldnead\Leadhub\Facades\LeadHub` facade to read and write leads and ingest external sources, plus 20+ lifecycle events fired across the contact lifecycle. [statamic-webhook-manager](#webhooks--outbound-integrations) pairs with these via LeadHub's built-in bridge; [statamic-automations](https://github.com/goldnead/statamic-automations) detects LeadHub on its side and offers these events as workflow triggers — no configuration in LeadHub required.
 
@@ -365,6 +365,29 @@ The listener is **fail-safe**: any exception is caught and logged. A LeadHub err
 
 ---
 
+## Lead scoring
+
+Enable `features.scoring`. Every scored activity adds points to the contact's `engagement_score`, which appears on the contact detail page and as a sortable, range-filterable column in the contact list. Each change writes a `score_changed` entry to the contact's timeline and fires `LeadHubContactScoreChanged` (available as the `leadhub.score.changed` webhook trigger).
+
+### Rules live in the database, per brand
+
+The point table is edited in the Control Panel under **LeadHub → Scoring** (`manage leadhub scoring`), and it is scoped per brand: the same activity can be worth 50 points in one brand and 3 in another. A rule is an activity type plus its points; the special type `*` is the catch-all for everything without a rule of its own. A deactivated rule behaves exactly as an absent one and falls through to the catch-all.
+
+### Upgrading from a config-based point table
+
+`leadhub.scoring` in `config/leadhub.php` is still read as the fallback. **While a brand has no rules, the config file decides, exactly as before** — updating the addon changes no score. Copy the config values into the table when you are ready:
+
+```bash
+php artisan leadhub:scoring:import --dry-run   # shows what it would write
+php artisan leadhub:scoring:import             # writes it, once per brand
+```
+
+The command is idempotent, and it never overwrites a rule whose points differ from the config file — a rule that differs is one somebody edited in the CP. Use `--force` to overwrite deliberately, `--brand=<handle>` to restrict it.
+
+Changing a rule affects future activity only. Scores already awarded are a running total on the contact and are not recalculated.
+
+---
+
 ## Segments
 
 Segments are **dynamic groups of contacts defined by rules**. Membership is materialized and kept up to date automatically: reactively when a contact changes, and via a daily sweep for time-based rules. Build them in the Control Panel under **LeadHub → Segments** with a live "matching contacts" preview.
@@ -544,7 +567,7 @@ Still on the table, not yet shipped:
 
 - **More CRM connectors:** Pipedrive, ActiveCampaign, Salesforce (custom drivers are already supported via `DestinationManager::extend()`)
 - **Bidirectional sync** — pull status / owner changes back from the CRM
-- **Later:** rule-based lead scoring, manual contact merge UI, GDPR anonymization
+- **Later:** manual contact merge UI, GDPR anonymization
 
 Have a use case? Open an issue.
 
