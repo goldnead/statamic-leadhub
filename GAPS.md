@@ -1,9 +1,9 @@
 # GAPS
 
-Three things this addon does not do. They are not defects — nothing is broken,
-the code behaves exactly as written. They are unbuilt surfaces, found in a QA
-run against a live Hub instance on 2026-07-27 and written down here so the next
-person can start building instead of repeating the analysis.
+Four things this addon does not do. They are not defects — nothing is broken,
+the code behaves exactly as written. They are unbuilt surfaces, found in QA runs
+against a live Hub instance on 2026-07-27 and 2026-07-28 and written down here
+so the next person can start building instead of repeating the analysis.
 
 Everything below refers to the eloquent driver. The CRM-core modules
 (companies, tasks, pipelines) are eloquent-only by design and sit behind the
@@ -282,6 +282,76 @@ Rule management:
 - Plus a CP rule-management screen with database-backed, brand-scoped rules:
   **+3 to 4 days,** including the migration, the config-merge strategy, and the
   question of recomputation.
+
+---
+
+## 4. The Control Panel screens are English in every locale
+
+### What exists
+
+`resources/lang/en/` and `resources/lang/de/` are complete against each other
+since v1.6.0, and `tests/Feature/TranslationParityTest.php` keeps them that way.
+Everything rendered on the PHP side is therefore properly localized: the nav
+entries, the listing column labels, the filter option labels the controllers
+build, the flash messages, the timeline summaries.
+
+### What is missing
+
+Everything rendered on the Vue side. The pages call Statamic's JS translator
+with the English string as the key —
+
+```js
+<Header :title="__('Tasks')" icon="tasks" />
+{ value: 'overdue', label: __('Overdue') },
+```
+
+— and that helper reads Statamic's **string** translations (`lang/de.json`),
+not the `leadhub::` namespace. This addon ships no JSON lang file in any
+locale, and Statamic's own `de.json` does not carry these strings, so every
+page heading, panel heading, empty state, button and inline label stays
+English. On a German install that produces a half-translated screen: German
+navigation, German timeline, English headings.
+
+This is not a CRM-module problem. Contacts, follow-ups and segments have it
+too — the modules that were believed to be translated. It only became visible
+while proving out the CRM translations in v1.6.0, because there the two layers
+sit next to each other on the same screen.
+
+### Files that would be touched
+
+- `resources/lang/en.json` and `resources/lang/de.json` — new. Statamic and
+  Laravel both auto-load `{locale}.json` from a package's lang path once it is
+  registered, which `ServiceProvider` already does.
+- Nothing in the Vue pages, if the keys stay the English source strings. That
+  is the cheap version and the reason to do it this way.
+- `tests/Feature/TranslationParityTest.php` — extend it to the JSON files, or
+  the new layer drifts exactly like the PHP one did.
+
+### Prerequisites
+
+- The key set has to be harvested from the components, not guessed. Every
+  `__('…')` call in `resources/js/` is a key, including the ones inside
+  computed labels and `:text` bindings.
+- Some strings carry placeholders in the Statamic style (`:count`); those must
+  survive the extraction.
+- Decide whether the addon should also translate strings that Statamic's own
+  `de.json` already covers ("Save", "Cancel", "Delete"). Duplicating them is
+  harmless but makes the file larger than the addon's own vocabulary.
+
+### Decisions to make first
+
+1. **English source strings as keys, or dotted keys?** Source strings are far
+   less work and match how the pages are written today. Dotted keys are tidier
+   and survive copy edits to the English text, but mean touching every
+   component. Only worth it if the Vue layer is being reworked anyway.
+2. **Which locales?** German is the only one the addon claims today. Adding a
+   third makes the parity test a matrix rather than a pair.
+
+### Effort
+
+Roughly half a day for the extraction and the German pass, plus a couple of
+hours to extend the parity test to JSON. It is mechanical work, and the size is
+in the count of strings, not the difficulty.
 
 ---
 
