@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.10.3 — 2026-07-30
+
+### Fixed — the three scheduled commands did nothing on a multi-brand install
+
+`leadhub:segments:sweep`, `leadhub:followups:due` and `leadhub:followups:digest` did not iterate brands and took no `--brand` option. A console run has no session, so no brand is current, and the multi-brand global scope then fails closed: all three saw an empty database.
+
+They said so in the most reassuring way available:
+
+```
+Swept 0 segment(s): 0 entered, 0 left.
+Fired 0 follow-up due event(s).
+No due or overdue follow-ups — nothing to send.
+```
+
+Every one of those reads as "nothing to do" and meant "I could not see anything". Exit code 0 throughout, nothing in the log.
+
+**What it cost.** Segment membership was never re-materialised, so the CP showed **0 members** for segments whose rules clearly matched contacts, and any campaign narrowed by a segment sent to nobody. `LeadHubFollowupDue` never fired, so every automation and outbound webhook bound to that trigger stayed silent. Nobody received a follow-up digest.
+
+**A single-brand install was never affected**, which is why this survived four releases. It was found by looking at a screenshot of the segment list.
+
+All three now use `RunsForEachBrand` from `goldnead/statamic-brand-context` and accept `--brand=<handle|id>`. Services are resolved inside the brand context rather than injected into `handle()`, so a service that reads the current brand when it queries cannot be constructed against the wrong one. Single-brand installs are unaffected: the callback runs once, in the ambient context, with no brand switching.
+
+`tests/Feature/ScheduledCommandsBrandSweepTest.php` covers it, including the `--brand` restriction and a structural assertion that the option exists at all — the regression is cheap to reintroduce by copying an older command.
+
+> The trait's own docblock said this had "been found in four separate commands across three addons". These were numbers five, six and seven.
+
 ## 1.10.2 — 2026-07-30
 
 ### Fixed — all three scheduled commands were registered twice
