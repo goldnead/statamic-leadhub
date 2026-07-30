@@ -6,6 +6,7 @@ use Goldnead\Leadhub\Console\BrandIntegrityCommand;
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
+use Goldnead\Leadhub\Console\MigrateFlatBrandsCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
 use Goldnead\Leadhub\Console\ImportScoringRulesCommand;
 use Goldnead\Leadhub\Console\SweepSegmentsCommand;
@@ -48,6 +49,7 @@ use Goldnead\Leadhub\Repositories\Eloquent\EloquentFormMappingRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentNoteRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentSegmentRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentTagRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\BrandSegments;
 use Goldnead\Leadhub\Repositories\FlatFile\FileStore;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileEventRepository;
@@ -144,6 +146,7 @@ class ServiceProvider extends AddonServiceProvider
     protected $commands = [
         StacheWarmCommand::class,
         StorageMigrateCommand::class,
+        MigrateFlatBrandsCommand::class,
         SendFollowupDigestCommand::class,
         FireDueFollowupsCommand::class,
         SweepSegmentsCommand::class,
@@ -377,8 +380,14 @@ class ServiceProvider extends AddonServiceProvider
         $this->app->bind(EloquentSegmentRepository::class);
 
         // Flat-file driver: shared FileStore + per-entity Indexes.
+        // One memo, one flush point: FileStore and every Index share it.
+        $this->app->singleton(BrandSegments::class);
+
         $this->app->singleton(FileStore::class, function ($app) {
-            return new FileStore((string) config('leadhub.storage.flat.path', base_path('content/leadhub')));
+            return new FileStore(
+                (string) config('leadhub.storage.flat.path', base_path('content/leadhub')),
+                $app->make(BrandSegments::class),
+            );
         });
 
         $this->app->singleton(IndexBuilder::class, function ($app) {
@@ -394,6 +403,7 @@ class ServiceProvider extends AddonServiceProvider
                 'contacts',
                 (string) config('leadhub.storage.flat.index_disk', 'local'),
                 (string) config('leadhub.storage.flat.index_path', 'leadhub/index'),
+                $app->make(BrandSegments::class),
             );
         });
         $this->app->bind('leadhub.index.tags', function ($app) {
@@ -401,6 +411,7 @@ class ServiceProvider extends AddonServiceProvider
                 'tags',
                 (string) config('leadhub.storage.flat.index_disk', 'local'),
                 (string) config('leadhub.storage.flat.index_path', 'leadhub/index'),
+                $app->make(BrandSegments::class),
             );
         });
         $this->app->bind('leadhub.index.form_mappings', function ($app) {
@@ -408,6 +419,7 @@ class ServiceProvider extends AddonServiceProvider
                 'form_mappings',
                 (string) config('leadhub.storage.flat.index_disk', 'local'),
                 (string) config('leadhub.storage.flat.index_path', 'leadhub/index'),
+                $app->make(BrandSegments::class),
             );
         });
 

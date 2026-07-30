@@ -198,9 +198,11 @@ class IndexBuilder
 
         $rebuiltAt = $index->rebuiltAt() ?? 0;
 
-        // Cheap heuristic: compare the directory's mtime to the index's rebuild time.
-        $dirMtime = @filemtime($this->files->path('contacts'));
-        if ($dirMtime !== false && $dirMtime > $rebuiltAt) {
+        // Cheap heuristic: compare the directory's mtime to the index's rebuild
+        // time. Across every readable segment, because before the brand
+        // migration the contacts are still in the pre-brand root.
+        $dirMtime = $this->files->directoryMtime('contacts');
+        if ($dirMtime !== null && $dirMtime > $rebuiltAt) {
             return true;
         }
 

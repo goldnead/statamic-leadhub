@@ -14,8 +14,11 @@ use Symfony\Component\Yaml\Yaml;
  */
 class FileStore
 {
-    public function __construct(protected string $root)
+    protected BrandSegments $segments;
+
+    public function __construct(protected string $root, ?BrandSegments $segments = null)
     {
+        $this->segments = $segments ?? new BrandSegments;
     }
 
     public function root(): string
@@ -23,14 +26,72 @@ class FileStore
         return $this->root;
     }
 
+    // ------------------------------------------------------------- paths
+
+    /**
+     * The absolute path this context **writes** to.
+     *
+     * Reads must not use this: on a multi-brand install that has not run
+     * `leadhub:migrate-flat-brands` yet, the data is still in the pre-brand
+     * root while writes already go to the brand directory.
+     */
     public function path(string $relative): string
     {
-        return rtrim($this->root, '/').'/'.ltrim($relative, '/');
+        return $this->pathIn($this->segments->write(), $relative);
     }
+
+    /** The absolute path inside one segment; `''` is the pre-brand root. */
+    public function pathIn(string $segment, string $relative): string
+    {
+        $base = rtrim($this->root, '/');
+        $prefix = $segment === '' ? $base : $base.'/'.$segment;
+
+        return $prefix.'/'.ltrim($relative, '/');
+    }
+
+    /**
+     * The first existing path across the readable segments, or null.
+     *
+     * Null means "not there", and — with multi-brand on and no current brand —
+     * also "you may not look". Callers treat both the same way, which is the
+     * point: a worker with no brand reads nothing rather than everything.
+     */
+    public function resolve(string $relative): ?string
+    {
+        foreach ($this->segments->read() ?? [] as $segment) {
+            $candidate = $this->pathIn($segment, $relative);
+
+            if (File::exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Where a write should land: the current segment, unless the file already
+     * exists in a readable one.
+     *
+     * Without this an install that has not migrated yet would gain a second
+     * copy in the brand directory, which then shadows the original — one
+     * handle, two files, and an edit that silently stops being visible to the
+     * thing that reads the old one.
+     */
+    protected function writePath(string $relative): string
+    {
+        if ($existing = $this->resolve($relative)) {
+            return $existing;
+        }
+
+        return $this->path($relative);
+    }
+
+    // ------------------------------------------------------------- reads
 
     public function exists(string $relative): bool
     {
-        return File::exists($this->path($relative));
+        return $this->resolve($relative) !== null;
     }
 
     public function ensureDirectory(string $relative): void
@@ -43,9 +104,9 @@ class FileStore
 
     public function readYaml(string $relative): array
     {
-        $path = $this->path($relative);
+        $path = $this->resolve($relative);
 
-        if (! File::exists($path)) {
+        if ($path === null) {
             return [];
         }
 
@@ -55,9 +116,11 @@ class FileStore
         return is_array($parsed) ? $parsed : [];
     }
 
+    // ------------------------------------------------------------ writes
+
     public function writeYaml(string $relative, array $data): void
     {
-        $path = $this->path($relative);
+        $path = $this->writePath($relative);
         $dir = dirname($path);
 
         if (! File::isDirectory($dir)) {
@@ -74,7 +137,7 @@ class FileStore
      */
     public function appendJsonLine(string $relative, array $data): void
     {
-        $path = $this->path($relative);
+        $path = $this->writePath($relative);
         $dir = dirname($path);
 
         if (! File::isDirectory($dir)) {
@@ -95,9 +158,9 @@ class FileStore
      */
     public function readJsonLines(string $relative): array
     {
-        $path = $this->path($relative);
+        $path = $this->resolve($relative);
 
-        if (! File::exists($path)) {
+        if ($path === null) {
             return [];
         }
 
@@ -116,8 +179,10 @@ class FileStore
 
     public function delete(string $relative): bool
     {
-        $path = $this->path($relative);
-        if (! File::exists($path)) {
+        // Delete where the file actually is, not where a new one would go.
+        $path = $this->resolve($relative);
+
+        if ($path === null) {
             return false;
         }
 
@@ -126,35 +191,82 @@ class FileStore
 
     public function deleteDirectory(string $relative): bool
     {
-        $path = $this->path($relative);
-        if (! File::isDirectory($path)) {
-            return false;
+        $deleted = false;
+
+        foreach ($this->segments->read() ?? [] as $segment) {
+            $path = $this->pathIn($segment, $relative);
+
+            if (File::isDirectory($path)) {
+                $deleted = File::deleteDirectory($path) || $deleted;
+            }
         }
 
-        return File::deleteDirectory($path);
+        return $deleted;
+    }
+
+    /**
+     * The newest mtime of a directory across the readable segments.
+     *
+     * The staleness check needs this rather than `mtime(path())`: before an
+     * install has run `leadhub:migrate-flat-brands` the contacts still sit in
+     * the pre-brand root while the write path already points at the brand
+     * directory, which does not exist yet. `filemtime` on a missing directory
+     * returns false, the index would never look stale, and it would never
+     * rebuild.
+     */
+    public function directoryMtime(string $relative): ?int
+    {
+        $newest = null;
+
+        foreach ($this->segments->read() ?? [] as $segment) {
+            $mtime = @filemtime($this->pathIn($segment, $relative));
+
+            if ($mtime !== false && ($newest === null || $mtime > $newest)) {
+                $newest = $mtime;
+            }
+        }
+
+        return $newest;
     }
 
     /** mtime of a file or null if it doesn't exist. */
     public function mtime(string $relative): ?int
     {
-        $path = $this->path($relative);
+        $path = $this->resolve($relative);
 
-        if (! File::exists($path)) {
+        if ($path === null) {
             return null;
         }
 
         return File::lastModified($path);
     }
 
-    /** All files matching a glob pattern, relative paths returned. */
+    /**
+     * All files matching a glob pattern, as paths relative to the segment they
+     * were found in — so a caller can hand the result straight back to
+     * `readYaml()` and get the same file.
+     *
+     * The first segment wins: a migrated file shadows a copy that an
+     * interrupted migration may have left behind in the old root.
+     *
+     * @return array<int, string>
+     */
     public function glob(string $pattern): array
     {
-        $absPattern = $this->path($pattern);
-        $matches = glob($absPattern) ?: [];
+        $found = [];
 
-        return array_map(
-            fn (string $abs) => ltrim(str_replace($this->root, '', $abs), '/'),
-            $matches,
-        );
+        foreach ($this->segments->read() ?? [] as $segment) {
+            $prefix = $this->pathIn($segment, '');
+
+            foreach (glob($this->pathIn($segment, $pattern)) ?: [] as $abs) {
+                $relative = ltrim(str_replace($prefix, '', $abs), '/');
+
+                if (! array_key_exists($relative, $found)) {
+                    $found[$relative] = true;
+                }
+            }
+        }
+
+        return array_keys($found);
     }
 }

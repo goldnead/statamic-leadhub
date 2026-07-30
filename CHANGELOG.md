@@ -1,5 +1,59 @@
 # Changelog
 
+## 1.11.0 — 2026-07-30
+
+### Added — the flat driver isolates brands
+
+It did not, at all. `FileStore` was a singleton bound to one path and nothing under `Repositories/FlatFile` read or wrote a brand, so `content/leadhub/contacts/` held one undifferentiated set and **every brand read every brand's contacts**.
+
+The eloquent driver scoped correctly the whole time, which made this the sharpest kind of inconsistency: the same install isolated or did not depending on a value that reads like a storage preference.
+
+**Brands live in the path, not in the file.**
+
+```
+content/leadhub/{brand}/contacts/{uuid}.yaml
+content/leadhub/{brand}/events/{uuid}.jsonl
+content/leadhub/{brand}/tags.yaml
+```
+
+A `brand:` key inside each YAML was rejected, and the reason is sharper here than anywhere else in the suite. A contact's filename is its uuid, so listing one brand's contacts by key would mean opening every other brand's file to discover it is not yours — an O(all brands) read for every query, on the driver whose whole point is that there is no database. And a missing or misspelt key falls through to the default brand, which is a leak that reads like a typo. With a directory the isolation is structural: a read never opens another brand's file, and a file in the wrong place is visible in `ls` and in a diff.
+
+**Nothing about a single-brand install changes.** No directory appears, nothing moves, there is nothing to run. That is the overwhelming majority of flat-driver installs and they should never learn this feature exists.
+
+**The pre-brand layout keeps working.** Under multi-brand, files still in `content/leadhub/` are read as the **default brand's** — and only the default brand's, ever. They were written before brands existed, so they belong to the brand every existing row was backfilled onto. An install that flips the flag must never open to an empty contact list.
+
+**Fail closed.** Multi-brand with no current brand reads nothing rather than everything, matching the eloquent driver's global scope. The two drivers now agree about the one case where guessing would leak.
+
+### Added — `leadhub:migrate-flat-brands`
+
+Moves the pre-brand layout into a brand directory, which is what a second brand needs before it can exist without the two sharing a root.
+
+```bash
+php artisan leadhub:migrate-flat-brands --dry-run
+php artisan leadhub:migrate-flat-brands
+php artisan leadhub:migrate-flat-brands --brand=acme
+```
+
+It only ever **moves**. It never overwrites — a target that already exists means a finished migration or a genuine conflict, and neither is resolved by clobbering — never deletes, and a second run is a no-op. Rebuild the indexes afterwards with `leadhub:stache:warm --clear`; the command says so.
+
+### Fixed — the index was shared across brands
+
+`storage/app/leadhub/index/` held one set of JSON indexes. With the files correctly isolated underneath it, a shared index is the worst shape of this bug: the data on disk would be right and the answer wrong. Index paths now carry the segment, and the in-memory copy is invalidated when the brand changes — a single process switches brands whenever something wraps work in `BrandContext::runFor()`.
+
+The staleness check also moved to `directoryMtime()`, which looks across the readable segments. Before an install has migrated, the contacts sit in the pre-brand root while the write path points at a brand directory that does not exist; `filemtime` on a missing directory returns false, so the index would never look stale and never rebuild.
+
+### Notes
+
+Segment resolution is memoised per brand identity. It is consulted on **every** file
+operation — once per contact in a listing — and recomputing it meant a `preg_replace` each
+time. The memo key carries the brand, so a `BrandContext::runFor()` switch inside one
+process invalidates it rather than serving the previous brand's path. `FileStore` and every
+`Index` share one instance.
+
+`leadhub:storage:migrate` keeps its 1.10.4 guard. Migrating several brands into one flat store still merges them — the guard is about the command, not about where the files land, and it stays useful now that a per-brand target exists.
+
+`tests/Feature/FlatDriverBrandIsolationTest.php` and `MigrateFlatBrandsCommandTest.php` cover it. Four of the five isolation cases fail without the change; the fifth is the single-brand case, which must not change and does not.
+
 ## 1.10.4 — 2026-07-30
 
 ### Fixed — `leadhub:storage:migrate` migrated nothing on a multi-brand install

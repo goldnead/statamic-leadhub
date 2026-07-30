@@ -16,11 +16,18 @@ class Index
     /** @var array<string, mixed>|null */
     protected ?array $data = null;
 
+    /** The disk path `$data` was loaded from, so a brand switch invalidates it. */
+    protected ?string $loadedFrom = null;
+
+    protected BrandSegments $segments;
+
     public function __construct(
         protected string $name,
         protected string $disk,
         protected string $directory,
+        ?BrandSegments $segments = null,
     ) {
+        $this->segments = $segments ?? new BrandSegments;
     }
 
     public function name(): string
@@ -28,10 +35,24 @@ class Index
         return $this->name;
     }
 
-    /** Path on the configured disk where this index file lives. */
+    /**
+     * Path on the configured disk where this index file lives.
+     *
+     * The index is per brand, for the same reason the files are: it is a
+     * materialised answer to "which contacts are there", and one shared index
+     * would hand brand A's answer to brand B — with the flat store correctly
+     * isolated underneath it, which is the worst version of that bug because
+     * the data on disk would look right.
+     *
+     * Single-brand keeps the flat pre-1.11 path, so nothing moves and nothing
+     * needs rebuilding on upgrade.
+     */
     public function diskPath(): string
     {
-        return trim($this->directory, '/').'/'.$this->name.'.json';
+        $dir = trim($this->directory, '/');
+        $segment = $this->segments->write();
+
+        return ($segment === '' ? $dir : $dir.'/'.$segment).'/'.$this->name.'.json';
     }
 
     public function exists(): bool
@@ -42,9 +63,19 @@ class Index
     /** Load the index from disk. Returns an empty skeleton if it doesn't exist. */
     public function load(): array
     {
-        if ($this->data !== null) {
+        // The in-memory copy belongs to the brand it was loaded for. A single
+        // process switches brands whenever something wraps work in
+        // BrandContext::runFor() — a scheduled sweep, a migration, a test — and
+        // without this the second brand would be served the first one's index
+        // while its own files sat correctly isolated on disk. That is the worst
+        // shape of this bug: the data would be right and the answer wrong.
+        $path = $this->diskPath();
+
+        if ($this->data !== null && $this->loadedFrom === $path) {
             return $this->data;
         }
+
+        $this->loadedFrom = $path;
 
         if (! $this->exists()) {
             return $this->data = $this->skeleton();
@@ -128,12 +159,14 @@ class Index
             Storage::disk($this->disk)->delete($this->diskPath());
         }
         $this->data = null;
+        $this->loadedFrom = null;
     }
 
     /** Forget the in-memory copy so the next call reloads from disk. */
     public function forget(): void
     {
         $this->data = null;
+        $this->loadedFrom = null;
     }
 
     protected function skeleton(): array
