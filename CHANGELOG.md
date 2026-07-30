@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.10.4 — 2026-07-30
+
+### Fixed — `leadhub:storage:migrate` migrated nothing on a multi-brand install
+
+It took no brand at all. A console run has no session, so the multi-brand scope failed closed and the command read an empty database:
+
+```
+ • 0 tag(s) to migrate
+ • 0 contact(s) processed
+Migration complete.
+```
+
+Exit code 0. On a driver migration that is worse than a crash: you set `LEADHUB_DRIVER` afterwards and the site comes up empty, having been told the move succeeded.
+
+**The fix does not iterate brands, deliberately.** The flat driver has no brand concept — `FileStore` is a singleton on one path and nothing under `Repositories/FlatFile` reads or writes a brand, so `content/leadhub/` is one undifferentiated set. Sweeping every brand into it would merge them, and nothing in the files could tell them apart afterwards.
+
+So the command now refuses the cases that would merge or guess:
+
+- `--to=flat` with more than one brand is **rejected**, naming the brands and explaining why. Migrate one brand and point `leadhub.storage.flat.path` at a directory of its own.
+- `--from=flat` with more than one brand **requires `--brand`**: one flat store cannot be split, so somebody has to say which brand receives it.
+- An unknown `--brand` is rejected rather than silently falling back.
+- Single-brand installs are unaffected — no option, no prompt, same behaviour.
+
+`tests/Feature/StorageMigrateBrandGuardTest.php` covers all four, and five of its six cases fail without the fix.
+
+> **Known limitation, now stated plainly:** the flat driver is single-brand. Making it brand-aware means resolving the current brand at call time in `FileStore` plus the index paths, and a migration for existing installs — a feature, not a bug fix.
+
 ## 1.10.3 — 2026-07-30
 
 ### Fixed — the three scheduled commands did nothing on a multi-brand install

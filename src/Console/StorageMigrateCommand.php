@@ -14,13 +14,42 @@ use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFollowupRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFormMappingRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileNoteRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
+use Goldnead\BrandContext\Facades\BrandContext;
+use Goldnead\BrandContext\Models\Brand;
 use Illuminate\Console\Command;
 
+/**
+ * Moves LeadHub data between the two storage drivers.
+ *
+ * ## Why this command asks which brand
+ *
+ * The eloquent driver is brand-scoped; the flat driver is not. `FileStore` is a
+ * singleton bound to one path (`leadhub.storage.flat.path`) and nothing under
+ * `Repositories/FlatFile` reads or writes a brand. So `content/leadhub/` holds
+ * exactly one undifferentiated set of contacts.
+ *
+ * That has two consequences, and both are the reason this command refuses
+ * rather than guesses:
+ *
+ * - **Migrating several brands to flat merges them.** The files carry no brand,
+ *   so afterwards every brand reads every brand's contacts. Isolation is gone,
+ *   silently, and there is nothing in the data to undo it with.
+ * - **Migrating from flat has to pick a brand.** One flat store cannot be split
+ *   across several, so somebody has to say which brand receives it.
+ *
+ * A console run also has no session, so without a brand the multi-brand scope
+ * fails closed and the migration reads nothing at all — it used to report
+ * "0 contact(s) processed" and exit successfully.
+ *
+ * Single-brand installs are unaffected: no option, no prompt, same behaviour as
+ * before.
+ */
 class StorageMigrateCommand extends Command
 {
     protected $signature = 'leadhub:storage:migrate
         {--from= : Source driver: eloquent or flat (required)}
         {--to= : Target driver: eloquent or flat (required)}
+        {--brand= : Which brand to migrate (handle or id). Required on a multi-brand install.}
         {--dry-run : Show what would be migrated without writing}';
 
     protected $description = 'Move LeadHub data between the eloquent and flat-file storage drivers.';
@@ -43,6 +72,74 @@ class StorageMigrateCommand extends Command
             return self::FAILURE;
         }
 
+        $brand = $this->resolveBrand($to);
+
+        if ($brand === false) {
+            return self::FAILURE;
+        }
+
+        if ($brand === null) {
+            return $this->migrate($from, $to, $dryRun);
+        }
+
+        $this->line("Brand: {$brand->handle}");
+
+        return BrandContext::runFor($brand, fn () => $this->migrate($from, $to, $dryRun));
+    }
+
+    /**
+     * The brand to run in, `null` for a single-brand install, or `false` when
+     * the request cannot be honoured safely.
+     */
+    protected function resolveBrand(string $to): Brand|null|false
+    {
+        if (! BrandContext::multiBrandEnabled()) {
+            return null;
+        }
+
+        $brands = Brand::query()->orderBy('id')->get();
+
+        if ($brands->count() <= 1) {
+            return $brands->first();
+        }
+
+        if ($to === 'flat') {
+            $this->error('The flat driver has no per-brand layout, so it cannot hold more than one brand.');
+            $this->line('  Everything under content/leadhub/ is one undifferentiated set: migrating a');
+            $this->line('  second brand into it would merge the two, and nothing in the files could');
+            $this->line('  tell them apart afterwards.');
+            $this->newLine();
+            $this->line('  Brands on this install: '.$brands->pluck('handle')->implode(', '));
+            $this->line('  Migrate a single brand with --brand=<handle>, and point');
+            $this->line('  leadhub.storage.flat.path at a directory of its own before you do.');
+
+            return false;
+        }
+
+        if (! $this->option('brand')) {
+            $this->error('This install has more than one brand, so --brand is required.');
+            $this->line('  The flat store is one undifferentiated set of contacts and cannot be');
+            $this->line('  split across brands — somebody has to say which brand receives it.');
+            $this->newLine();
+            $this->line('  Brands on this install: '.$brands->pluck('handle')->implode(', '));
+
+            return false;
+        }
+
+        $handle = $this->option('brand');
+        $brand = $brands->first(fn (Brand $b) => $b->handle === $handle || (string) $b->id === (string) $handle);
+
+        if (! $brand) {
+            $this->error("No brand [{$handle}]. Known: ".$brands->pluck('handle')->implode(', '));
+
+            return false;
+        }
+
+        return $brand;
+    }
+
+    protected function migrate(string $from, string $to, bool $dryRun): int
+    {
         $this->warn(sprintf('Migrating LeadHub data from "%s" to "%s"%s', $from, $to, $dryRun ? ' (dry run)' : ''));
 
         $sources = $this->repositoriesFor($from);
