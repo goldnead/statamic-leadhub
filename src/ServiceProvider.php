@@ -301,10 +301,29 @@ class ServiceProvider extends AddonServiceProvider
     /**
      * Schedule the daily follow-up digest (when notifications are enabled).
      */
+    /**
+     * Registers the scheduled commands exactly once.
+     *
+     * Not `app->booted()`: in a Statamic application those callbacks fire
+     * twice, which this package already knew — the sibling bridges above are
+     * queued through a deliberate double `booted()` and survive it because they
+     * are idempotent. A schedule registration is not. Measured on a real
+     * install: `registerSchedule()` is called once and the booted callback runs
+     * twice, so `schedule:list` carried all three of these commands twice.
+     *
+     * It caused no damage, and only by accident: `onOneServer()` with a fixed
+     * name means the second copy loses the mutex and is skipped. That is luck,
+     * not design. The digest is the one that shows what the luck was worth — an
+     * entry added later without `onOneServer()` would run twice, and that is
+     * two follow-up digests to the same person on the same morning.
+     *
+     * `callAfterResolving()` binds to the Schedule singleton instead, so the
+     * callback runs when it is resolved, once, no matter how often the
+     * application announces that it has booted.
+     */
     protected function registerSchedule(): self
     {
-        $this->app->booted(function () {
-            $schedule = $this->app->make(\Illuminate\Console\Scheduling\Schedule::class);
+        $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function ($schedule) {
             $time = (string) config('leadhub.notifications.digest.time', '08:00');
             $schedule->command('leadhub:followups:digest')
                 ->dailyAt($time)

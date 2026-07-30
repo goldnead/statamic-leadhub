@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.10.2 — 2026-07-30
+
+### Fixed — all three scheduled commands were registered twice
+
+`schedule:list` carried `leadhub:followups:digest`, `leadhub:followups:due` and `leadhub:segments:sweep` twice on every real install. The registration hung off `app->booted()`, and in a Statamic application those callbacks fire twice — something this package already knew, because the sibling bridges above are queued through a deliberate double `booted()` and survive it by being idempotent. A schedule registration is not.
+
+Measured rather than reasoned about: `registerSchedule()` is called once, the booted callback runs twice.
+
+**Nothing broke, and only by accident.** All three use `onOneServer()` with a fixed name, so the second copy loses the mutex and is skipped. The digest is the one that shows what that luck was worth: an entry added later without `onOneServer()` would run twice, and that is two follow-up digests to the same person on the same morning. `callAfterResolving(Schedule::class)` binds to the Schedule singleton instead, so the callback runs once however often the application announces that it has booted.
+
+### Added — a check that can actually go red
+
+The first version of the accompanying test passed against the unfixed provider, because Testbench fires the booted callbacks only once and never reproduced the condition. It now replays them, which is what a Statamic application does. That replay is the load-bearing part of the file: a check that cannot fail is not coverage, and this release exists because one of those had been standing in for the real thing.
+
+It counts whatever is registered rather than asserting against today's list, so a command added later is covered without anyone remembering to come back.
+
 All notable changes to `goldnead/statamic-leadhub` are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
