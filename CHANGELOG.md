@@ -18,12 +18,12 @@ Exit code 0. On a driver migration that is worse than a crash: you set `LEADHUB_
 
 So the command now refuses the cases that would merge or guess:
 
-- `--to=flat` with more than one brand is **rejected**, naming the brands and explaining why. Migrate one brand and point `leadhub.storage.flat.path` at a directory of its own.
-- `--from=flat` with more than one brand **requires `--brand`**: one flat store cannot be split, so somebody has to say which brand receives it.
+- More than one brand and no `--brand` is **rejected**, naming the brands. Going *to* flat additionally explains that the directory holds one set, so migrate one brand at a time with `leadhub.storage.flat.path` pointed somewhere of its own.
+- With `--brand` it runs inside that brand, in either direction — including to flat, which is exactly what the refusal tells you to do.
 - An unknown `--brand` is rejected rather than silently falling back.
 - Single-brand installs are unaffected — no option, no prompt, same behaviour.
 
-`tests/Feature/StorageMigrateBrandGuardTest.php` covers all four, and five of its six cases fail without the fix.
+`tests/Feature/StorageMigrateBrandGuardTest.php` covers all of it, and five of its seven cases fail without the fix. One case exists because the first draft of this guard rejected `--to=flat` outright while its own error message said to use `--brand`: an instruction the command then refuses is worse than no instruction.
 
 > **Known limitation, now stated plainly:** the flat driver is single-brand. Making it brand-aware means resolving the current brand at call time in `FileStore` plus the index paths, and a migration for existing installs — a feature, not a bug fix.
 

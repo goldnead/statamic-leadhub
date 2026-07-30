@@ -50,6 +50,21 @@ it('refuses to migrate several brands into the flat store', function (): void {
         ->assertExitCode(1);
 });
 
+it('lets a named brand go to flat, which is what the refusal tells you to do', function (): void {
+    // The first version of this guard rejected --to=flat outright while its own
+    // error message said "migrate a single brand with --brand=<handle>". An
+    // instruction the command then refuses is worse than no instruction.
+    config()->set('brand-context.multi_brand', true);
+    app('brand-context')->forget();
+
+    Brand::create(['handle' => 'one-a', 'name' => 'One A']);
+    Brand::create(['handle' => 'one-b', 'name' => 'One B']);
+
+    $this->artisan('leadhub:storage:migrate --from=eloquent --to=flat --brand=one-a --dry-run')
+        ->expectsOutputToContain('Brand: one-a')
+        ->assertExitCode(0);
+});
+
 it('still refuses when only the direction is reversed and no brand is named', function (): void {
     config()->set('brand-context.multi_brand', true);
     app('brand-context')->forget();

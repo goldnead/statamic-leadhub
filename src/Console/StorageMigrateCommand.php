@@ -103,23 +103,22 @@ class StorageMigrateCommand extends Command
             return $brands->first();
         }
 
-        if ($to === 'flat') {
-            $this->error('The flat driver has no per-brand layout, so it cannot hold more than one brand.');
-            $this->line('  Everything under content/leadhub/ is one undifferentiated set: migrating a');
-            $this->line('  second brand into it would merge the two, and nothing in the files could');
-            $this->line('  tell them apart afterwards.');
-            $this->newLine();
-            $this->line('  Brands on this install: '.$brands->pluck('handle')->implode(', '));
-            $this->line('  Migrate a single brand with --brand=<handle>, and point');
-            $this->line('  leadhub.storage.flat.path at a directory of its own before you do.');
-
-            return false;
-        }
-
         if (! $this->option('brand')) {
             $this->error('This install has more than one brand, so --brand is required.');
-            $this->line('  The flat store is one undifferentiated set of contacts and cannot be');
-            $this->line('  split across brands — somebody has to say which brand receives it.');
+
+            if ($to === 'flat') {
+                $this->line('  The flat driver has no per-brand layout. Everything under');
+                $this->line('  content/leadhub/ is one undifferentiated set, so migrating a second');
+                $this->line('  brand into it would merge the two, with nothing in the files to tell');
+                $this->line('  them apart afterwards.');
+                $this->newLine();
+                $this->line('  Migrate one brand at a time, and point leadhub.storage.flat.path at a');
+                $this->line('  directory of its own before each run.');
+            } else {
+                $this->line('  The flat store is one undifferentiated set of contacts and cannot be');
+                $this->line('  split across brands — somebody has to say which brand receives it.');
+            }
+
             $this->newLine();
             $this->line('  Brands on this install: '.$brands->pluck('handle')->implode(', '));
 
