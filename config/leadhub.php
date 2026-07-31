@@ -187,6 +187,30 @@ return [
         // Repeated clicks of the same link by the same contact within this many
         // minutes are recorded once and scored once (dedupe window).
         'dedupe_window' => 60,
+
+        // Query parameters that sending services append when they forward a
+        // click. Laravel signs the whole query string, so an appended parameter
+        // changes what was signed: the signature stops matching and the click
+        // is never scored (the recipient still reaches the link — the redirect
+        // does not depend on the signature). Listing a parameter here excludes
+        // it from the signature check.
+        //
+        // SECURITY: this list can only ever hold meaningless parameters. The
+        // redirect target rides in the query (`?url=…`), so anything excluded
+        // from the signature can be freely chosen by an attacker. `url`, the
+        // contact identifiers (`c`, `e`), the source context (`tpl`, `eml`) and
+        // Laravel's `signature`/`expires` are therefore refused even if added
+        // here — see Services\ClickTracking\TrackingParameters::RESERVED.
+        'ignored_query_parameters' => [
+            '_se',                    // Brevo
+            'mc_cid', 'mc_eid',       // Mailchimp
+            '_hsenc', '_hsmi',        // HubSpot
+            '_kx',                    // Klaviyo
+            'vero_id', 'vero_conv',   // Vero
+            'ck_subscriber_id',       // ConvertKit / Kit
+            'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+            'gclid', 'fbclid', 'msclkid',
+        ],
     ],
 
     /*
