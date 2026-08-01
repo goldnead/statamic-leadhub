@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.12.0 — 2026-08-01
+
+### Security — the settings screen handed the whole config to the browser
+
+`SettingsController` passed `config('leadhub')` wholesale as an Inertia prop. That object
+carries `crm.destinations`, which is where CRM tokens and API keys live, and an Inertia prop
+is rendered into the page as JSON — so anyone who could open LeadHub's settings screen, or
+read the HTML of a session that had it open, could read those credentials. The controller now
+passes an allowlist of the seven keys the screen actually uses. A test asserts no secret
+reaches the response, and a repo-wide search found no second occurrence of the pattern.
+
+**If you have CRM destination tokens configured, rotate them.** They were exposed to anyone
+with access to that screen for as long as it has existed.
+
+### Fixed — five deletes asked nothing before deleting
+
+Companies (index and detail), Tasks, Pipelines and Opportunity edit deleted immediately on
+click, while four other deletes in the same Control Panel asked first. All nine now use the
+same confirmation modal.
+
+### Fixed — the sync log only ever showed the newest 100 rows
+
+It was a hand-built table with a hardcoded `limit(100)` and no way to reach anything older.
+It is now a `Listing` in server mode, paginated and searchable, so a 120-row log is fully
+reachable.
+
+### Fixed — the brand-context floor was wrong
+
+`^1.0` allowed v1.0.0, which predates `RunsForEachBrand`; installing that combination killed
+the whole suite at boot. Raised to `^1.6`.
+
+### Changed
+
+- `Segments/Edit.vue` used `axios.post` for a preview that only reads. It is a GET now.
+- `Forms/Index.vue` linked to a hardcoded `/cp/forms` instead of resolving the route.
+- 12 hardcoded colours moved onto theme tokens, two hand-rebuilt headers replaced with the
+  real component, and the command palette wired up on four index screens.
+- `laravel/framework` narrowed to `^12.0|^13.0`. The 11.x line is withdrawn behind security
+  advisories and cannot be installed, so declaring support for it was untrue rather than
+  generous. `orchestra/testbench` follows to `^10.0|^11.0`.
+- `tests/Feature/CpWriteRouteAuthorizationTest.php` walks the router and asserts all 38 CP
+  write routes answer 403 to a user without LeadHub permissions. They already did; nothing
+  held that property in place before.
+- Larastan and Pint are wired in as gates; the `repositories` block, which Composer ignores in
+  a dependency anyway, is gone now that brand-context resolves from Packagist.
+
 ## 1.11.0 — 2026-07-30
 
 ### Added — the flat driver isolates brands
