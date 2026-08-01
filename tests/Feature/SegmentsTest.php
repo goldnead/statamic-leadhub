@@ -12,6 +12,7 @@ use Goldnead\Leadhub\Repositories\FlatFile\FlatFileSegmentRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
 use Goldnead\Leadhub\Services\SegmentService;
 use Goldnead\Leadhub\Services\TagService;
+use Goldnead\Leadhub\Support\SegmentEvaluator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -85,8 +86,46 @@ function seedSegment(array $rules, array $overrides = []): Segment
 
 /* -------- rules cast (array + JSON string) -------- */
 
+/**
+ * Recursively sort object keys so two rule sets can be compared for CONTENT
+ * without asserting a storage engine's key order.
+ *
+ * MySQL's native `json` column type does not store an object verbatim: it
+ * parses to a binary form and re-emits members sorted by key length, then by
+ * bytes. `{"type","field","operator","value"}` therefore reads back as
+ * `{"type","field","value","operator"}`. SQLite stores the text as given and
+ * preserves the author's order. Neither engine reorders JSON *arrays* and
+ * neither changes a scalar's type — only object member order differs, and
+ * SegmentEvaluator addresses every member by name (`$condition['operator']`,
+ * never `$condition[2]`), so membership is identical either way.
+ *
+ * Canonicalising is what lets one assertion speak for both engines. It is
+ * deliberately NOT a loose `toEqual`: after sorting, the comparison stays
+ * strict, so a value that came back as `'1'` instead of `1`, or `''` instead
+ * of `null`, still fails. Type drift in a rule set changes who matches.
+ */
+function canonicalizeRules(array $rules): array
+{
+    foreach ($rules as $key => $value) {
+        if (is_array($value)) {
+            $rules[$key] = canonicalizeRules($value);
+        }
+    }
+
+    // Only sort associative arrays (JSON objects). Lists keep their order —
+    // condition order is authored, not incidental.
+    if (! array_is_list($rules)) {
+        ksort($rules);
+    }
+
+    return $rules;
+}
+
 it('round-trips rules through the cast for both arrays and JSON strings', function (): void {
     $rules = ['match' => 'all', 'conditions' => [['type' => 'field', 'field' => 'status', 'operator' => 'eq', 'value' => 'new']]];
+
+    // In memory the cast must be verbatim — no engine is involved, so key order
+    // is asserted strictly here.
 
     // Constructed with a PHP array — the previous crash was a Json::decode on an array.
     $fromArray = new Segment(['rules' => $rules]);
@@ -96,10 +135,74 @@ it('round-trips rules through the cast for both arrays and JSON strings', functi
     $fromString = new Segment(['rules' => json_encode($rules)]);
     expect($fromString->rules)->toBe($rules);
 
-    // Persisted + reloaded.
+    // Persisted + reloaded. Compared canonically: see canonicalizeRules() for
+    // why MySQL legitimately returns the same object with its keys reordered.
     $segment = seedSegment($rules);
     $reloaded = $this->segments->findByHandle($segment->handle);
-    expect($reloaded->rules)->toBe($rules);
+    expect(canonicalizeRules($reloaded->rules))->toBe(canonicalizeRules($rules));
+});
+
+it('preserves scalar types, nulls and condition order when rules are persisted', function (): void {
+    // The half of the round-trip that is NOT allowed to vary by engine. A
+    // segment decides who receives a campaign: if `value` comes back as the
+    // string '30' where 30 was stored, a `gt` comparison silently changes
+    // meaning, and if condition order shuffles, a nested any/all group stops
+    // expressing what its author wrote.
+    $rules = [
+        'match' => 'all',
+        'conditions' => [
+            ['type' => 'field', 'field' => 'score', 'operator' => 'gt', 'value' => 30],
+            ['type' => 'field', 'field' => 'status', 'operator' => 'eq', 'value' => 'new'],
+            ['type' => 'field', 'field' => 'source', 'operator' => 'eq', 'value' => null],
+            ['type' => 'field', 'field' => 'email', 'operator' => 'has', 'value' => ''],
+            ['match' => 'any', 'conditions' => [
+                ['type' => 'tag', 'operator' => 'has', 'value' => 'vip'],
+            ]],
+        ],
+    ];
+
+    $reloaded = $this->segments->findByHandle(seedSegment($rules)->handle);
+    $conditions = $reloaded->rules['conditions'];
+
+    // Condition order is a list and must survive verbatim on every engine.
+    // (array_column skips the trailing nested group, which carries no `field`.)
+    expect(array_column($conditions, 'field'))
+        ->toBe(['score', 'status', 'source', 'email'])
+        ->and($conditions)->toHaveCount(5)
+        ->and($conditions[4]['match'])->toBe('any');
+
+    // Scalar identity, not just equality.
+    expect($conditions[0]['value'])->toBe(30)
+        ->and($conditions[1]['value'])->toBe('new')
+        ->and($conditions[2]['value'])->toBeNull()
+        ->and($conditions[3]['value'])->toBe('')
+        ->and($conditions[4]['conditions'][0]['value'])->toBe('vip');
+});
+
+it('resolves the same members before and after a rule set is persisted', function (): void {
+    // The production-truth assertion: whatever the engine does to key order,
+    // the reloaded rule set must select exactly the same contacts as the one
+    // that was written.
+    $contacts = [
+        seedContact(['status' => 'qualified']),
+        seedContact(['status' => 'qualified']),
+        seedContact(['status' => 'new']),
+    ];
+
+    $rules = ['match' => 'all', 'conditions' => [
+        ['type' => 'field', 'field' => 'status', 'operator' => 'eq', 'value' => 'qualified'],
+    ]];
+
+    $reloaded = $this->segments->findByHandle(seedSegment($rules)->handle);
+    $evaluator = app(SegmentEvaluator::class);
+
+    foreach ($contacts as $contact) {
+        expect($evaluator->matches($contact, $reloaded->rules))
+            ->toBe($evaluator->matches($contact, $rules));
+    }
+
+    // And the segment as a whole still resolves the two qualified contacts.
+    expect($this->service->resolveMemberIds($reloaded->handle))->toHaveCount(2);
 });
 
 /* -------- whole-segment resolution (both drivers) -------- */
