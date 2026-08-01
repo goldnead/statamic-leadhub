@@ -55,7 +55,7 @@ Forms · CRM · Integrations · Workflow · Utility
 
 | Tier | Price | Includes |
 |---|---|---|
-| **LeadHub Core** | $59–99 | Everything in this MVP — contacts, timeline, status, tags, follow-ups, CSV export |
+| **LeadHub Core** | $59–99 | Everything in this MVP: contacts, timeline, status, tags, follow-ups, CSV export |
 | **LeadHub Pro** | +$50 | UTM attribution, webhook events, sync logs, manual push to destination |
 | **CRM Connectors** | $29 each | HubSpot, Pipedrive, Brevo, ActiveCampaign |
 | **Business Bundle** | $149–199 | LeadHub + Webhook Manager + 1 selected CRM Connector |
