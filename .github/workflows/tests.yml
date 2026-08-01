@@ -67,7 +67,14 @@ jobs:
             --prefer-dist --no-progress --no-interaction
 
       - name: Show resolved versions
-        run: composer show laravel/framework statamic/cms goldnead/statamic-brand-context | grep -E '^(name|versions)'
+        # `composer show` nimmt genau ein Paket und optional eine Version. Drei Pakete
+        # liest es als Paket + Version + Rest und bricht mit "Too many arguments" ab --
+        # in jeder Matrixzelle. Ein Diagnoseschritt, der die Zelle rot macht, die er
+        # erklaeren soll, ist schlimmer als keiner.
+        run: |
+          for pkg in laravel/framework statamic/cms goldnead/statamic-brand-context; do
+            composer show "$pkg" | grep -E '^(name|versions)'
+          done
 
       - name: Run Pest test suite
         run: vendor/bin/pest --colors=always
