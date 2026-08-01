@@ -4,7 +4,10 @@ import { Head } from '@statamic/cms/inertia';
 import { Header, Panel, Card, Alert, Badge } from '@statamic/cms/ui';
 
 const props = defineProps([
-    'config',           // raw config('leadhub') array
+    // Allow-listed slice of config('leadhub'): statuses, default_status, the
+    // two behaviour booleans, timeline_payload_redaction, features and
+    // exports.queue_threshold. Never the whole file — see SettingsController.
+    'config',
     'driver',           // active driver
     'publishCommand',   // 'php artisan vendor:publish --tag=leadhub-config'
 ]);
