@@ -1,0 +1,2521 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Called ''env'' outside of the config directory which returns null when the config is cached, use ''config''\.$#'
+			identifier: larastan.noEnvCallsOutsideOfConfig
+			count: 8
+			path: config/leadhub.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$points\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Console/ImportScoringRulesCommand.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$assigned_to\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Console/SendFollowupDigestCommand.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Console/SendFollowupDigestCommand.php
+
+		-
+			message: '#^Offset ''overdue'' on array\{items\: non\-empty\-list\<array\{name\: string, due_at\: mixed, overdue\: bool, url\: mixed, note\: mixed\}\>, overdue\: int\<0, max\>, today\: int\<0, max\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Console/SendFollowupDigestCommand.php
+
+		-
+			message: '#^Offset ''today'' on array\{items\: non\-empty\-list\<array\{name\: string, due_at\: mixed, overdue\: bool, url\: mixed, note\: mixed\}\>, overdue\: int\<0, max\>, today\: int\<0, max\>\} on left side of \?\? always exists and is not nullable\.$#'
+			identifier: nullCoalesce.offset
+			count: 1
+			path: src/Console/SendFollowupDigestCommand.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$first_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$source\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$source_form\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$utm_campaign\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$utm_medium\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$utm_source\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/AbstractDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/BrevoDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Crm/BrevoDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$first_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/BrevoDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/BrevoDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/BrevoDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/HubSpotDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/HubSpotDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$first_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/HubSpotDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/HubSpotDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/HubSpotDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Crm/HubSpotDestination.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Events/LeadHubContactScoreChanged.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$domain\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$employee_range\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$industry\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$website\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$pivot\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:displayName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Goldnead\\Leadhub\\Models\\Company\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/CompanyController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$assigned_to\.$#'
+			identifier: property.notFound
+			count: 4
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$consent\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$engagement_score\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$source_form\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 10
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 13
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$note\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$closed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$confidence\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$outcome\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$value_estimate\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$assignee_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$priority\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$domain\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$industry\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:displayName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Call to function method_exists\(\) with Goldnead\\Leadhub\\Models\\Followup and ''isOverdue'' will always evaluate to true\.$#'
+			identifier: function.alreadyNarrowedType
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Goldnead\\Leadhub\\Models\\Contact\|null given\.$#'
+			identifier: argument.type
+			count: 5
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Goldnead\\Leadhub\\Models\\Opportunity\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Goldnead\\Leadhub\\Models\\Task\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/ContactController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Goldnead\\Leadhub\\Models\\Contact\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Controllers/Cp/FollowupController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Goldnead\\Leadhub\\Models\\Followup\|null given\.$#'
+			identifier: argument.type
+			count: 3
+			path: src/Http/Controllers/Cp/FollowupController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$attach_full_submission\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$company_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$consent_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$default_source\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$default_status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$default_tags\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$email_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$enabled\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$first_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$full_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$last_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$message_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$phone_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$tags_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Cannot call method handle\(\) on class\-string\|object\.$#'
+			identifier: method.nonObject
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Goldnead\\Leadhub\\Models\\FormMapping\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Statamic\\Contracts\\Forms\\Form given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>enabled" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Http/Controllers/Cp/FormMappingController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Goldnead\\Leadhub\\Models\\Contact\|null given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Controllers/Cp/NoteController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$confidence\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$outcome\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$pipeline_id\.$#'
+			identifier: property.notFound
+			count: 5
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$stage_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$value_estimate\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$assignee_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$priority\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$stages\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:displayName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:stages\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: decimal\-int\-string, title\: mixed, status\: mixed, priority\: mixed, priority_label\: array\|string, due_at\: mixed, is_overdue\: bool, is_open\: bool, assignee_name\: string\|null, edit_url\: mixed, complete_url\: mixed\}, Closure\(Goldnead\\Leadhub\\Models\\Task\)\: array\{id\: decimal\-int\-string, title\: mixed, status\: mixed, priority\: mixed, priority_label\: array\|string, due_at\: mixed, is_overdue\: bool, is_open\: bool, assignee_name\: string\|null, edit_url\: mixed, complete_url\: mixed\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>id" on left side of \?\? is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Http/Controllers/Cp/OpportunityController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$closed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$confidence\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$outcome\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$value_estimate\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$is_terminal\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$sort_order\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$terminal_outcome\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$is_terminal\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$terminal_outcome\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:displayName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:opportunities\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:stages\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Call to an undefined static method Goldnead\\Leadhub\\Facades\\LeadHub\:\:createPipeline\(\)\.$#'
+			identifier: staticMethod.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Goldnead\\Leadhub\\Models\\Pipeline\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 2
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 3
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: int, name\: mixed, slug\: mixed, is_terminal\: bool, terminal_outcome\: mixed, cards\: array\<int, array\{id\: int, title\: mixed, value_estimate\: mixed, confidence\: mixed, is_closed\: bool, outcome\: mixed, closed_at\: mixed, contact_name\: mixed, contact_url\: mixed, move_url\: mixed, edit_url\: mixed\}\>, total_value\: float, open_value\: float, closed_value\: float, open_count\: int\<0, max\>, closed_count\: int\<0, max\>\}, Closure\(Goldnead\\Leadhub\\Models\\Stage\)\: array\{id\: int, name\: mixed, slug\: mixed, is_terminal\: bool, terminal_outcome\: mixed, cards\: array\<int, array\{id\: int, title\: mixed, value_estimate\: mixed, confidence\: mixed, is_closed\: bool, outcome\: mixed, closed_at\: mixed, contact_name\: mixed, contact_url\: mixed, move_url\: mixed, edit_url\: mixed\}\>, total_value\: float, open_value\: float, closed_value\: float, open_count\: int\<0, max\>, closed_count\: int\<0, max\>\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: int, name\: mixed, slug\: mixed, sort_order\: int, is_terminal\: bool, terminal_outcome\: mixed, opportunities_count\: int\<0, max\>, update_url\: mixed, delete_url\: mixed\}, Closure\(Goldnead\\Leadhub\\Models\\Stage\)\: array\{id\: int, name\: mixed, slug\: mixed, sort_order\: int, is_terminal\: bool, terminal_outcome\: mixed, opportunities_count\: int\<0, max\>, update_url\: mixed, delete_url\: mixed\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) expects callable\(Illuminate\\Database\\Eloquent\\Model, int\)\: array\{id\: int, title\: mixed, value_estimate\: mixed, confidence\: mixed, is_closed\: bool, outcome\: mixed, closed_at\: mixed, contact_name\: mixed, contact_url\: mixed, move_url\: mixed, edit_url\: mixed\}, Closure\(Goldnead\\Leadhub\\Models\\Opportunity\)\: array\{id\: int, title\: mixed, value_estimate\: mixed, confidence\: mixed, is_closed\: bool, outcome\: mixed, closed_at\: mixed, contact_name\: mixed, contact_url\: mixed, move_url\: mixed, edit_url\: mixed\} given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Http/Controllers/Cp/PipelineController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$enabled\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ScoringController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$event_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ScoringController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ScoringController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$points\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/ScoringController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Goldnead\\Leadhub\\Models\\ScoringRule\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/ScoringController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/SegmentController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$handle\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/SegmentController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/SegmentController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/SegmentController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$rules\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/SegmentController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 6
+			path: src/Http/Controllers/Cp/SegmentController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Goldnead\\Leadhub\\Models\\Segment\|null given\.$#'
+			identifier: argument.type
+			count: 3
+			path: src/Http/Controllers/Cp/SegmentController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<\(int\|string\),mixed\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/SegmentController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$contact_label\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$contact_uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$destination\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$driver\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$event\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$message\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$response_code\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\SyncLog\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Goldnead\\Leadhub\\Models\\SyncLog\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/SyncLogController.php
+
+		-
+			message: '#^Parameter \#1 \$boolean of function abort_unless expects bool, Goldnead\\Leadhub\\Models\\Tag\|null given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Http/Controllers/Cp/TagController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$assignee_id\.$#'
+			identifier: property.notFound
+			count: 5
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$description\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$opportunity_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$priority\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:displayName\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Support\\Collection\<int,Goldnead\\Leadhub\\Models\\Task\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/Http/Controllers/Cp/TaskController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$consent\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Web/TrackingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$do_not_contact\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Web/TrackingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Controllers/Web/TrackingController.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Requests/StoreTaskRequest.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$pipeline_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Requests/UpdateOpportunityRequest.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\|Illuminate\\Database\\Eloquent\\Collection\<int, Goldnead\\Leadhub\\Models\\Task\>\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Http/Requests/UpdateTaskRequest.php
+
+		-
+			message: '#^Call to static method registerTrigger\(\) on an unknown class Goldnead\\WebhookManager\\Facades\\WebhookManager\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/Integrations/WebhookManager/WebhookManagerBridge.php
+
+		-
+			message: '#^Call to static method triggers\(\) on an unknown class Goldnead\\WebhookManager\\Facades\\WebhookManager\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/Integrations/WebhookManager/WebhookManagerBridge.php
+
+		-
+			message: '#^Instantiated class Goldnead\\WebhookManager\\Events\\TriggerDetected not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/Integrations/WebhookManager/WebhookManagerBridge.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$domain\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$employee_range\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$industry\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$website\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$assigned_to\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$do_not_contact\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$first_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$source\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 4
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$confidence\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$outcome\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$owner_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$pipeline_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$stage_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$value_estimate\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$assignee_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$completed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$opportunity_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$priority\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$is_terminal\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$terminal_outcome\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Class Goldnead\\EmailTemplates\\Facades\\EmailTemplates not found\.$#'
+			identifier: class.notFound
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Parameter \#1 \$callback of method Illuminate\\Database\\Eloquent\\Collection\<int,Illuminate\\Database\\Eloquent\\Model\>\:\:map\(\) contains unresolvable type\.$#'
+			identifier: argument.unresolvableType
+			count: 1
+			path: src/LeadHubManager.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$attach_full_submission\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Listeners/CreateOrUpdateLeadFromSubmission.php
+
+		-
+			message: '#^Using nullsafe property access "\?\-\>uuid" in empty\(\) is unnecessary\. Use \-\> instead\.$#'
+			identifier: nullsafe.neverNull
+			count: 1
+			path: src/Listeners/DispatchCrmSync.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$domain\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Company.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Company.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$name_normalized\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Company.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Company.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Company\:\:\$website\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Company.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Contact.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Contact.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email_normalized\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Contact.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$full_name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Contact.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$merged_into_contact_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Contact.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Contact.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone_normalized\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Contact.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Contact.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Event\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Event.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$completed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Followup.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Followup.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Followup.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\:\:active\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: src/Models/Followup.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$company_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$consent_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$email_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$enabled\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$first_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$full_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$last_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$message_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$phone_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$tags_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/FormMapping.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Note\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Note.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Opportunity.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Opportunity.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Opportunity.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Pipeline.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Pipeline.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Pipeline.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Models\\Pipeline\:\:defaultStage\(\) should return Goldnead\\Leadhub\\Models\\Stage\|null but returns Illuminate\\Database\\Eloquent\\Model\|null\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Models/Pipeline.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$event_type\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/ScoringRule.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/ScoringRule.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$handle\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Segment.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Segment.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Segment.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$is_terminal\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Stage.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Stage.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Stage.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$terminal_outcome\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Models/Stage.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Stage.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Tag\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Tag.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Tag\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Tag.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Tag\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Tag.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$completed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Task.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Task.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Models/Task.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\:\:open\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: src/Models/Task.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Notifications/LeadAssignedNotification.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Notifications/NewLeadNotification.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Notifications/NewLeadNotification.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$source_form\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Notifications/NewLeadNotification.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Notifications/NewLeadNotification.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Repositories/Eloquent/EloquentContactRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/Eloquent/EloquentContactRepository.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:dueToday\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Repositories/Eloquent/EloquentContactRepository.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:overdue\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Repositories/Eloquent/EloquentContactRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Event\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Repositories/Eloquent/EloquentEventRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$completed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/Eloquent/EloquentFollowupRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$completed_by\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/Eloquent/EloquentFollowupRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/Eloquent/EloquentFollowupRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$note\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/Eloquent/EloquentFollowupRepository.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\Eloquent\\EloquentFollowupRepository\:\:create\(\) should return Goldnead\\Leadhub\\Models\\Followup but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/Eloquent/EloquentFollowupRepository.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\Eloquent\\EloquentNoteRepository\:\:create\(\) should return Goldnead\\Leadhub\\Models\\Note but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/Eloquent/EloquentNoteRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$handle\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/Eloquent/EloquentSegmentRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Repositories/FlatFile/FlatFileContactRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/FlatFile/FlatFileContactRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Repositories/FlatFile/FlatFileContactRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/FlatFile/FlatFileFollowupRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 4
+			path: src/Repositories/FlatFile/FlatFileFollowupRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Repositories/FlatFile/FlatFileFollowupRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$enabled\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Repositories/FlatFile/FlatFileFormMappingRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$form_handle\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Repositories/FlatFile/FlatFileFormMappingRepository.php
+
+		-
+			message: '#^Negated boolean expression is always true\.$#'
+			identifier: booleanNot.alwaysTrue
+			count: 1
+			path: src/Repositories/FlatFile/FlatFileFormMappingRepository.php
+
+		-
+			message: '#^Unreachable statement \- code above always terminates\.$#'
+			identifier: deadCode.unreachable
+			count: 1
+			path: src/Repositories/FlatFile/FlatFileFormMappingRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Note\:\:\$contact_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/FlatFile/FlatFileNoteRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Note\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/FlatFile/FlatFileNoteRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Repositories/FlatFile/FlatFileSegmentRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$handle\.$#'
+			identifier: property.notFound
+			count: 8
+			path: src/Repositories/FlatFile/FlatFileSegmentRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Repositories/FlatFile/FlatFileSegmentRepository.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Tag\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Repositories/FlatFile/FlatFileTagRepository.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\FlatFile\\ModelHydrator\:\:contact\(\) should return Goldnead\\Leadhub\\Models\\Contact but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/FlatFile/ModelHydrator.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\FlatFile\\ModelHydrator\:\:event\(\) should return Goldnead\\Leadhub\\Models\\Event but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/FlatFile/ModelHydrator.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\FlatFile\\ModelHydrator\:\:followup\(\) should return Goldnead\\Leadhub\\Models\\Followup but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/FlatFile/ModelHydrator.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\FlatFile\\ModelHydrator\:\:formMapping\(\) should return Goldnead\\Leadhub\\Models\\FormMapping but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/FlatFile/ModelHydrator.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\FlatFile\\ModelHydrator\:\:note\(\) should return Goldnead\\Leadhub\\Models\\Note but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/FlatFile/ModelHydrator.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\FlatFile\\ModelHydrator\:\:segment\(\) should return Goldnead\\Leadhub\\Models\\Segment but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/FlatFile/ModelHydrator.php
+
+		-
+			message: '#^Method Goldnead\\Leadhub\\Repositories\\FlatFile\\ModelHydrator\:\:tag\(\) should return Goldnead\\Leadhub\\Models\\Tag but returns Illuminate\\Database\\Eloquent\\Model\.$#'
+			identifier: return.type
+			count: 1
+			path: src/Repositories/FlatFile/ModelHydrator.php
+
+		-
+			message: '#^Property Goldnead\\Leadhub\\ServiceProvider\:\:\$vite \(list\<string\>\) does not accept default value of type array\{input\: array\{''resources/js/cp\.js'', ''resources/css/cp\.css''\}, publicDirectory\: ''resources/dist''\}\.$#'
+			identifier: property.defaultValue
+			count: 1
+			path: src/ServiceProvider.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ClickTracking/ClickTrackingLinker.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ClickTracking/ClickTrackingLinker.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$brand_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/CompanyResolver.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ContactMergeService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$engagement_score\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Services/ContactMergeService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$merged_into_contact_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ContactMergeService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$metadata_json\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Services/ContactMergeService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/ContactMergeService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$consent\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ContactResolver.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$consent_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ContactResolver.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ContactResolver.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$do_not_contact\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/CrmSyncService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/CrmSyncService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ExportService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$consent\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ExportService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$created_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ExportService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ExportService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ExportService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ExportService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$source_form\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ExportService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/ExportService.php
+
+		-
+			message: '#^Parameter \#1 \$contact of class Goldnead\\Leadhub\\Events\\LeadHubFollowupCompleted constructor expects Goldnead\\Leadhub\\Models\\Contact, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Services/FollowupService.php
+
+		-
+			message: '#^Parameter \#1 \$contact of method Goldnead\\Leadhub\\Services\\TimelineService\:\:recordFollowupCompleted\(\) expects Goldnead\\Leadhub\\Models\\Contact, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Services/FollowupService.php
+
+		-
+			message: '#^Parameter \#1 \$contact of method Goldnead\\Leadhub\\Services\\TimelineService\:\:recordFollowupRemoved\(\) expects Goldnead\\Leadhub\\Models\\Contact, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Services/FollowupService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$assigned_to\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/LeadHubNotifier.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$manual_override\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$stage_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Pipeline\:\:\$slug\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$is_terminal\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$terminal_outcome\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Illuminate\\Database\\Eloquent\\Model\:\:\$id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Parameter \#2 \$toStage of method Goldnead\\Leadhub\\Services\\StageTransitionService\:\:transition\(\) expects Goldnead\\Leadhub\\Models\\Stage, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Services/OpportunityService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$engagement_score\.$#'
+			identifier: property.notFound
+			count: 6
+			path: src/Services/ScoringService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$enabled\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/ScoringService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\ScoringRule\:\:\$points\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/ScoringService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/SegmentService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$handle\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/SegmentService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$is_active\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Services/SegmentService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/SegmentService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$rules\.$#'
+			identifier: property.notFound
+			count: 3
+			path: src/Services/SegmentService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$closed_at\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$last_activity_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$lost_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$outcome\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$pipeline_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$stage_id\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$won_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$is_terminal\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$pipeline_id\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Stage\:\:\$terminal_outcome\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Parameter \#1 \$contact of method Goldnead\\Leadhub\\Services\\TimelineService\:\:recordSource\(\) expects Goldnead\\Leadhub\\Models\\Contact, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Services/StageTransitionService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$company_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$consent_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$default_source\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$default_status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$default_tags\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$email_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$first_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$form_handle\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$full_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$last_name_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$message_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$phone_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\FormMapping\:\:\$tags_field\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/SubmissionMapper.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Tag\:\:\$name\.$#'
+			identifier: property.notFound
+			count: 4
+			path: src/Services/TagService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/TaskAssignmentNotifier.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$completed_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/TaskService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$completed_by\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/TaskService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$due_at\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/TaskService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$status\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Services/TaskService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Task\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 2
+			path: src/Services/TaskService.php
+
+		-
+			message: '#^Parameter \#1 \$contact of method Goldnead\\Leadhub\\Services\\TimelineService\:\:recordSource\(\) expects Goldnead\\Leadhub\\Models\\Contact, Illuminate\\Database\\Eloquent\\Model given\.$#'
+			identifier: argument.type
+			count: 1
+			path: src/Services/TaskService.php
+
+		-
+			message: '#^Call to an undefined method Statamic\\Contracts\\Auth\\User\:\:id\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Services/TimelineService.php
+
+		-
+			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Opportunity\:\:\$title\.$#'
+			identifier: property.notFound
+			count: 1
+			path: src/Support/OpportunityPicker.php

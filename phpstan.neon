@@ -1,0 +1,29 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+
+    paths:
+        - src
+        - config
+        - routes
+        - database
+
+    # A ratchet, not a rewrite. The baseline freezes what 16.7k lines of src/
+    # already carry; everything written from here on has to clear level 5 on
+    # its own. Shrink the baseline when you touch a file, do not grow it.
+    treatPhpDocTypesAsCertain: false
+
+    # Both classes implement an interface from an OPTIONAL sibling addon
+    # (`suggest`, not `require`). The addon is built to work with the sibling
+    # absent — the whole bridge is a no-op then, and the default test suite runs
+    # in exactly that state to prove it. PHPStan cannot analyse a class whose
+    # parent interface is not installed, and `interface.notFound` is
+    # non-ignorable, so the two files are excluded rather than the dependency
+    # being made hard.
+    excludePaths:
+        analyseAndScan:
+            - src/Integrations/Notifications/TaskDigestSource.php
+            - src/Integrations/WebhookManager/LeadhubTrigger.php
