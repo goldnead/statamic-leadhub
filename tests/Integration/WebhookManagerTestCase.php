@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Tests\Integration;
 
+use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\ServiceProvider;
 use Goldnead\Leadhub\Tests\Feature\WebhookManagerBridgeTest;
 use Goldnead\Leadhub\Tests\TestCase as BaseTestCase;
@@ -92,5 +93,42 @@ abstract class WebhookManagerTestCase extends BaseTestCase
         }
 
         parent::bootAddons();
+
+        $this->bootWebhookManagerBridge();
+    }
+
+    /**
+     * Give LeadHub's webhook-manager bridge the boot attempt that production
+     * gives it and testbench does not.
+     *
+     * ServiceProvider::registerWebhookManagerBridge() defers the bridge behind
+     * `$this->app->booted()` twice over, because the `webhook-manager` binding
+     * is created in the sibling's bootAddon() and sibling boot order is not
+     * guaranteed. In a real application that works out: Statamic's
+     * AppServiceProvider runs `Statamic::runBootedCallbacks()` — which is what
+     * calls every addon's bootAddon() — from inside an `app->booted()` callback
+     * of its own, and Laravel's fireAppCallbacks() walks that queue by index,
+     * so the retry LeadHub appends *during* the booted phase runs after
+     * Statamic has booted the addons. The binding exists by then.
+     *
+     * Testbench has no such phase. bootAddons() is called from setUp(), long
+     * after the application finished booting, so both of the bridge's attempts
+     * have already fired and — correctly — bailed on `! app()->bound(
+     * 'webhook-manager')` without marking themselves booted. Nothing then tries
+     * again, and the suite saw a webhook-manager with only its own seven core
+     * triggers registered and none of LeadHub's eighteen.
+     *
+     * This is the missing retry, not a shortcut around one: the bridge's own
+     * guards (feature flag, class_exists, bound-check, $booted latch) all still
+     * run. Skipping it would leave the whole point of this suite untested.
+     */
+    protected function bootWebhookManagerBridge(): void
+    {
+        if (! class_exists(WebhookManagerServiceProvider::class)) {
+            return;
+        }
+
+        $this->app->make(WebhookManagerBridge::class)
+            ->boot($this->app->make('events'));
     }
 }
