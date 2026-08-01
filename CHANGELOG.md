@@ -1,5 +1,58 @@
 # Changelog
 
+## 1.12.1 — 2026-08-01
+
+### Fixed — the webhook-manager integration job tested nothing, then tested nothing loudly
+
+`scripts/test-webhook-manager.sh` staged its throwaway copy with `git archive HEAD`.
+`git archive` applies `export-ignore`, and the `.gitattributes` added in 1.12.0 marks
+`/tests`, `/scripts` and `/phpunit.xml` as export-ignore so the Composer tarball ships code
+only. The copy therefore had no test suite and no Pest config, and the job died on
+`The test directory [%s] does not exist.` It now stages with
+`git ls-files -co --exclude-standard`, which lists tracked and untracked files, honours
+`.gitignore` and is not subject to `export-ignore` — the same way
+`scripts/test-notifications.sh` has always done it. Uncommitted tests are now in the copy too,
+so the run reflects the working tree instead of the last commit.
+
+The script also no longer defaults to a VCS repository and `*@dev`. The addon is on Packagist,
+so the default run resolves the released tag a real installation would get.
+`WEBHOOK_MANAGER_PATH` (local checkout) and `WEBHOOK_MANAGER_REPO` (untagged branch) remain as
+opt-in overrides.
+
+### Fixed — with the job running again, the bridge turned out to register no triggers under test
+
+Once the suite executed, three of the four live tests failed: webhook-manager had only its own
+seven core triggers and none of LeadHub's eighteen. The bridge itself is correct — the test
+harness never gave it the boot attempt a real application does.
+`ServiceProvider::registerWebhookManagerBridge()` defers behind `app->booted()` because the
+`webhook-manager` binding is created in the sibling's `bootAddon()`. In production Statamic's
+`AppServiceProvider` runs `Statamic::runBootedCallbacks()` (which boots the addons) from its own
+`app->booted()` callback, and Laravel walks that queue by index, so LeadHub's appended retry
+runs afterwards and finds the binding. Testbench has no such phase: `bootAddons()` runs from
+`setUp()` after the application is fully booted, so both attempts had already bailed on the
+bound-check. `WebhookManagerTestCase` now performs that retry explicitly, with every one of the
+bridge's own guards still in force. Production behaviour is unchanged; the suite now actually
+covers the both-addons path it was written for.
+
+### Fixed — a segment round-trip assertion that only held on SQLite
+
+`SegmentsTest` compared a persisted rule set with `toBe()`, which is order-sensitive. MySQL's
+native `json` column does not store an object verbatim: it re-emits members sorted by key
+length then bytes, so `{type, field, operator, value}` reads back as
+`{type, field, value, operator}` and the assertion failed on the MySQL leg while passing on
+SQLite.
+
+This is a test defect, not a data defect. Nothing is lost or coerced: `SegmentEvaluator`
+addresses every member by name, neither engine reorders JSON arrays, and no code hashes or
+strictly compares a rule set. Segment membership is identical on both engines. The persisted
+comparison is now canonicalised (recursive `ksort`) and still strict afterwards, so type drift
+— `'30'` where `30` was stored, `''` where `null` was — continues to fail. The in-memory cast
+assertions stay verbatim.
+
+Two tests were added to pin the half that is genuinely not allowed to vary: scalar types, nulls
+and condition order survive persistence, and a reloaded rule set selects exactly the same
+contacts as the one that was written. Both pass on SQLite (eloquent and flat) and on MySQL.
+
 ## 1.12.0 — 2026-08-01
 
 ### Security — the settings screen handed the whole config to the browser
