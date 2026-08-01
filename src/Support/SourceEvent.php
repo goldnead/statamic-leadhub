@@ -12,7 +12,7 @@ class SourceEvent
 {
     /**
      * @param  array<string,mixed>  $contact  Optional upsert fields for the contact
-     *                                         (first_name, last_name, full_name, phone, company).
+     *                                        (first_name, last_name, full_name, phone, company).
      * @param  array<int,string>  $tags  Tag names to attach.
      * @param  array<string,mixed>  $payload  Arbitrary event payload stored on the timeline (redacted).
      */
@@ -30,8 +30,7 @@ class SourceEvent
         public ?string $source = null,
         public ?string $phone = null,
         public ?string $defaultStatus = null,
-    ) {
-    }
+    ) {}
 
     public function hasEmail(): bool
     {

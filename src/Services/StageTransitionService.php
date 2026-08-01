@@ -18,9 +18,7 @@ use Illuminate\Support\Facades\DB;
  */
 class StageTransitionService
 {
-    public function __construct(protected TimelineService $timeline)
-    {
-    }
+    public function __construct(protected TimelineService $timeline) {}
 
     public function transition(Opportunity $opportunity, Stage $toStage, ?string $note = null, ?string $actorId = null): StageTransition
     {

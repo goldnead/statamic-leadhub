@@ -7,14 +7,14 @@ use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Tag;
+use Illuminate\Support\Str;
 
 class TagService
 {
     public function __construct(
         protected TagRepository $tags,
         protected TimelineService $timeline,
-    ) {
-    }
+    ) {}
 
     public function findOrCreate(string $name): Tag
     {
@@ -37,7 +37,7 @@ class TagService
 
     public function detach(Contact $contact, Tag|string $tag): bool
     {
-        $tag = $tag instanceof Tag ? $tag : $this->tags->findBySlug(\Illuminate\Support\Str::slug($tag));
+        $tag = $tag instanceof Tag ? $tag : $this->tags->findBySlug(Str::slug($tag));
 
         if (! $tag) {
             return false;

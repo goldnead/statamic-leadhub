@@ -1,9 +1,9 @@
 <?php
 
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Events\LeadHubFollowupDue;
 use Goldnead\Leadhub\Facades\LeadHub;
 use Goldnead\Leadhub\Services\FollowupService;
-use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Illuminate\Support\Facades\Event;
 
 beforeEach(function () {

@@ -2,6 +2,4 @@
 
 namespace Goldnead\Leadhub\Events;
 
-class LeadHubFollowupSet extends LeadHubEvent
-{
-}
+class LeadHubFollowupSet extends LeadHubEvent {}

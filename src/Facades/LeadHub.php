@@ -28,7 +28,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static void registerSourceProjector(\Goldnead\Leadhub\Contracts\SourceProjector $projector)
  * @method static \Goldnead\Leadhub\Models\Event|null projectAndIngest(mixed $model)
  *
- * @see \Goldnead\Leadhub\LeadHubManager
+ * @see LeadHubManager
  */
 class LeadHub extends Facade
 {

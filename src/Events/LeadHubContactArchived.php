@@ -2,6 +2,4 @@
 
 namespace Goldnead\Leadhub\Events;
 
-class LeadHubContactArchived extends LeadHubEvent
-{
-}
+class LeadHubContactArchived extends LeadHubEvent {}

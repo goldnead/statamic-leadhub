@@ -17,8 +17,7 @@ class FlatFileNoteRepository implements NoteRepository
     public function __construct(
         protected FileStore $files,
         protected ModelHydrator $hydrator,
-    ) {
-    }
+    ) {}
 
     public function create(Contact $contact, string $body, ?string $userId = null): Note
     {

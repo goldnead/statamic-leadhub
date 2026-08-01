@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Database\Connection;
+use Illuminate\Database\Schema\MySqlBuilder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -350,11 +352,11 @@ function compileLeadhubMigrationsForMysql(): array
  * has no schema, and `pretend()` would answer "empty" to every question a
  * migration asks about the one it is modifying.
  */
-class LeadhubProbeSchemaBuilder extends \Illuminate\Database\Schema\MySqlBuilder
+class LeadhubProbeSchemaBuilder extends MySqlBuilder
 {
     public function __construct(
-        \Illuminate\Database\Connection $probe,
-        private \Illuminate\Database\Connection $state,
+        Connection $probe,
+        private Connection $state,
     ) {
         parent::__construct($probe);
     }

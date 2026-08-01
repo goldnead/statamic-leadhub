@@ -15,6 +15,5 @@ class LeadHubTaskCreated
         public Task $task,
         public ?array $actor = null,
         public array $metadata = [],
-    ) {
-    }
+    ) {}
 }

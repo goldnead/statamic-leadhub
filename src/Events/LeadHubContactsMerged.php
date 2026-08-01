@@ -7,6 +7,4 @@ namespace Goldnead\Leadhub\Events;
  * is the surviving winner; metadata carries merged_contact_id (the loser) and
  * merged_contact_uuid.
  */
-class LeadHubContactsMerged extends LeadHubEvent
-{
-}
+class LeadHubContactsMerged extends LeadHubEvent {}

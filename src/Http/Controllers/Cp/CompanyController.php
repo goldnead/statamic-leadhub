@@ -16,8 +16,7 @@ class CompanyController extends Controller
 {
     public function __construct(
         protected UserDirectory $users,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {

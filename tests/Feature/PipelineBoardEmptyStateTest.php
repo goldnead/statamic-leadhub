@@ -1,6 +1,7 @@
 <?php
 
 use Goldnead\Leadhub\Facades\LeadHub;
+use Goldnead\Leadhub\Models\Pipeline;
 use Statamic\Facades\User;
 
 /**
@@ -25,7 +26,7 @@ beforeEach(function (): void {
 $inertia = ['X-Inertia' => 'true', 'X-Inertia-Version' => ''];
 
 it('renders a 200 empty-state board page when no pipeline exists', function () use ($inertia): void {
-    expect(Goldnead\Leadhub\Models\Pipeline::query()->count())->toBe(0);
+    expect(Pipeline::query()->count())->toBe(0);
 
     $response = $this->get(cp_route('leadhub.pipelines.board'), $inertia)
         ->assertOk();

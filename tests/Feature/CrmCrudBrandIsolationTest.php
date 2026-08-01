@@ -1,12 +1,15 @@
 <?php
 
 use Goldnead\BrandContext\Facades\BrandContext;
+use Goldnead\BrandContext\Facades\BrandMembers;
 use Goldnead\BrandContext\Models\Brand;
+use Goldnead\Leadhub\Facades\LeadHub;
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Pipeline;
 use Goldnead\Leadhub\Models\Task;
+use Goldnead\Leadhub\Support\UserDirectory;
 use Statamic\Facades\User;
 
 /**
@@ -55,7 +58,7 @@ beforeEach(function (): void {
                 'assignee_id' => (string) $this->user->id(),
             ]);
 
-            Goldnead\Leadhub\Facades\LeadHub::createPipeline('Alpha Sales', [['name' => 'New']]);
+            LeadHub::createPipeline('Alpha Sales', [['name' => 'New']]);
             $pipeline = Pipeline::query()->where('slug', 'alpha-sales')->firstOrFail();
 
             $opportunity = Opportunity::create([
@@ -256,12 +259,12 @@ it('does not offer a user of another brand as an assignee', function (): void {
     $outsider = User::make()->email('outsider@example.com');
     $outsider->save();
 
-    Goldnead\BrandContext\Facades\BrandMembers::attach($inBrandA, $this->brandA);
+    BrandMembers::attach($inBrandA, $this->brandA);
 
     $listFor = function ($brand) {
         BrandContext::setCurrent($brand);
 
-        return collect(app(Goldnead\Leadhub\Support\UserDirectory::class)->assignable())
+        return collect(app(UserDirectory::class)->assignable())
             ->pluck('value')->sort()->values()->all();
     };
 

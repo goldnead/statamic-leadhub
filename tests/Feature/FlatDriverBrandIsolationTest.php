@@ -2,8 +2,8 @@
 
 use Goldnead\BrandContext\Facades\BrandContext;
 use Goldnead\BrandContext\Models\Brand;
-use Goldnead\Leadhub\Facades\LeadHub;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Facades\LeadHub;
 use Illuminate\Support\Facades\File;
 
 /** Every contact visible in the current context, by email. */

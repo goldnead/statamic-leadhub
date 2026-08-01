@@ -44,8 +44,7 @@ class SegmentEvaluator
     public function __construct(
         protected TagRepository $tags,
         protected EventRepository $events,
-    ) {
-    }
+    ) {}
 
     /**
      * Does a contact satisfy a rule set?

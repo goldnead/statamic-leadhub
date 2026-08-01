@@ -15,6 +15,5 @@ abstract class LeadHubEvent
         public Contact $contact,
         public ?array $actor = null,
         public array $metadata = []
-    ) {
-    }
+    ) {}
 }

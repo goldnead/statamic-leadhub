@@ -6,6 +6,7 @@ use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Models\Task;
 use Illuminate\Support\Facades\Event as EventFacade;
+use Illuminate\Testing\TestResponse;
 use Statamic\Facades\User;
 
 /**
@@ -37,7 +38,7 @@ beforeEach(function (): void {
     $this->contact = Contact::create(['email' => 'history-contact@example.com']);
 });
 
-function reassign($test, Task $task, ?string $assignee): \Illuminate\Testing\TestResponse
+function reassign($test, Task $task, ?string $assignee): TestResponse
 {
     return $test->patch(cp_route('leadhub.tasks.update', $task->id), [
         'title' => $task->title,

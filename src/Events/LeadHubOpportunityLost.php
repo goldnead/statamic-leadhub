@@ -15,6 +15,5 @@ class LeadHubOpportunityLost
         public Opportunity $opportunity,
         public ?array $actor = null,
         public array $metadata = [],
-    ) {
-    }
+    ) {}
 }

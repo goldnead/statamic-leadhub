@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
+use Goldnead\Leadhub\Facades\LeadHub;
 use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Pipeline;
 use Goldnead\Leadhub\Models\Stage;
@@ -231,7 +232,7 @@ class PipelineController extends Controller
             'stages.*.terminal_outcome' => ['nullable', 'in:won,lost'],
         ]);
 
-        \Goldnead\Leadhub\Facades\LeadHub::createPipeline($validated['name'], $validated['stages']);
+        LeadHub::createPipeline($validated['name'], $validated['stages']);
 
         return back()->with('success', __('leadhub::pipelines.created'));
     }

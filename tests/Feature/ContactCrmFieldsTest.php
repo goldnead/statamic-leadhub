@@ -2,7 +2,9 @@
 
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Events\LeadHubContactsMerged;
+use Goldnead\Leadhub\Events\LeadHubSourceIngested;
 use Goldnead\Leadhub\Facades\LeadHub;
+use Goldnead\Leadhub\Listeners\ScoreContactOnActivity;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Services\ContactResolver;
@@ -79,8 +81,8 @@ it('awards engagement points only when scoring is enabled', function () {
     // The addon registers this via $listen at boot; the test harness does not
     // fire Statamic::booted, so wire it explicitly to exercise the real path.
     EventFacade::listen(
-        \Goldnead\Leadhub\Events\LeadHubSourceIngested::class,
-        \Goldnead\Leadhub\Listeners\ScoreContactOnActivity::class,
+        LeadHubSourceIngested::class,
+        ScoreContactOnActivity::class,
     );
 
     LeadHub::ingest([

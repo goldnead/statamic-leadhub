@@ -2,6 +2,8 @@
 
 namespace Goldnead\Leadhub\Listeners;
 
+use Goldnead\Leadhub\Events\LeadHubContactEnteredSegment;
+use Goldnead\Leadhub\Events\LeadHubContactLeftSegment;
 use Goldnead\Leadhub\Events\LeadHubEvent;
 use Goldnead\Leadhub\Services\SegmentService;
 use Illuminate\Support\Facades\Log;
@@ -17,16 +19,14 @@ use Illuminate\Support\Facades\Log;
  */
 class ReevaluateSegmentMembership
 {
-    public function __construct(protected SegmentService $segments)
-    {
-    }
+    public function __construct(protected SegmentService $segments) {}
 
     public function handle(LeadHubEvent $event): void
     {
         // Skip the segment events themselves — they are the reactive OUTPUT of
         // this listener; re-entrancy is additionally capped by the depth guard.
-        if ($event instanceof \Goldnead\Leadhub\Events\LeadHubContactEnteredSegment
-            || $event instanceof \Goldnead\Leadhub\Events\LeadHubContactLeftSegment) {
+        if ($event instanceof LeadHubContactEnteredSegment
+            || $event instanceof LeadHubContactLeftSegment) {
             return;
         }
 

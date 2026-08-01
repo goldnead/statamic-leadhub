@@ -3,14 +3,16 @@
 namespace Goldnead\Leadhub\Tests\Integration;
 
 use Goldnead\Leadhub\ServiceProvider;
+use Goldnead\Leadhub\Tests\Feature\WebhookManagerBridgeTest;
 use Goldnead\Leadhub\Tests\TestCase as BaseTestCase;
+use Goldnead\WebhookManager\WebhookManagerServiceProvider;
 
 /**
  * Test case for the live LeadHub ↔ goldnead/statamic-webhook-manager path.
  *
  * Unlike the base {@see BaseTestCase} (which deliberately runs with the
  * webhook-manager addon ABSENT so the no-op contract in
- * {@see \Goldnead\Leadhub\Tests\Feature\WebhookManagerBridgeTest} stays
+ * {@see WebhookManagerBridgeTest} stays
  * honest), this case boots the real addon's service provider so the bridge's
  * registration + dispatch path can be exercised against the genuine
  * WebhookManager API.
@@ -26,12 +28,12 @@ abstract class WebhookManagerTestCase extends BaseTestCase
 
         // Register the real webhook-manager provider ahead of LeadHub's, so its
         // registries/facade are bound before LeadHub boots its bridge.
-        if (class_exists(\Goldnead\WebhookManager\WebhookManagerServiceProvider::class)) {
+        if (class_exists(WebhookManagerServiceProvider::class)) {
             array_splice(
                 $providers,
                 array_search(ServiceProvider::class, $providers, true),
                 0,
-                [\Goldnead\WebhookManager\WebhookManagerServiceProvider::class],
+                [WebhookManagerServiceProvider::class],
             );
         }
 
@@ -54,12 +56,12 @@ abstract class WebhookManagerTestCase extends BaseTestCase
      */
     protected function defineDatabaseMigrations(): void
     {
-        if (! class_exists(\Goldnead\WebhookManager\WebhookManagerServiceProvider::class)) {
+        if (! class_exists(WebhookManagerServiceProvider::class)) {
             return;
         }
 
         $packageRoot = dirname(
-            (new \ReflectionClass(\Goldnead\WebhookManager\WebhookManagerServiceProvider::class))->getFileName(),
+            (new \ReflectionClass(WebhookManagerServiceProvider::class))->getFileName(),
             2,
         );
 
@@ -73,8 +75,8 @@ abstract class WebhookManagerTestCase extends BaseTestCase
      */
     protected function bootAddons(): void
     {
-        if (class_exists(\Goldnead\WebhookManager\WebhookManagerServiceProvider::class)) {
-            $provider = $this->app->getProvider(\Goldnead\WebhookManager\WebhookManagerServiceProvider::class);
+        if (class_exists(WebhookManagerServiceProvider::class)) {
+            $provider = $this->app->getProvider(WebhookManagerServiceProvider::class);
 
             if ($provider) {
                 $provider->bootAddon();

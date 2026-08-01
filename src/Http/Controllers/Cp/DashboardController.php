@@ -16,8 +16,7 @@ class DashboardController extends Controller
         protected EventRepository $events,
         protected FormMappingRepository $mappings,
         protected FollowupService $followups,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {

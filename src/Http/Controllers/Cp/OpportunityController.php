@@ -28,8 +28,7 @@ class OpportunityController extends Controller
     public function __construct(
         protected UserDirectory $users,
         protected ContactPicker $contacts,
-    ) {
-    }
+    ) {}
 
     public function create(Request $request)
     {

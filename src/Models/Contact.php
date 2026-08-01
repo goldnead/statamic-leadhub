@@ -8,11 +8,12 @@ use Goldnead\Leadhub\Models\Concerns\ScopesPivotToBrand;
 use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\PhoneNormalizer;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Contact extends Model
 {
@@ -40,7 +41,7 @@ class Contact extends Model
     {
         static::creating(function (self $contact): void {
             if (empty($contact->uuid)) {
-                $contact->uuid = (string) \Illuminate\Support\Str::uuid();
+                $contact->uuid = (string) Str::uuid();
             }
 
             if ($contact->email && empty($contact->email_normalized)) {
@@ -126,7 +127,7 @@ class Contact extends Model
     }
 
     /** The surviving contact this one was merged into (if any). */
-    public function mergedInto(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function mergedInto(): BelongsTo
     {
         return $this->belongsTo(self::class, 'merged_into_contact_id');
     }

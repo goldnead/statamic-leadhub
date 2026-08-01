@@ -22,8 +22,7 @@ class LeadhubTrigger implements TriggerInterface
     public function __construct(
         private readonly string $handle,
         private readonly string $label,
-    ) {
-    }
+    ) {}
 
     public function handle(): string
     {
@@ -86,7 +85,7 @@ class LeadhubTrigger implements TriggerInterface
             site: null,
             locale: null,
             isReplay: (bool) ($context['replay'] ?? false),
-            eventAt: new \DateTimeImmutable(),
+            eventAt: new \DateTimeImmutable,
         );
     }
 }

@@ -44,7 +44,7 @@ final class PivotBrand
             }
         }
 
-        return static::current();
+        return self::current();
     }
 
     /** The brand of the current request/console context, or null if there is none. */

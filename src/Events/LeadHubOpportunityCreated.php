@@ -15,6 +15,5 @@ class LeadHubOpportunityCreated
         public Opportunity $opportunity,
         public ?array $actor = null,
         public array $metadata = [],
-    ) {
-    }
+    ) {}
 }

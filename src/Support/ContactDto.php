@@ -25,8 +25,7 @@ class ContactDto
         public ?string $submissionId = null,
         /** Attribution column => value pairs (utm_source, referrer, …). */
         public array $attribution = [],
-    ) {
-    }
+    ) {}
 
     public function hasEmail(): bool
     {

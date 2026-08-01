@@ -3,6 +3,7 @@
 namespace Goldnead\Leadhub\Tests\Fixtures;
 
 use Illuminate\Database\Connection;
+use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -357,7 +358,7 @@ class LeadhubDataFixture
         return $id === null ? null : (int) $id;
     }
 
-    private function schema(): \Illuminate\Database\Schema\Builder
+    private function schema(): Builder
     {
         return Schema::connection($this->connection->getName());
     }

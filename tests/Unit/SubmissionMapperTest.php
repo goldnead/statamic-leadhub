@@ -4,7 +4,7 @@ use Goldnead\Leadhub\Models\FormMapping;
 use Goldnead\Leadhub\Services\SubmissionMapper;
 
 beforeEach(function (): void {
-    $this->mapper = new SubmissionMapper();
+    $this->mapper = new SubmissionMapper;
 });
 
 it('maps fields correctly using the configured field handles', function (): void {

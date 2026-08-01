@@ -12,6 +12,7 @@ use Goldnead\Leadhub\Services\ContactResolver;
 use Goldnead\Leadhub\Services\SubmissionMapper;
 use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
+use Illuminate\Support\Collection;
 use Statamic\Events\SubmissionCreated;
 
 /**
@@ -23,7 +24,11 @@ function fakeStatamicSubmission(string $handle, array $data, string $id = '17000
     $form = new class($handle)
     {
         public function __construct(public string $handle) {}
-        public function handle(): string { return $this->handle; }
+
+        public function handle(): string
+        {
+            return $this->handle;
+        }
     };
 
     return new class($form, $data, $id)
@@ -34,24 +39,32 @@ function fakeStatamicSubmission(string $handle, array $data, string $id = '17000
             private string $id,
         ) {}
 
-        public function form(): object { return $this->form; }
-        public function data(): \Illuminate\Support\Collection
+        public function form(): object
+        {
+            return $this->form;
+        }
+
+        public function data(): Collection
         {
             return collect($this->data);
         }
-        public function id(): string { return $this->id; }
+
+        public function id(): string
+        {
+            return $this->id;
+        }
     };
 }
 
 beforeEach(function (): void {
-    $timeline = new TimelineService(new EloquentEventRepository());
-    $tagsRepo = new EloquentTagRepository();
+    $timeline = new TimelineService(new EloquentEventRepository);
+    $tagsRepo = new EloquentTagRepository;
     $this->listener = new CreateOrUpdateLeadFromSubmission(
-        new SubmissionMapper(),
-        new ContactResolver(new EloquentContactRepository()),
+        new SubmissionMapper,
+        new ContactResolver(new EloquentContactRepository),
         $timeline,
         new TagService($tagsRepo, $timeline),
-        new EloquentFormMappingRepository(),
+        new EloquentFormMappingRepository,
     );
 });
 

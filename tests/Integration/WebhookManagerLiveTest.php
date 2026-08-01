@@ -1,11 +1,18 @@
 <?php
 
+use Goldnead\Leadhub\Events\LeadHubNoteAdded;
+use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Integrations\WebhookManager\LeadhubTrigger;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Tests\Integration\WebhookManagerTestCase;
+use Goldnead\WebhookManager\Domain\OutboundWebhook\Models\OutboundWebhook;
+use Goldnead\WebhookManager\Events\TriggerDetected;
+use Goldnead\WebhookManager\Facades\WebhookManager;
+use Goldnead\WebhookManager\Jobs\ProcessOutboundDeliveryJob;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 
 /**
  * Live LeadHub ↔ goldnead/statamic-webhook-manager integration.
@@ -28,7 +35,7 @@ beforeEach(function (): void {
 });
 
 it('registers every LeadHub event as a selectable webhook-manager trigger', function (): void {
-    $registry = \Goldnead\WebhookManager\Facades\WebhookManager::triggers();
+    $registry = WebhookManager::triggers();
 
     foreach (WebhookManagerBridge::TRIGGERS as [$handle, $label]) {
         $trigger = $registry->get($handle);
@@ -43,16 +50,16 @@ it('registers every LeadHub event as a selectable webhook-manager trigger', func
 it('re-emits a LeadHub event as a TriggerDetected with a normalized payload', function (): void {
     // Fake ONLY the addon's event so LeadHub's own event + the bridge listener
     // still run for real; the bridge's output is what we capture.
-    Event::fake([\Goldnead\WebhookManager\Events\TriggerDetected::class]);
+    Event::fake([TriggerDetected::class]);
 
     $contact = Contact::factory()->create();
     $actor = ['id' => 7, 'name' => 'Sales Rep'];
     $metadata = ['from' => 'new', 'to' => 'qualified'];
 
-    event(new \Goldnead\Leadhub\Events\LeadHubStatusChanged($contact, $actor, $metadata));
+    event(new LeadHubStatusChanged($contact, $actor, $metadata));
 
     Event::assertDispatched(
-        \Goldnead\WebhookManager\Events\TriggerDetected::class,
+        TriggerDetected::class,
         function ($event) use ($contact, $actor, $metadata): bool {
             $te = $event->trigger;
 
@@ -72,8 +79,8 @@ it('delivers a configured outbound webhook end-to-end when a LeadHub event fires
     Queue::fake();
 
     // Configure an outbound webhook in the addon for one of LeadHub's triggers.
-    \Goldnead\WebhookManager\Domain\OutboundWebhook\Models\OutboundWebhook::create([
-        'uuid' => (string) \Illuminate\Support\Str::uuid(),
+    OutboundWebhook::create([
+        'uuid' => (string) Str::uuid(),
         'name' => 'LeadHub status → CRM',
         'handle' => 'leadhub-status-crm',
         'enabled' => true,
@@ -86,11 +93,11 @@ it('delivers a configured outbound webhook end-to-end when a LeadHub event fires
 
     $contact = Contact::factory()->create();
 
-    event(new \Goldnead\Leadhub\Events\LeadHubStatusChanged($contact));
+    event(new LeadHubStatusChanged($contact));
 
     // The full path ran: bridge listener → TriggerDetected → DispatchTriggerListener
     // → TriggerDispatcher → resolve-by-handle → snapshot + queued delivery.
-    Queue::assertPushed(\Goldnead\WebhookManager\Jobs\ProcessOutboundDeliveryJob::class);
+    Queue::assertPushed(ProcessOutboundDeliveryJob::class);
 
     $this->assertDatabaseHas('webhook_deliveries', [
         'trigger_type' => 'leadhub.status.changed',
@@ -101,8 +108,8 @@ it('delivers a configured outbound webhook end-to-end when a LeadHub event fires
 it('does not deliver when a different trigger has no matching webhook', function (): void {
     Queue::fake();
 
-    \Goldnead\WebhookManager\Domain\OutboundWebhook\Models\OutboundWebhook::create([
-        'uuid' => (string) \Illuminate\Support\Str::uuid(),
+    OutboundWebhook::create([
+        'uuid' => (string) Str::uuid(),
         'name' => 'Only status changes',
         'handle' => 'only-status',
         'enabled' => true,
@@ -116,7 +123,7 @@ it('does not deliver when a different trigger has no matching webhook', function
     $contact = Contact::factory()->create();
 
     // A note-added event must NOT match the status-changed webhook.
-    event(new \Goldnead\Leadhub\Events\LeadHubNoteAdded($contact));
+    event(new LeadHubNoteAdded($contact));
 
-    Queue::assertNotPushed(\Goldnead\WebhookManager\Jobs\ProcessOutboundDeliveryJob::class);
+    Queue::assertNotPushed(ProcessOutboundDeliveryJob::class);
 });

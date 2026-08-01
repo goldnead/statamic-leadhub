@@ -7,14 +7,21 @@ use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactDeleted;
 use Goldnead\Leadhub\Events\LeadHubContactEnteredSegment;
 use Goldnead\Leadhub\Events\LeadHubContactLeftSegment;
+use Goldnead\Leadhub\Events\LeadHubContactScoreChanged;
+use Goldnead\Leadhub\Events\LeadHubContactsMerged;
 use Goldnead\Leadhub\Events\LeadHubContactUpdated;
 use Goldnead\Leadhub\Events\LeadHubFollowupCompleted;
+use Goldnead\Leadhub\Events\LeadHubFollowupDue;
 use Goldnead\Leadhub\Events\LeadHubFollowupSet;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
+use Goldnead\Leadhub\Events\LeadHubSourceIngested;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
+use Goldnead\Leadhub\Events\LeadHubTaskAssigned;
+use Goldnead\WebhookManager\Events\TriggerDetected;
+use Goldnead\WebhookManager\Facades\WebhookManager;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Log;
 
@@ -23,7 +30,7 @@ use Illuminate\Support\Facades\Log;
  *
  * When that addon is installed, this bridge registers every LeadHub lifecycle
  * event as a webhook-manager trigger and re-emits it as the addon's internal
- * {@see \Goldnead\WebhookManager\Events\TriggerDetected} event, so the events
+ * {@see TriggerDetected} event, so the events
  * become selectable triggers in the Webhook Manager CP and can fire outbound
  * webhooks — without LeadHub ever depending on the addon.
  *
@@ -50,17 +57,17 @@ class WebhookManagerBridge
         LeadHubNoteAdded::class => ['leadhub.note.added', 'LeadHub — note added'],
         LeadHubContactArchived::class => ['leadhub.contact.archived', 'LeadHub — contact archived'],
         LeadHubContactDeleted::class => ['leadhub.contact.deleted', 'LeadHub — contact deleted'],
-        \Goldnead\Leadhub\Events\LeadHubSourceIngested::class => ['leadhub.source.ingested', 'LeadHub — source ingested'],
-        \Goldnead\Leadhub\Events\LeadHubContactsMerged::class => ['leadhub.contacts.merged', 'LeadHub — contacts merged'],
-        \Goldnead\Leadhub\Events\LeadHubFollowupDue::class => ['leadhub.followup.due', 'LeadHub — follow-up due'],
+        LeadHubSourceIngested::class => ['leadhub.source.ingested', 'LeadHub — source ingested'],
+        LeadHubContactsMerged::class => ['leadhub.contacts.merged', 'LeadHub — contacts merged'],
+        LeadHubFollowupDue::class => ['leadhub.followup.due', 'LeadHub — follow-up due'],
         // A new event type is a public surface. Registering it here is what
         // makes "score crossed a threshold" usable from outside the addon
         // instead of a line in a timeline nobody polls.
-        \Goldnead\Leadhub\Events\LeadHubContactScoreChanged::class => ['leadhub.score.changed', 'LeadHub — engagement score changed'],
+        LeadHubContactScoreChanged::class => ['leadhub.score.changed', 'LeadHub — engagement score changed'],
         // Same reasoning for reassignment: "this task is now yours" is the
         // moment an outside system (a chat notification, a rota, a dashboard)
         // wants to hear about, and a timeline entry alone cannot tell it.
-        \Goldnead\Leadhub\Events\LeadHubTaskAssigned::class => ['leadhub.task.assigned', 'LeadHub — task assigned'],
+        LeadHubTaskAssigned::class => ['leadhub.task.assigned', 'LeadHub — task assigned'],
         LeadHubContactEnteredSegment::class => ['leadhub.segment.entered', 'LeadHub — entered segment'],
         LeadHubContactLeftSegment::class => ['leadhub.segment.left', 'LeadHub — left segment'],
     ];
@@ -79,7 +86,7 @@ class WebhookManagerBridge
     public static function available(): bool
     {
         return (bool) config('leadhub.features.webhook_manager', true)
-            && class_exists(\Goldnead\WebhookManager\Facades\WebhookManager::class);
+            && class_exists(WebhookManager::class);
     }
 
     /**
@@ -108,7 +115,7 @@ class WebhookManagerBridge
             // two sibling addons is not guaranteed, so registration must never
             // be allowed to break LeadHub's own boot.
             try {
-                \Goldnead\WebhookManager\Facades\WebhookManager::registerTrigger(
+                WebhookManager::registerTrigger(
                     new LeadhubTrigger($handle, $label)
                 );
             } catch (\Throwable $e) {
@@ -131,13 +138,13 @@ class WebhookManagerBridge
     protected function dispatch(string $handle, object $event): void
     {
         try {
-            $trigger = \Goldnead\WebhookManager\Facades\WebhookManager::triggers()->get($handle);
+            $trigger = WebhookManager::triggers()->get($handle);
 
             if (! $trigger) {
                 return;
             }
 
-            event(new \Goldnead\WebhookManager\Events\TriggerDetected(
+            event(new TriggerDetected(
                 $trigger->build($event)
             ));
         } catch (\Throwable $e) {

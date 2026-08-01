@@ -19,8 +19,7 @@ class FollowupController extends Controller
         protected FollowupRepository $followupsRepo,
         protected FormMappingRepository $mappings,
         protected FollowupService $service,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {

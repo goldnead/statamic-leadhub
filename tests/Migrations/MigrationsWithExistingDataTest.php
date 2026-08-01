@@ -4,6 +4,7 @@ use Goldnead\Leadhub\Tests\Fixtures\LeadhubDataFixture;
 use Goldnead\Leadhub\Tests\MigrationPathTestCase;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 /**
  * The migrations, run against a database that already holds data.
@@ -213,7 +214,7 @@ it('requires a brand on every table whose unique leads with one', function (): v
     // tinker. Under 1.4.0 the column was nullable, so this row went in and its
     // identifier was unconstrained from then on.
     $this->isolated()->table('leadhub_tags')->insert([
-        'uuid' => (string) Illuminate\Support\Str::uuid(),
+        'uuid' => (string) Str::uuid(),
         'name' => 'Unbranded',
         'slug' => 'vip-0',
         'brand_id' => null,

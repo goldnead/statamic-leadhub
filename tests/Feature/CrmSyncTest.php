@@ -99,7 +99,7 @@ it('queues a sync job when a contact is created', function (): void {
     Bus::fake();
     $contact = aContact('job@example.com');
 
-    (new DispatchCrmSync())->handle(new LeadHubContactCreated($contact));
+    (new DispatchCrmSync)->handle(new LeadHubContactCreated($contact));
 
     Bus::assertDispatched(
         SyncContactToCrmJob::class,

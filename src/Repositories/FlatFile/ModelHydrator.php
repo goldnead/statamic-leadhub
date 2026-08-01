@@ -24,37 +24,37 @@ class ModelHydrator
 {
     public function contact(array $data): Contact
     {
-        return $this->hydrate(new Contact(), $data);
+        return $this->hydrate(new Contact, $data);
     }
 
     public function event(array $data): Event
     {
-        return $this->hydrate(new Event(), $data);
+        return $this->hydrate(new Event, $data);
     }
 
     public function note(array $data): Note
     {
-        return $this->hydrate(new Note(), $data);
+        return $this->hydrate(new Note, $data);
     }
 
     public function tag(array $data): Tag
     {
-        return $this->hydrate(new Tag(), $data);
+        return $this->hydrate(new Tag, $data);
     }
 
     public function followup(array $data): Followup
     {
-        return $this->hydrate(new Followup(), $data);
+        return $this->hydrate(new Followup, $data);
     }
 
     public function formMapping(array $data): FormMapping
     {
-        return $this->hydrate(new FormMapping(), $data);
+        return $this->hydrate(new FormMapping, $data);
     }
 
     public function segment(array $data): Segment
     {
-        return $this->hydrate(new Segment(), $data);
+        return $this->hydrate(new Segment, $data);
     }
 
     /**

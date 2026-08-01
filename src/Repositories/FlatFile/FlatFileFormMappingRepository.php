@@ -13,8 +13,7 @@ class FlatFileFormMappingRepository implements FormMappingRepository
         protected Index $index,
         protected IndexBuilder $builder,
         protected ModelHydrator $hydrator,
-    ) {
-    }
+    ) {}
 
     public function findByHandle(string $formHandle): ?FormMapping
     {

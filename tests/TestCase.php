@@ -4,7 +4,9 @@ namespace Goldnead\Leadhub\Tests;
 
 use Goldnead\BrandContext\ServiceProvider as BrandContextServiceProvider;
 use Goldnead\Leadhub\ServiceProvider;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 use Statamic\Providers\StatamicServiceProvider;
 
@@ -53,7 +55,7 @@ abstract class TestCase extends OrchestraTestCase
 
         foreach ([$tmpRoot, storage_path('app/private/leadhub-test-'.getmypid())] as $path) {
             if (is_dir($path)) {
-                (new \Illuminate\Filesystem\Filesystem())->deleteDirectory($path);
+                (new Filesystem)->deleteDirectory($path);
             }
         }
     }
@@ -100,7 +102,7 @@ abstract class TestCase extends OrchestraTestCase
         $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
 
         $app['config']->set('database.default', 'sqlite');
-        $app['config']->set('database.connections.sqlite', $this->testingConnection());
+        $app['config']->set('database.connections.sqlite', $this->databaseConnectionConfig());
 
         $app['config']->set('statamic.users.repository', 'file');
         $app['config']->set('leadhub.default_status', 'new');
@@ -151,7 +153,7 @@ abstract class TestCase extends OrchestraTestCase
      *
      * @return array<string, mixed>
      */
-    protected function testingConnection(): array
+    protected function databaseConnectionConfig(): array
     {
         if (env('DB_DRIVER', 'sqlite') !== 'mysql') {
             return [
@@ -191,7 +193,7 @@ abstract class TestCase extends OrchestraTestCase
         // implicit model binding, so adding it changes no other behaviour.
         $router->name('statamic.cp.')
             ->prefix('cp')
-            ->middleware(\Illuminate\Routing\Middleware\SubstituteBindings::class)
+            ->middleware(SubstituteBindings::class)
             ->group(__DIR__.'/../routes/cp.php');
 
         // Public front-end routes (click tracking). Statamic mounts these at the

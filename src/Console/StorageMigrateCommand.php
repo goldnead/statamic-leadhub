@@ -2,6 +2,8 @@
 
 namespace Goldnead\Leadhub\Console;
 
+use Goldnead\BrandContext\Facades\BrandContext;
+use Goldnead\BrandContext\Models\Brand;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentContactRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentEventRepository;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentFollowupRepository;
@@ -14,8 +16,6 @@ use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFollowupRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFormMappingRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileNoteRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
-use Goldnead\BrandContext\Facades\BrandContext;
-use Goldnead\BrandContext\Models\Brand;
 use Illuminate\Console\Command;
 
 /**

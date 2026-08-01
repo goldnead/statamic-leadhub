@@ -9,9 +9,7 @@ use Statamic\CP\Column;
 
 class TagController extends Controller
 {
-    public function __construct(protected TagRepository $tags)
-    {
-    }
+    public function __construct(protected TagRepository $tags) {}
 
     public function index(Request $request)
     {

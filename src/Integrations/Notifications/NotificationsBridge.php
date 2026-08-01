@@ -2,6 +2,8 @@
 
 namespace Goldnead\Leadhub\Integrations\Notifications;
 
+use Goldnead\Notifications\NotificationManager;
+
 /**
  * Optional wiring into `goldnead/statamic-notifications`. A no-op when that
  * addon is not installed, exactly like the webhook-manager bridge.
@@ -42,7 +44,7 @@ class NotificationsBridge
      */
     public static function available(): bool
     {
-        return class_exists(\Goldnead\Notifications\NotificationManager::class)
+        return class_exists(NotificationManager::class)
             && app()->bound('notifications');
     }
 

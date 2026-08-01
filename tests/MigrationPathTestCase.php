@@ -2,6 +2,9 @@
 
 namespace Goldnead\Leadhub\Tests;
 
+use Illuminate\Database\Connection;
+use Illuminate\Database\QueryException;
+use Illuminate\Database\Schema\Builder;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -62,7 +65,7 @@ abstract class MigrationPathTestCase extends TestCase
     }
 
     /**
-     * Mirrors TestCase::testingConnection(), so these tests exercise the same
+     * Mirrors TestCase::databaseConnectionConfig(), so these tests exercise the same
      * engine the rest of the run does — including the MySQL run, where the
      * index rules SQLite does not have are the whole point.
      *
@@ -195,12 +198,12 @@ abstract class MigrationPathTestCase extends TestCase
         return __DIR__.'/../database/migrations';
     }
 
-    protected function isolated(): \Illuminate\Database\Connection
+    protected function isolated(): Connection
     {
         return DB::connection(self::CONNECTION);
     }
 
-    protected function isolatedSchema(): \Illuminate\Database\Schema\Builder
+    protected function isolatedSchema(): Builder
     {
         return Schema::connection(self::CONNECTION);
     }
@@ -247,7 +250,7 @@ abstract class MigrationPathTestCase extends TestCase
     {
         try {
             $id = $this->copyContact($emailNormalized);
-        } catch (\Illuminate\Database\QueryException) {
+        } catch (QueryException) {
             return false;
         }
 
@@ -265,7 +268,7 @@ abstract class MigrationPathTestCase extends TestCase
     {
         try {
             $id = $this->copyRow($table, $column, $value, $overrides);
-        } catch (\Illuminate\Database\QueryException) {
+        } catch (QueryException) {
             return false;
         }
 

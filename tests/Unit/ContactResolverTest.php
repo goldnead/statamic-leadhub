@@ -9,7 +9,7 @@ use Goldnead\Leadhub\Support\ContactDto;
 use Illuminate\Support\Facades\Event;
 
 beforeEach(function (): void {
-    $this->resolver = new ContactResolver(new EloquentContactRepository());
+    $this->resolver = new ContactResolver(new EloquentContactRepository);
 });
 
 it('creates a new contact when no email match exists', function (): void {

@@ -8,12 +8,11 @@ use Goldnead\Leadhub\Events\LeadHubContactUpdated;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Support\ContactDto;
 use Goldnead\Leadhub\Support\EmailNormalizer;
+use Goldnead\Leadhub\Support\PhoneNormalizer;
 
 class ContactResolver
 {
-    public function __construct(protected ContactRepository $contacts)
-    {
-    }
+    public function __construct(protected ContactRepository $contacts) {}
 
     /**
      * Find an existing contact by normalized email or create a new one.
@@ -31,7 +30,7 @@ class ContactResolver
         // Secondary dedup by normalized phone — catches the same person
         // reaching out under a different email address.
         if (! $existing && $dto->phone) {
-            $phoneNormalized = \Goldnead\Leadhub\Support\PhoneNormalizer::normalize($dto->phone);
+            $phoneNormalized = PhoneNormalizer::normalize($dto->phone);
 
             if ($phoneNormalized) {
                 $existing = $this->contacts->findByPhoneNormalized($phoneNormalized);

@@ -15,9 +15,7 @@ namespace Goldnead\Leadhub\Repositories\FlatFile;
  */
 class IndexBuilder
 {
-    public function __construct(protected FileStore $files)
-    {
-    }
+    public function __construct(protected FileStore $files) {}
 
     public function ensureFreshContacts(Index $index): void
     {

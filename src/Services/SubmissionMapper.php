@@ -11,9 +11,9 @@ class SubmissionMapper
     /**
      * Map a raw form submission's data to a ContactDto using the mapping config.
      *
-     * @param  array<string, mixed>  $data       The submission's field data
-     * @param  FormMapping           $mapping    The mapping configuration
-     * @param  string|null           $submissionId Statamic submission ID (microtime)
+     * @param  array<string, mixed>  $data  The submission's field data
+     * @param  FormMapping  $mapping  The mapping configuration
+     * @param  string|null  $submissionId  Statamic submission ID (microtime)
      */
     public function map(array $data, FormMapping $mapping, ?string $submissionId = null): ContactDto
     {

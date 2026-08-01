@@ -5,7 +5,10 @@ namespace Goldnead\Leadhub\Services;
 use Goldnead\Leadhub\Events\LeadHubContactsMerged;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
+use Goldnead\Leadhub\Models\Followup;
+use Goldnead\Leadhub\Models\Note;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Merges a duplicate contact (loser) into a surviving contact (winner):
@@ -17,9 +20,7 @@ use Illuminate\Support\Facades\DB;
  */
 class ContactMergeService
 {
-    public function __construct(protected TimelineService $timeline)
-    {
-    }
+    public function __construct(protected TimelineService $timeline) {}
 
     public function merge(Contact $loser, Contact $winner): Contact
     {
@@ -30,8 +31,8 @@ class ContactMergeService
         DB::transaction(function () use ($loser, $winner) {
             // Re-parent owned records.
             Event::query()->where('contact_id', $loser->id)->update(['contact_id' => $winner->id]);
-            \Goldnead\Leadhub\Models\Note::query()->where('contact_id', $loser->id)->update(['contact_id' => $winner->id]);
-            \Goldnead\Leadhub\Models\Followup::query()->where('contact_id', $loser->id)->update(['contact_id' => $winner->id]);
+            Note::query()->where('contact_id', $loser->id)->update(['contact_id' => $winner->id]);
+            Followup::query()->where('contact_id', $loser->id)->update(['contact_id' => $winner->id]);
 
             // Move tags the winner does not already carry.
             $winnerTagIds = $winner->tags()->pluck('leadhub_tags.id')->all();
@@ -94,7 +95,7 @@ class ContactMergeService
 
     protected function reparentIfExists(string $table, string $column, int $from, int $to): void
     {
-        if (\Illuminate\Support\Facades\Schema::hasTable($table)) {
+        if (Schema::hasTable($table)) {
             DB::table($table)->where($column, $from)->update([$column => $to]);
         }
     }

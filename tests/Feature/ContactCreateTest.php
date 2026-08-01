@@ -8,6 +8,7 @@
  */
 
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Support\EmailNormalizer;
 use Statamic\Facades\User;
 
 beforeEach(function (): void {
@@ -42,7 +43,7 @@ it('creates a contact from valid input and redirects to its detail page', functi
     ]);
 
     $contact = app(ContactRepository::class)->findByEmailNormalized(
-        \Goldnead\Leadhub\Support\EmailNormalizer::normalize('jane@example.com')
+        EmailNormalizer::normalize('jane@example.com')
     );
 
     expect($contact)->not->toBeNull()

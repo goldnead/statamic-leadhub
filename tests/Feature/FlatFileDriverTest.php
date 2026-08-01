@@ -14,7 +14,6 @@ use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFormMappingRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileNoteRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
 use Illuminate\Support\Facades\File;
-use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     // Use a temp dir for content + an in-memory disk for the index.

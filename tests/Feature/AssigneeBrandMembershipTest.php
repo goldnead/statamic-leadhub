@@ -3,6 +3,7 @@
 use Goldnead\BrandContext\Facades\BrandContext;
 use Goldnead\BrandContext\Facades\BrandMembers;
 use Goldnead\BrandContext\Models\Brand;
+use Goldnead\BrandContext\Models\BrandUser;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Statamic\Facades\User;
@@ -74,7 +75,7 @@ it('keeps every list non-empty while the membership table is empty', function ()
     $two = User::make()->email('members-empty-two@example.com')->makeSuper();
     $two->save();
 
-    expect(\Goldnead\BrandContext\Models\BrandUser::query()->count())->toBe(0);
+    expect(BrandUser::query()->count())->toBe(0);
 
     expect(assigneesIn($this->brandA))->not->toBeEmpty()
         ->and(assigneesIn($this->brandB))->not->toBeEmpty()

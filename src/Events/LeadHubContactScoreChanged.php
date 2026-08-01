@@ -3,12 +3,13 @@
 namespace Goldnead\Leadhub\Events;
 
 use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Services\ScoringService;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 /**
  * Fired whenever a contact's engagement_score actually changes — via
- * activity-based scoring ({@see \Goldnead\Leadhub\Services\ScoringService::award})
+ * activity-based scoring ({@see ScoringService::award})
  * or an explicit adjust/set (LeadHub::adjustScore / ::setScore).
  *
  * Only ever dispatched on a real change (newScore !== oldScore); no-op writes
@@ -29,8 +30,7 @@ class LeadHubContactScoreChanged
         public readonly int $newScore,
         public readonly int $delta,
         public readonly ?string $reason = null,
-    ) {
-    }
+    ) {}
 
     /**
      * Stable array representation consumed by automations' flow context.

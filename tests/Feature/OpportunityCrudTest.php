@@ -1,6 +1,7 @@
 <?php
 
 use Goldnead\Leadhub\Events\LeadHubOpportunityCreated;
+use Goldnead\Leadhub\Facades\LeadHub;
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event as TimelineEvent;
@@ -33,7 +34,7 @@ beforeEach(function (): void {
     config()->set('leadhub.features.companies', true);
     config()->set('leadhub.features.tasks', true);
 
-    Goldnead\Leadhub\Facades\LeadHub::createPipeline('Sales', [
+    LeadHub::createPipeline('Sales', [
         ['name' => 'New'],
         ['name' => 'Won', 'is_terminal' => true, 'terminal_outcome' => 'won'],
     ]);
@@ -100,7 +101,7 @@ it('refuses an opportunity without a contact', function (): void {
 });
 
 it('refuses a stage that belongs to a different pipeline', function (): void {
-    Goldnead\Leadhub\Facades\LeadHub::createPipeline('Support', [['name' => 'Intake']]);
+    LeadHub::createPipeline('Support', [['name' => 'Intake']]);
     $other = Pipeline::query()->where('slug', 'support')->firstOrFail();
 
     $this->post(cp_route('leadhub.pipelines.opportunities.store'), [

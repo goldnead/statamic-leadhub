@@ -4,11 +4,11 @@ namespace Goldnead\Leadhub;
 
 use Goldnead\Leadhub\Console\BrandIntegrityCommand;
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
+use Goldnead\Leadhub\Console\ImportScoringRulesCommand;
+use Goldnead\Leadhub\Console\MigrateFlatBrandsCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
-use Goldnead\Leadhub\Console\MigrateFlatBrandsCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
-use Goldnead\Leadhub\Console\ImportScoringRulesCommand;
 use Goldnead\Leadhub\Console\SweepSegmentsCommand;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
@@ -17,20 +17,25 @@ use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
 use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
+use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Events\LeadHubContactDeleted;
+use Goldnead\Leadhub\Events\LeadHubContactEnteredSegment;
+use Goldnead\Leadhub\Events\LeadHubContactLeftSegment;
+use Goldnead\Leadhub\Events\LeadHubContactScoreChanged;
 use Goldnead\Leadhub\Events\LeadHubContactsMerged;
 use Goldnead\Leadhub\Events\LeadHubContactUpdated;
+use Goldnead\Leadhub\Events\LeadHubEmailLinkClicked;
 use Goldnead\Leadhub\Events\LeadHubFollowupCompleted;
+use Goldnead\Leadhub\Events\LeadHubFollowupDue;
 use Goldnead\Leadhub\Events\LeadHubFollowupSet;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
-use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Events\LeadHubSourceIngested;
+use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
-use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Integrations\Notifications\NotificationsBridge;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
@@ -39,7 +44,6 @@ use Goldnead\Leadhub\Listeners\RecordScoreChangeOnTimeline;
 use Goldnead\Leadhub\Listeners\ReevaluateSegmentMembership;
 use Goldnead\Leadhub\Listeners\ScoreContactOnActivity;
 use Goldnead\Leadhub\Listeners\SendNewLeadNotification;
-use Goldnead\Leadhub\Events\LeadHubEmailLinkClicked;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Policies\LeadHubPolicy;
 use Goldnead\Leadhub\Repositories\Eloquent\EloquentContactRepository;
@@ -61,6 +65,10 @@ use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\Index;
 use Goldnead\Leadhub\Repositories\FlatFile\IndexBuilder;
 use Goldnead\Leadhub\Repositories\FlatFile\ModelHydrator;
+use Goldnead\Leadhub\Services\ClickTracking\ClickTrackingLinker;
+use Goldnead\Leadhub\Services\ClickTracking\RecipientResolver;
+use Goldnead\Leadhub\Services\IngestionService;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Gate;
 use Statamic\Events\SubmissionCreated;
 use Statamic\Facades\CP\Nav;
@@ -97,7 +105,7 @@ class ServiceProvider extends AddonServiceProvider
         // The score history. Until v1.8.0 this event fired into an empty room:
         // it was dispatched on every real change and nothing recorded it, so a
         // contact's score had a value and no past.
-        \Goldnead\Leadhub\Events\LeadHubContactScoreChanged::class => [
+        LeadHubContactScoreChanged::class => [
             RecordScoreChangeOnTimeline::class,
         ],
         LeadHubStatusChanged::class => [
@@ -111,11 +119,11 @@ class ServiceProvider extends AddonServiceProvider
             ReevaluateSegmentMembership::class,
         ],
         LeadHubNoteAdded::class => [],
-        \Goldnead\Leadhub\Events\LeadHubContactEnteredSegment::class => [],
-        \Goldnead\Leadhub\Events\LeadHubContactLeftSegment::class => [],
+        LeadHubContactEnteredSegment::class => [],
+        LeadHubContactLeftSegment::class => [],
         LeadHubFollowupSet::class => [],
         LeadHubFollowupCompleted::class => [],
-        \Goldnead\Leadhub\Events\LeadHubFollowupDue::class => [],
+        LeadHubFollowupDue::class => [],
         LeadHubContactArchived::class => [],
         LeadHubContactDeleted::class => [],
     ];
@@ -202,14 +210,14 @@ class ServiceProvider extends AddonServiceProvider
 
         // Ingestion service + public manager facade target. Singletons so that
         // host-app source projectors registered at boot persist for the request.
-        $this->app->singleton(\Goldnead\Leadhub\Services\IngestionService::class);
+        $this->app->singleton(IngestionService::class);
         $this->app->singleton(LeadHubManager::class);
 
         // Click-tracking surface. Public singletons so sibling addons (the
         // automations / email-templates send path) can resolve the linker to
         // rewrite email links: app(ClickTrackingLinker::class).
-        $this->app->singleton(\Goldnead\Leadhub\Services\ClickTracking\ClickTrackingLinker::class);
-        $this->app->singleton(\Goldnead\Leadhub\Services\ClickTracking\RecipientResolver::class);
+        $this->app->singleton(ClickTrackingLinker::class);
+        $this->app->singleton(RecipientResolver::class);
     }
 
     public function boot(): void
@@ -326,7 +334,7 @@ class ServiceProvider extends AddonServiceProvider
      */
     protected function registerSchedule(): self
     {
-        $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function ($schedule) {
+        $this->callAfterResolving(Schedule::class, function ($schedule) {
             $time = (string) config('leadhub.notifications.digest.time', '08:00');
             $schedule->command('leadhub:followups:digest')
                 ->dailyAt($time)
@@ -395,7 +403,7 @@ class ServiceProvider extends AddonServiceProvider
         });
 
         $this->app->singleton(ModelHydrator::class, function ($app) {
-            return new ModelHydrator();
+            return new ModelHydrator;
         });
 
         $this->app->bind('leadhub.index.contacts', function ($app) {

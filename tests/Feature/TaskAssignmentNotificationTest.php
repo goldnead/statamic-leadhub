@@ -3,7 +3,9 @@
 use Goldnead\Leadhub\Integrations\Notifications\NotificationsBridge;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Task;
+use Goldnead\Leadhub\ServiceProvider;
 use Goldnead\Leadhub\Services\TaskAssignmentNotifier;
+use Goldnead\Leadhub\Support\UserDirectory;
 use Statamic\Facades\User;
 
 /**
@@ -45,24 +47,24 @@ beforeEach(function (): void {
 
     $this->contact = Contact::create(['email' => 'notify-wiring@example.com']);
 
-    $this->spy = new RecordingTaskAssignmentNotifier(app(\Goldnead\Leadhub\Support\UserDirectory::class));
+    $this->spy = new RecordingTaskAssignmentNotifier(app(UserDirectory::class));
     app()->instance(TaskAssignmentNotifier::class, $this->spy);
 });
 
 // ------------------------------------------------------------ the decision
 
 it('does not notify somebody who assigned the task to themselves', function (): void {
-    expect((new TaskAssignmentNotifier(app(\Goldnead\Leadhub\Support\UserDirectory::class)))
+    expect((new TaskAssignmentNotifier(app(UserDirectory::class)))
         ->shouldNotify('user-1', 'user-1'))->toBeFalse();
 });
 
 it('notifies when the work goes to somebody else', function (): void {
-    expect((new TaskAssignmentNotifier(app(\Goldnead\Leadhub\Support\UserDirectory::class)))
+    expect((new TaskAssignmentNotifier(app(UserDirectory::class)))
         ->shouldNotify('user-2', 'user-1'))->toBeTrue();
 });
 
 it('does not notify when the task is unassigned', function (): void {
-    $notifier = new TaskAssignmentNotifier(app(\Goldnead\Leadhub\Support\UserDirectory::class));
+    $notifier = new TaskAssignmentNotifier(app(UserDirectory::class));
 
     expect($notifier->shouldNotify(null, 'user-1'))->toBeFalse()
         ->and($notifier->shouldNotify('', 'user-1'))->toBeFalse();
@@ -71,7 +73,7 @@ it('does not notify when the task is unassigned', function (): void {
 it('can be switched off entirely', function (): void {
     config()->set('leadhub.notifications.on_task_assignment', false);
 
-    expect((new TaskAssignmentNotifier(app(\Goldnead\Leadhub\Support\UserDirectory::class)))
+    expect((new TaskAssignmentNotifier(app(UserDirectory::class)))
         ->shouldNotify('user-2', 'user-1'))->toBeFalse();
 });
 
@@ -129,7 +131,7 @@ it('reports unavailable when the notifications addon is not installed', function
 it('boots as a no-op and lets an assignment through untouched when absent', function (): void {
     app()->forgetInstance(TaskAssignmentNotifier::class);
 
-    (new NotificationsBridge())->boot();
+    (new NotificationsBridge)->boot();
 
     $this->post(cp_route('leadhub.tasks.store'), [
         'title' => 'Nobody to tell',
@@ -147,7 +149,7 @@ it('defers the type registration into an app->booted callback', function (): voi
     // only place that holds for web, queue and scheduler alike — and it has to
     // be deferred, because `notifications` may not be bound yet when LeadHub
     // boots beside it.
-    $provider = app()->getProvider(\Goldnead\Leadhub\ServiceProvider::class);
+    $provider = app()->getProvider(ServiceProvider::class);
     $source = file_get_contents((new ReflectionClass($provider))->getFileName());
 
     expect($source)->toContain('registerNotificationTypes')

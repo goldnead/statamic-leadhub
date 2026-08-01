@@ -2,6 +2,4 @@
 
 namespace Goldnead\Leadhub\Events;
 
-class LeadHubStatusChanged extends LeadHubEvent
-{
-}
+class LeadHubStatusChanged extends LeadHubEvent {}

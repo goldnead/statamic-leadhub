@@ -7,6 +7,4 @@ namespace Goldnead\Leadhub\Events;
  * contact's timeline. Metadata carries: type, source_type, source_id,
  * dedupe_key, was_created, event_id.
  */
-class LeadHubSourceIngested extends LeadHubEvent
-{
-}
+class LeadHubSourceIngested extends LeadHubEvent {}

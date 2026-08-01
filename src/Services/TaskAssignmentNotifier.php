@@ -23,9 +23,7 @@ use Illuminate\Support\Facades\Log;
  */
 class TaskAssignmentNotifier
 {
-    public function __construct(protected UserDirectory $users)
-    {
-    }
+    public function __construct(protected UserDirectory $users) {}
 
     /**
      * Whether this hand-over is worth telling anybody about.
@@ -60,7 +58,7 @@ class TaskAssignmentNotifier
 
     /**
      * @param  string|null  $assigneeId  who now holds the task
-     * @param  string|null  $actorId     who did the assigning, when known
+     * @param  string|null  $actorId  who did the assigning, when known
      */
     public function assigned(Task $task, ?string $assigneeId, ?string $actorId = null): void
     {

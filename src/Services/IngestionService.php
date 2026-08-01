@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Services;
 
+use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Contracts\SourceProjector;
 use Goldnead\Leadhub\Events\LeadHubSourceIngested;
 use Goldnead\Leadhub\Models\Contact;
@@ -23,9 +24,8 @@ class IngestionService
         protected ContactResolver $resolver,
         protected TimelineService $timeline,
         protected TagService $tags,
-        protected \Goldnead\Leadhub\Contracts\Repositories\EventRepository $events,
-    ) {
-    }
+        protected EventRepository $events,
+    ) {}
 
     public function registerProjector(SourceProjector $projector): void
     {

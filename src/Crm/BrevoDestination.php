@@ -80,7 +80,7 @@ class BrevoDestination extends AbstractDestination implements SupportsContactRem
         try {
             if ($listId = $this->config('list_id')) {
                 $response = Http::withHeaders($headers)->timeout($timeout)
-                    ->post("{$this->base}/contacts/lists/".((int) $listId)."/contacts/remove", [
+                    ->post("{$this->base}/contacts/lists/".((int) $listId).'/contacts/remove', [
                         'emails' => [$contact->email],
                     ]);
             } else {

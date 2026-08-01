@@ -14,8 +14,7 @@ class NoteController extends Controller
         protected ContactRepository $contacts,
         protected NoteRepository $notes,
         protected TimelineService $timeline,
-    ) {
-    }
+    ) {}
 
     public function store(StoreNoteRequest $request, int|string $contactId)
     {

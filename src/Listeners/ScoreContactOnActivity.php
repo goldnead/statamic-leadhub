@@ -11,9 +11,7 @@ use Goldnead\Leadhub\Services\ScoringService;
  */
 class ScoreContactOnActivity
 {
-    public function __construct(protected ScoringService $scoring)
-    {
-    }
+    public function __construct(protected ScoringService $scoring) {}
 
     public function handle(LeadHubEvent $event): void
     {

@@ -1,9 +1,11 @@
 <?php
 
 use Goldnead\Leadhub\Events\LeadHubCompanyCreated;
+use Goldnead\Leadhub\Facades\LeadHub;
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Opportunity;
+use Goldnead\Leadhub\Models\Pipeline;
 use Goldnead\Leadhub\Services\CompanyResolver;
 use Illuminate\Support\Facades\Event;
 use Statamic\Facades\User;
@@ -135,8 +137,8 @@ it('refuses to delete a company that still has contacts', function (): void {
 it('refuses to delete a company that still has opportunities', function (): void {
     $company = Company::create(['name' => 'Deal GmbH']);
     $contact = Contact::create(['email' => 'deal@example.com']);
-    Goldnead\Leadhub\Facades\LeadHub::createPipeline('Sales', [['name' => 'New']]);
-    $pipeline = Goldnead\Leadhub\Models\Pipeline::query()->firstOrFail();
+    LeadHub::createPipeline('Sales', [['name' => 'New']]);
+    $pipeline = Pipeline::query()->firstOrFail();
 
     Opportunity::create([
         'contact_id' => $contact->id,

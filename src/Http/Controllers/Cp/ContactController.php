@@ -15,11 +15,15 @@ use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Http\Requests\StoreContactRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateContactRequest;
 use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Models\Opportunity;
+use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Services\LeadHubNotifier;
 use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
+use Goldnead\Leadhub\Support\ContactPicker;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Statamic\CP\Column;
 
@@ -36,8 +40,7 @@ class ContactController extends Controller
         protected TagService $tags,
         protected UserDirectory $users,
         protected LeadHubNotifier $notifier,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {
@@ -75,7 +78,7 @@ class ContactController extends Controller
 
         $rows = collect($page->items())->map(function (Contact $contact) use ($statuses, $ownerLabels, $scoring) {
             $followups = $contact->relationLoaded('followups') ? $contact->getRelation('followups') : collect();
-            $active = $followups instanceof \Illuminate\Support\Collection
+            $active = $followups instanceof Collection
                 ? $followups->whereNull('completed_at')->sortBy('due_at')->first()
                 : null;
 
@@ -166,7 +169,7 @@ class ContactController extends Controller
         $this->authorizeOrFail($request, 'view leadhub contacts');
 
         return response()->json([
-            'options' => app(\Goldnead\Leadhub\Support\ContactPicker::class)->options(
+            'options' => app(ContactPicker::class)->options(
                 $request->string('q')->toString() ?: null,
             ),
         ]);
@@ -402,7 +405,7 @@ class ContactController extends Controller
         }
 
         if ($features['tasks']) {
-            $out['tasks'] = \Goldnead\Leadhub\Models\Task::query()
+            $out['tasks'] = Task::query()
                 ->where('contact_id', $contact->id)
                 ->orderByRaw('completed_at is not null')
                 ->orderByRaw('due_at is null, due_at asc')
@@ -424,7 +427,7 @@ class ContactController extends Controller
         }
 
         if ($features['pipelines']) {
-            $out['opportunities'] = \Goldnead\Leadhub\Models\Opportunity::query()
+            $out['opportunities'] = Opportunity::query()
                 ->where('contact_id', $contact->id)
                 ->with(['pipeline', 'stage'])
                 ->orderByDesc('last_activity_at')

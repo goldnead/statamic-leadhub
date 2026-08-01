@@ -15,6 +15,5 @@ class LeadHubCompanyCreated
         public Company $company,
         public ?array $actor = null,
         public array $metadata = [],
-    ) {
-    }
+    ) {}
 }

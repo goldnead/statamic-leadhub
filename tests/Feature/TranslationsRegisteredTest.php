@@ -9,7 +9,6 @@
  * of the view namespace, so `__('leadhub::nav.dashboard')` returned the
  * key as-is and the CP showed raw translation keys.
  */
-
 it('registers the leadhub:: namespace with real translations', function (): void {
     expect(__('leadhub::nav.dashboard'))->not->toBe('leadhub::nav.dashboard');
     expect(__('leadhub::dashboard.title'))->not->toBe('leadhub::dashboard.title');

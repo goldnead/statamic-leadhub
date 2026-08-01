@@ -17,9 +17,7 @@ use Illuminate\Support\Collection;
  */
 class TaskService
 {
-    public function __construct(protected TimelineService $timeline)
-    {
-    }
+    public function __construct(protected TimelineService $timeline) {}
 
     public function create(array $attributes, ?Contact $contact = null): Task
     {

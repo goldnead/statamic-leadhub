@@ -10,9 +10,7 @@ class FollowupDigestNotification extends Notification
     /**
      * @param  array<int, array{name: string, due_at: string, overdue: bool, url: string, note: ?string}>  $items
      */
-    public function __construct(public array $items, public int $overdueCount, public int $todayCount)
-    {
-    }
+    public function __construct(public array $items, public int $overdueCount, public int $todayCount) {}
 
     public function via(object $notifiable): array
     {

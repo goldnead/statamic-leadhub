@@ -22,8 +22,7 @@ class ExportContactsJob implements ShouldQueue
     public function __construct(
         public array $filters,
         public ?string $userId = null,
-    ) {
-    }
+    ) {}
 
     public function handle(ExportService $exporter): void
     {

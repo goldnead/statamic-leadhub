@@ -29,8 +29,7 @@ class TrackingController
     public function __construct(
         protected RecipientResolver $resolver,
         protected EventRepository $events,
-    ) {
-    }
+    ) {}
 
     public function click(Request $request): RedirectResponse
     {

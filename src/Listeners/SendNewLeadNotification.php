@@ -7,9 +7,7 @@ use Goldnead\Leadhub\Services\LeadHubNotifier;
 
 class SendNewLeadNotification
 {
-    public function __construct(protected LeadHubNotifier $notifier)
-    {
-    }
+    public function __construct(protected LeadHubNotifier $notifier) {}
 
     public function handle(LeadHubContactCreated $event): void
     {

@@ -19,9 +19,7 @@ use Statamic\CP\Column;
 
 class TaskController extends Controller
 {
-    public function __construct(protected UserDirectory $users)
-    {
-    }
+    public function __construct(protected UserDirectory $users) {}
 
     public function index(Request $request)
     {

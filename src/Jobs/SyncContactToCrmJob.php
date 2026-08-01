@@ -23,9 +23,7 @@ class SyncContactToCrmJob implements ShouldQueue
      * Pass the UUID (not the model) so the job is safe for both the eloquent
      * and flat-file drivers — the contact is re-resolved on handle.
      */
-    public function __construct(public string $contactUuid, public string $event)
-    {
-    }
+    public function __construct(public string $contactUuid, public string $event) {}
 
     public function handle(CrmSyncService $sync, ContactRepository $contacts): void
     {

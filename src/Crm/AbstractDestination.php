@@ -9,14 +9,13 @@ use Goldnead\Leadhub\Models\Contact;
 abstract class AbstractDestination implements CrmDestination
 {
     /**
-     * @param  string  $key     The destination's config key (label).
+     * @param  string  $key  The destination's config key (label).
      * @param  array<string, mixed>  $config
      */
     public function __construct(
         public string $key,
         protected array $config = [],
-    ) {
-    }
+    ) {}
 
     public function driver(): string
     {

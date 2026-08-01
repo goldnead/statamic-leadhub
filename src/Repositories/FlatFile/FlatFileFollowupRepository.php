@@ -22,8 +22,7 @@ class FlatFileFollowupRepository implements FollowupRepository
         protected Index $contactsIndex,
         protected IndexBuilder $builder,
         protected ModelHydrator $hydrator,
-    ) {
-    }
+    ) {}
 
     public function find(int|string $id): ?Followup
     {

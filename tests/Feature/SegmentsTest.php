@@ -6,9 +6,15 @@ use Goldnead\Leadhub\Events\LeadHubContactEnteredSegment;
 use Goldnead\Leadhub\Events\LeadHubContactLeftSegment;
 use Goldnead\Leadhub\Facades\LeadHub;
 use Goldnead\Leadhub\Models\Segment;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileFollowupRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileSegmentRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
 use Goldnead\Leadhub\Services\SegmentService;
 use Goldnead\Leadhub\Services\TagService;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     SegmentService::resetGuard();
@@ -32,14 +38,14 @@ function resetFlatState(): void
 
     $path = (string) config('leadhub.storage.flat.path');
     if ($path && is_dir($path)) {
-        \Illuminate\Support\Facades\File::deleteDirectory($path);
+        File::deleteDirectory($path);
     }
 
     $disk = (string) config('leadhub.storage.flat.index_disk', 'local');
     $indexPath = (string) config('leadhub.storage.flat.index_path', 'leadhub/index');
     try {
-        \Illuminate\Support\Facades\Storage::disk($disk)->deleteDirectory($indexPath);
-    } catch (\Throwable) {
+        Storage::disk($disk)->deleteDirectory($indexPath);
+    } catch (Throwable) {
         // ignore
     }
 
@@ -47,10 +53,10 @@ function resetFlatState(): void
     // in-memory data across tests. Drop them so the next resolve reads the
     // freshly-cleared filesystem.
     foreach ([
-        \Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository::class,
-        \Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository::class,
-        \Goldnead\Leadhub\Repositories\FlatFile\FlatFileFollowupRepository::class,
-        \Goldnead\Leadhub\Repositories\FlatFile\FlatFileSegmentRepository::class,
+        FlatFileContactRepository::class,
+        FlatFileTagRepository::class,
+        FlatFileFollowupRepository::class,
+        FlatFileSegmentRepository::class,
         'leadhub.index.contacts',
         'leadhub.index.tags',
     ] as $abstract) {

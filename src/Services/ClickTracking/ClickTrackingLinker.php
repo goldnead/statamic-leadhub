@@ -33,7 +33,7 @@ class ClickTrackingLinker
      * scores an email_link_clicked event for $contact (consent permitting).
      *
      * @param  array<string,scalar>  $context  Optional extra signed params,
-     *                                          e.g. ['tpl' => 42, 'eml' => 'welcome'].
+     *                                         e.g. ['tpl' => 42, 'eml' => 'welcome'].
      */
     public function trackedUrl(string $targetUrl, Contact $contact, array $context = []): string
     {

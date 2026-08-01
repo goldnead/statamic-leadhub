@@ -18,9 +18,7 @@ use Illuminate\Support\Facades\Notification;
  */
 class LeadHubNotifier
 {
-    public function __construct(protected UserDirectory $users)
-    {
-    }
+    public function __construct(protected UserDirectory $users) {}
 
     public function newLead(Contact $contact): void
     {

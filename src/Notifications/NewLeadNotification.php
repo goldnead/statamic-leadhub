@@ -8,9 +8,7 @@ use Illuminate\Notifications\Notification;
 
 class NewLeadNotification extends Notification
 {
-    public function __construct(public Contact $contact)
-    {
-    }
+    public function __construct(public Contact $contact) {}
 
     public function via(object $notifiable): array
     {

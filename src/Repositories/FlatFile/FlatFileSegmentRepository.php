@@ -23,8 +23,7 @@ class FlatFileSegmentRepository implements SegmentRepository
     public function __construct(
         protected FileStore $files,
         protected ModelHydrator $hydrator,
-    ) {
-    }
+    ) {}
 
     public function find(int|string $id): ?Segment
     {

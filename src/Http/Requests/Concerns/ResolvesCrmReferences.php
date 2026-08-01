@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Http\Requests\Concerns;
 
+use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Opportunity;
@@ -64,7 +65,7 @@ trait ResolvesCrmReferences
      */
     protected function unknownTagIds(array $ids): array
     {
-        $repository = app(\Goldnead\Leadhub\Contracts\Repositories\TagRepository::class);
+        $repository = app(TagRepository::class);
 
         return collect($ids)
             // A non-scalar cannot be an id and must not reach the cast below.

@@ -2,6 +2,4 @@
 
 namespace Goldnead\Leadhub\Events;
 
-class LeadHubSubmissionAttached extends LeadHubEvent
-{
-}
+class LeadHubSubmissionAttached extends LeadHubEvent {}

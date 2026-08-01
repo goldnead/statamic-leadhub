@@ -6,7 +6,7 @@ use Goldnead\Leadhub\Repositories\Eloquent\EloquentEventRepository;
 use Goldnead\Leadhub\Services\TimelineService;
 
 beforeEach(function (): void {
-    $this->service = new TimelineService(new EloquentEventRepository());
+    $this->service = new TimelineService(new EloquentEventRepository);
     $this->contact = Contact::factory()->create();
 });
 

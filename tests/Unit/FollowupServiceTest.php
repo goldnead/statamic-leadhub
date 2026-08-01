@@ -12,8 +12,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Event;
 
 beforeEach(function (): void {
-    $timeline = new TimelineService(new EloquentEventRepository());
-    $this->service = new FollowupService(new EloquentFollowupRepository(), $timeline);
+    $timeline = new TimelineService(new EloquentEventRepository);
+    $this->service = new FollowupService(new EloquentFollowupRepository, $timeline);
 });
 
 it('creates a follow-up for a contact', function (): void {

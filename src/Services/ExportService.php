@@ -5,13 +5,12 @@ namespace Goldnead\Leadhub\Services;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Jobs\ExportContactsJob;
 use Goldnead\Leadhub\Models\Contact;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 class ExportService
 {
-    public function __construct(protected ContactRepository $contacts)
-    {
-    }
+    public function __construct(protected ContactRepository $contacts) {}
 
     public function run(array $filters, ?string $userId = null): array
     {
@@ -59,7 +58,7 @@ class ExportService
                 /** @var Contact $contact */
                 $tags = $contact->relationLoaded('tags') ? $contact->getRelation('tags') : collect();
                 $followups = $contact->relationLoaded('followups') ? $contact->getRelation('followups') : collect();
-                $active = $followups instanceof \Illuminate\Support\Collection
+                $active = $followups instanceof Collection
                     ? $followups->whereNull('completed_at')->sortBy('due_at')->first()
                     : null;
 

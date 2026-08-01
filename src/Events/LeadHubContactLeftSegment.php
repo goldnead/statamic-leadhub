@@ -7,6 +7,4 @@ namespace Goldnead\Leadhub\Events;
  *
  * `metadata` carries at least `segment_handle` and `segment_id`.
  */
-class LeadHubContactLeftSegment extends LeadHubEvent
-{
-}
+class LeadHubContactLeftSegment extends LeadHubEvent {}

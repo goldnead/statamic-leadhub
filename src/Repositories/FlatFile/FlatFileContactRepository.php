@@ -4,7 +4,8 @@ namespace Goldnead\Leadhub\Repositories\FlatFile;
 
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Models\Contact;
-use Goldnead\Leadhub\Models\Tag;
+use Goldnead\Leadhub\Support\EmailNormalizer;
+use Goldnead\Leadhub\Support\PhoneNormalizer;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\LengthAwarePaginator as LaravelLengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -20,8 +21,7 @@ class FlatFileContactRepository implements ContactRepository
         protected ModelHydrator $hydrator,
         protected FlatFileTagRepository $tags,
         protected FlatFileFollowupRepository $followups,
-    ) {
-    }
+    ) {}
 
     public function find(int|string $id): ?Contact
     {
@@ -325,11 +325,11 @@ class FlatFileContactRepository implements ContactRepository
         unset($attributes['email_normalized'], $attributes['phone_normalized']);
 
         if (filled($attributes['email'] ?? null)) {
-            $attributes['email_normalized'] = \Goldnead\Leadhub\Support\EmailNormalizer::normalize($attributes['email']);
+            $attributes['email_normalized'] = EmailNormalizer::normalize($attributes['email']);
         }
 
         if (filled($attributes['phone'] ?? null)) {
-            $attributes['phone_normalized'] = \Goldnead\Leadhub\Support\PhoneNormalizer::normalize($attributes['phone']);
+            $attributes['phone_normalized'] = PhoneNormalizer::normalize($attributes['phone']);
         }
 
         return $attributes;

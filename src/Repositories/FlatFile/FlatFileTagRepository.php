@@ -17,8 +17,7 @@ class FlatFileTagRepository implements TagRepository
         protected Index $tagsIndex,
         protected IndexBuilder $builder,
         protected ModelHydrator $hydrator,
-    ) {
-    }
+    ) {}
 
     public function find(int|string $id): ?Tag
     {

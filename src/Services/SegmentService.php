@@ -42,8 +42,7 @@ class SegmentService
         protected SegmentRepository $segments,
         protected ContactRepository $contacts,
         protected SegmentEvaluator $evaluator,
-    ) {
-    }
+    ) {}
 
     /** Reset the loop guard (test helper / long-running workers). */
     public static function resetGuard(): void

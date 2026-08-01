@@ -15,8 +15,7 @@ class FlatFileEventRepository implements EventRepository
     public function __construct(
         protected FileStore $files,
         protected ModelHydrator $hydrator,
-    ) {
-    }
+    ) {}
 
     public function record(
         Contact $contact,

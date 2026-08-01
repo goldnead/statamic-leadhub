@@ -24,9 +24,7 @@ use Goldnead\Leadhub\Services\TimelineService;
  */
 class RecordScoreChangeOnTimeline
 {
-    public function __construct(protected TimelineService $timeline)
-    {
-    }
+    public function __construct(protected TimelineService $timeline) {}
 
     public function handle(LeadHubContactScoreChanged $event): void
     {

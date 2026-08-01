@@ -3,8 +3,11 @@
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
-use Goldnead\Leadhub\Models\Event as TimelineEvent;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
 use Goldnead\Leadhub\Support\SegmentEvaluator;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Unit coverage for every condition type + all/any nesting. Runs against
@@ -26,18 +29,18 @@ function resetFlatStateForEvaluator(): void
 
     $path = (string) config('leadhub.storage.flat.path');
     if ($path && is_dir($path)) {
-        \Illuminate\Support\Facades\File::deleteDirectory($path);
+        File::deleteDirectory($path);
     }
 
     try {
-        \Illuminate\Support\Facades\Storage::disk((string) config('leadhub.storage.flat.index_disk', 'local'))
+        Storage::disk((string) config('leadhub.storage.flat.index_disk', 'local'))
             ->deleteDirectory((string) config('leadhub.storage.flat.index_path', 'leadhub/index'));
-    } catch (\Throwable) {
+    } catch (Throwable) {
     }
 
     foreach ([
-        \Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository::class,
-        \Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository::class,
+        FlatFileContactRepository::class,
+        FlatFileTagRepository::class,
         'leadhub.index.contacts',
         'leadhub.index.tags',
     ] as $abstract) {

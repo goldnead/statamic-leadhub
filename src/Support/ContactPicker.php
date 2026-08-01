@@ -20,9 +20,7 @@ class ContactPicker
 {
     public const LIMIT = 50;
 
-    public function __construct(protected ContactRepository $contacts)
-    {
-    }
+    public function __construct(protected ContactRepository $contacts) {}
 
     /**
      * @return array<int, array{value: string, label: string}>

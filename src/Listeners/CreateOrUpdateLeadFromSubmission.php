@@ -20,8 +20,7 @@ class CreateOrUpdateLeadFromSubmission
         protected TimelineService $timeline,
         protected TagService $tags,
         protected FormMappingRepository $mappings,
-    ) {
-    }
+    ) {}
 
     public function handle(SubmissionCreated $event): void
     {

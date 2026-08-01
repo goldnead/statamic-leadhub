@@ -16,9 +16,7 @@ use Goldnead\Leadhub\Support\EmailNormalizer;
  */
 class RecipientResolver
 {
-    public function __construct(protected ContactRepository $contacts)
-    {
-    }
+    public function __construct(protected ContactRepository $contacts) {}
 
     /**
      * Resolve a contact by stable UUID first, then by (normalized) email.

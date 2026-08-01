@@ -1,11 +1,12 @@
 <?php
 
 use Goldnead\Leadhub\Events\LeadHubContactScoreChanged;
+use Goldnead\Leadhub\Integrations\WebhookManager\LeadhubTrigger;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event as TimelineEvent;
-use Goldnead\Leadhub\Models\ScoringRule;
 use Goldnead\Leadhub\Services\ScoringService;
+use Goldnead\WebhookManager\Contracts\TriggerInterface;
 use Statamic\Facades\User;
 
 /**
@@ -117,11 +118,11 @@ it('builds a webhook payload that carries the contact and the numbers', function
     // score-specific payload instead of the generic actor/metadata shape. The
     // trigger builder used to assume otherwise and would have produced a
     // webhook with no source reference and a body of nothing.
-    if (! class_exists(\Goldnead\WebhookManager\Contracts\TriggerInterface::class)) {
+    if (! class_exists(TriggerInterface::class)) {
         test()->markTestSkipped('webhook-manager is not installed in this test run.');
     }
 
-    $trigger = new \Goldnead\Leadhub\Integrations\WebhookManager\LeadhubTrigger(
+    $trigger = new LeadhubTrigger(
         'leadhub.score.changed',
         'LeadHub — engagement score changed',
     );

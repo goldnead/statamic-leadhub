@@ -3,6 +3,7 @@
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\ServiceProvider;
+use Goldnead\WebhookManager\Facades\WebhookManager;
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\Facades\Event;
@@ -19,7 +20,7 @@ use Illuminate\Support\Facades\Log;
  * without pulling the addon in as a dependency.
  */
 it('reports unavailable when the webhook manager addon is not installed', function (): void {
-    expect(class_exists(\Goldnead\WebhookManager\Facades\WebhookManager::class))->toBeFalse();
+    expect(class_exists(WebhookManager::class))->toBeFalse();
     expect(WebhookManagerBridge::available())->toBeFalse();
 });
 
@@ -27,7 +28,7 @@ it('boots as a no-op and registers no LeadHub event listeners when absent', func
     $events = app('events');
 
     // Sanity: no listeners are attached as a side effect of booting the bridge.
-    (new WebhookManagerBridge())->boot($events);
+    (new WebhookManagerBridge)->boot($events);
 
     expect($events->hasListeners(LeadHubContactCreated::class))->toBeFalse();
 });
@@ -35,7 +36,7 @@ it('boots as a no-op and registers no LeadHub event listeners when absent', func
 it('does not interfere with LeadHub events firing when absent', function (): void {
     Event::fake();
 
-    (new WebhookManagerBridge())->boot(app('events'));
+    (new WebhookManagerBridge)->boot(app('events'));
 
     // The bridge added nothing, so this is just asserting boot() did not throw
     // and the app is still healthy enough to dispatch events.
@@ -137,7 +138,7 @@ it('does not mark itself booted while the webhook-manager binding is absent, so 
 
     // Once the binding appears (as it does after the webhook-manager provider
     // boots), a retry proceeds into the registration loop.
-    app()->instance('webhook-manager', new stdClass());
+    app()->instance('webhook-manager', new stdClass);
     $bridge->boot($events);
     Log::shouldHaveReceived('warning')->times(count(WebhookManagerBridge::TRIGGERS));
 });
@@ -151,7 +152,7 @@ it('boots idempotently: a second boot never re-registers triggers or listeners',
     // fails (facade class missing) and is logged as a warning — which makes
     // the warnings a precise probe: a second boot must add zero new
     // registration attempts.
-    app()->instance('webhook-manager', new stdClass());
+    app()->instance('webhook-manager', new stdClass);
 
     $bridge = new class extends WebhookManagerBridge
     {

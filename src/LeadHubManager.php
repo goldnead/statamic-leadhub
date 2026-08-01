@@ -2,29 +2,46 @@
 
 namespace Goldnead\Leadhub;
 
+use Goldnead\EmailTemplates\Facades\EmailTemplates;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
 use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
 use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Contracts\SourceProjector;
+use Goldnead\Leadhub\Events\LeadHubContactScoreChanged;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
+use Goldnead\Leadhub\Facades\LeadHub;
+use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
+use Goldnead\Leadhub\Models\Opportunity;
+use Goldnead\Leadhub\Models\Pipeline;
+use Goldnead\Leadhub\Models\Stage;
+use Goldnead\Leadhub\Models\Task;
+use Goldnead\Leadhub\Services\CompanyResolver;
+use Goldnead\Leadhub\Services\ContactMergeService;
 use Goldnead\Leadhub\Services\ContactResolver;
+use Goldnead\Leadhub\Services\CrmSyncService;
 use Goldnead\Leadhub\Services\FollowupService;
 use Goldnead\Leadhub\Services\IngestionService;
+use Goldnead\Leadhub\Services\OpportunityService;
 use Goldnead\Leadhub\Services\ScoringService;
 use Goldnead\Leadhub\Services\SegmentService;
+use Goldnead\Leadhub\Services\StageTransitionService;
 use Goldnead\Leadhub\Services\TagService;
+use Goldnead\Leadhub\Services\TaskService;
 use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactDto;
+use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\SourceEvent;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 
 /**
  * The public, stable API surface for LeadHub. Resolved through the
- * {@see \Goldnead\Leadhub\Facades\LeadHub} facade and consumed by sibling
+ * {@see LeadHub} facade and consumed by sibling
  * addons (statamic-automations, statamic-webhook-manager) as well as host apps.
  *
  * Every mutating method returns a normalized array representation of the
@@ -44,8 +61,7 @@ class LeadHubManager
         protected IngestionService $ingestion,
         protected SegmentRepository $segmentRepository,
         protected SegmentService $segmentService,
-    ) {
-    }
+    ) {}
 
     // -- Reads --------------------------------------------------------------
 
@@ -118,7 +134,7 @@ class LeadHubManager
     public function findByEmail(string $email): ?array
     {
         $contact = $this->contacts->findByEmailNormalized(
-            \Goldnead\Leadhub\Support\EmailNormalizer::normalize($email)
+            EmailNormalizer::normalize($email)
         );
 
         return $contact ? $this->present($contact) : null;
@@ -130,7 +146,7 @@ class LeadHubManager
      * Create — or update the existing match by email — a contact.
      *
      * @param  array<string,mixed>  $attributes  email, first_name, last_name,
-     *         full_name, phone, company, status, source, tags[]
+     *                                           full_name, phone, company, status, source, tags[]
      */
     public function create(array $attributes): array
     {
@@ -197,7 +213,7 @@ class LeadHubManager
      * "change score" action. Resolves the contact by id/uuid (or accepts a
      * Contact), applies $delta (clamped at 0), persists, and returns the new
      * score — or null if the contact can't be found. Routes through
-     * {@see ScoringService::adjust} so {@see \Goldnead\Leadhub\Events\LeadHubContactScoreChanged}
+     * {@see ScoringService::adjust} so {@see LeadHubContactScoreChanged}
      * fires on the same mutation path as activity-based scoring.
      */
     public function adjustScore(string|Contact $contact, int $delta, ?string $reason = null): ?int
@@ -255,7 +271,7 @@ class LeadHubManager
             $this->contacts->save($contact);
         }
 
-        app(\Goldnead\Leadhub\Services\CrmSyncService::class)->removeContact($contact);
+        app(CrmSyncService::class)->removeContact($contact);
 
         return $this->present($this->reload($contact));
     }
@@ -279,7 +295,7 @@ class LeadHubManager
         $contact = $this->mustFind($id);
 
         $dueAt = isset($data['due_at'])
-            ? \Illuminate\Support\Carbon::parse($data['due_at'])
+            ? Carbon::parse($data['due_at'])
             : now()->addDays((int) ($data['due_in_days'] ?? 1));
 
         $followup = $this->followupService->set(
@@ -317,15 +333,15 @@ class LeadHubManager
      */
     public function createPipeline(string $name, array $stages = [], ?string $slug = null): array
     {
-        $pipeline = \Goldnead\Leadhub\Models\Pipeline::query()->create([
+        $pipeline = Pipeline::query()->create([
             'name' => $name,
-            'slug' => $slug ?: \Illuminate\Support\Str::slug($name),
+            'slug' => $slug ?: Str::slug($name),
         ]);
 
         foreach (array_values($stages) as $index => $stage) {
             $pipeline->stages()->create([
                 'name' => $stage['name'],
-                'slug' => $stage['slug'] ?? \Illuminate\Support\Str::slug($stage['name']),
+                'slug' => $stage['slug'] ?? Str::slug($stage['name']),
                 'sort_order' => $stage['sort_order'] ?? $index,
                 'is_terminal' => $stage['is_terminal'] ?? false,
                 'terminal_outcome' => $stage['terminal_outcome'] ?? null,
@@ -344,7 +360,7 @@ class LeadHubManager
         $contact = $this->mustFind($contactId);
         $pipelineModel = $this->resolvePipeline($pipeline);
 
-        $opportunity = app(\Goldnead\Leadhub\Services\OpportunityService::class)
+        $opportunity = app(OpportunityService::class)
             ->createOrUpdate($contact, $pipelineModel, $attributes);
 
         return $this->presentOpportunity($opportunity);
@@ -353,29 +369,29 @@ class LeadHubManager
     /** Move an opportunity to a stage (by slug or id) within its pipeline. */
     public function moveStage(int|string $opportunityId, int|string $stage, ?string $note = null): array
     {
-        $opportunity = \Goldnead\Leadhub\Models\Opportunity::query()->findOrFail($opportunityId);
+        $opportunity = Opportunity::query()->findOrFail($opportunityId);
 
         $stageModel = is_numeric($stage)
-            ? \Goldnead\Leadhub\Models\Stage::query()->findOrFail($stage)
-            : \Goldnead\Leadhub\Models\Stage::query()
+            ? Stage::query()->findOrFail($stage)
+            : Stage::query()
                 ->where('pipeline_id', $opportunity->pipeline_id)
                 ->where('slug', $stage)
                 ->firstOrFail();
 
-        app(\Goldnead\Leadhub\Services\StageTransitionService::class)
+        app(StageTransitionService::class)
             ->transition($opportunity, $stageModel, $note);
 
         return $this->presentOpportunity($opportunity->refresh());
     }
 
-    protected function resolvePipeline(int|string $pipeline): \Goldnead\Leadhub\Models\Pipeline
+    protected function resolvePipeline(int|string $pipeline): Pipeline
     {
         return is_numeric($pipeline)
-            ? \Goldnead\Leadhub\Models\Pipeline::query()->findOrFail($pipeline)
-            : \Goldnead\Leadhub\Models\Pipeline::query()->where('slug', $pipeline)->firstOrFail();
+            ? Pipeline::query()->findOrFail($pipeline)
+            : Pipeline::query()->where('slug', $pipeline)->firstOrFail();
     }
 
-    protected function presentPipeline(\Goldnead\Leadhub\Models\Pipeline $pipeline): array
+    protected function presentPipeline(Pipeline $pipeline): array
     {
         return [
             'id' => $pipeline->id,
@@ -393,7 +409,7 @@ class LeadHubManager
         ];
     }
 
-    protected function presentOpportunity(\Goldnead\Leadhub\Models\Opportunity $opportunity): array
+    protected function presentOpportunity(Opportunity $opportunity): array
     {
         return [
             'id' => $opportunity->id,
@@ -421,20 +437,20 @@ class LeadHubManager
     {
         $contact = $contactId !== null ? $this->mustFind($contactId) : null;
 
-        $task = app(\Goldnead\Leadhub\Services\TaskService::class)->create($attributes, $contact);
+        $task = app(TaskService::class)->create($attributes, $contact);
 
         return $this->presentTask($task);
     }
 
     public function completeTask(int|string $taskId, ?string $completedBy = null): array
     {
-        $task = \Goldnead\Leadhub\Models\Task::query()->findOrFail($taskId);
-        $completed = app(\Goldnead\Leadhub\Services\TaskService::class)->complete($task, $completedBy);
+        $task = Task::query()->findOrFail($taskId);
+        $completed = app(TaskService::class)->complete($task, $completedBy);
 
         return $this->presentTask($completed);
     }
 
-    protected function presentTask(\Goldnead\Leadhub\Models\Task $task): array
+    protected function presentTask(Task $task): array
     {
         return [
             'id' => $task->id,
@@ -457,7 +473,7 @@ class LeadHubManager
      */
     public function createCompany(array $attributes): array
     {
-        [$company] = app(\Goldnead\Leadhub\Services\CompanyResolver::class)->resolveOrCreate($attributes);
+        [$company] = app(CompanyResolver::class)->resolveOrCreate($attributes);
 
         return $this->presentCompany($company);
     }
@@ -469,12 +485,12 @@ class LeadHubManager
     public function linkCompany(int|string $contactId, int|string|array $company, ?string $label = null, bool $primary = false): array
     {
         $contact = $this->mustFind($contactId);
-        $resolver = app(\Goldnead\Leadhub\Services\CompanyResolver::class);
+        $resolver = app(CompanyResolver::class);
 
         if (is_array($company)) {
             [$companyModel] = $resolver->resolveOrCreate($company);
         } else {
-            $companyModel = \Goldnead\Leadhub\Models\Company::query()->findOrFail($company);
+            $companyModel = Company::query()->findOrFail($company);
         }
 
         $resolver->link($contact, $companyModel, $label, $primary);
@@ -482,7 +498,7 @@ class LeadHubManager
         return $this->presentCompany($companyModel);
     }
 
-    protected function presentCompany(\Goldnead\Leadhub\Models\Company $company): array
+    protected function presentCompany(Company $company): array
     {
         return [
             'id' => $company->id,
@@ -505,7 +521,7 @@ class LeadHubManager
         $loser = $this->mustFind($loserId);
         $winner = $this->mustFind($winnerId);
 
-        $merged = app(\Goldnead\Leadhub\Services\ContactMergeService::class)->merge($loser, $winner);
+        $merged = app(ContactMergeService::class)->merge($loser, $winner);
 
         return $this->present($merged);
     }
@@ -521,7 +537,7 @@ class LeadHubManager
      * no entry exists.
      *
      * Consumed by sibling addons (automations, marketing) via the class_exists
-     * coupling on {@see \Goldnead\Leadhub\Facades\LeadHub}. Returns the stable
+     * coupling on {@see LeadHub}. Returns the stable
      * array shape [slug, title, subject, body, plain_text, description, source]
      * or null when neither an entry nor a fallback yields a template — and also
      * null (never fatal) when the email-templates addon isn't installed.
@@ -531,7 +547,7 @@ class LeadHubManager
      */
     public function resolveEmailTemplate(string $slug, ?callable $fallback = null): ?array
     {
-        $facade = \Goldnead\EmailTemplates\Facades\EmailTemplates::class;
+        $facade = EmailTemplates::class;
 
         // Guard gracefully: the email-templates addon is an optional, soft
         // dependency. Without it there are no managed templates to resolve.

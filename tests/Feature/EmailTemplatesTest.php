@@ -21,9 +21,7 @@ function fakeResolvedTemplate(array $data): object
 {
     return new class($data)
     {
-        public function __construct(private array $data)
-        {
-        }
+        public function __construct(private array $data) {}
 
         public function toArray(): array
         {

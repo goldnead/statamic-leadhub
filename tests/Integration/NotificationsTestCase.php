@@ -3,6 +3,7 @@
 namespace Goldnead\Leadhub\Tests\Integration;
 
 use Goldnead\Leadhub\ServiceProvider;
+use Goldnead\Leadhub\Tests\Feature\TaskAssignmentNotificationTest;
 use Goldnead\Leadhub\Tests\TestCase as BaseTestCase;
 
 /**
@@ -10,7 +11,7 @@ use Goldnead\Leadhub\Tests\TestCase as BaseTestCase;
  *
  * The base {@see BaseTestCase} deliberately runs with the notifications addon
  * ABSENT, which is what keeps the no-op contract in
- * {@see \Goldnead\Leadhub\Tests\Feature\TaskAssignmentNotificationTest} honest.
+ * {@see TaskAssignmentNotificationTest} honest.
  * This case boots the real addon (and the identity contracts it resolves
  * recipients through) so the registration and the delivery can be exercised
  * against the genuine API rather than a stand-in.

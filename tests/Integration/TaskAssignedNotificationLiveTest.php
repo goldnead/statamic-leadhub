@@ -1,10 +1,12 @@
 <?php
 
+use Goldnead\IdentityContracts\Facades\IdentityContext;
 use Goldnead\Leadhub\Integrations\Notifications\NotificationsBridge;
 use Goldnead\Leadhub\Integrations\Notifications\TaskDigestSource;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Tests\Integration\NotificationsTestCase;
+use Goldnead\Notifications\Models\NotificationItem;
 use Statamic\Facades\User;
 
 /**
@@ -47,7 +49,7 @@ beforeEach(function (): void {
 /** Everything the notifications addon persisted for one recipient. */
 function itemsFor($user)
 {
-    return \Goldnead\Notifications\Models\NotificationItem::query()
+    return NotificationItem::query()
         ->where('user_id', (string) $user->id())
         ->get();
 }
@@ -116,7 +118,7 @@ it('tells nobody when you assign a task to yourself', function (): void {
     ])->assertSessionHasNoErrors();
 
     expect(itemsFor($this->user))->toHaveCount(0)
-        ->and(\Goldnead\Notifications\Models\NotificationItem::query()->count())->toBe(0);
+        ->and(NotificationItem::query()->count())->toBe(0);
 });
 
 it('tells nobody when a task is unassigned', function (): void {
@@ -129,7 +131,7 @@ it('tells nobody when a task is unassigned', function (): void {
     $this->patch(cp_route('leadhub.tasks.update', $task->id), ['assignee_id' => null])
         ->assertSessionHasNoErrors();
 
-    expect(\Goldnead\Notifications\Models\NotificationItem::query()->count())->toBe(0);
+    expect(NotificationItem::query()->count())->toBe(0);
 });
 
 it('notifies again when a task comes back to somebody it already left', function (): void {
@@ -185,7 +187,7 @@ it('contributes open tasks to the digest, which covered follow-ups only', functi
         'assignee_id' => (string) $this->user->id(),
     ]);
 
-    $identity = \Goldnead\IdentityContracts\Facades\IdentityContext::resolve($this->colleague);
+    $identity = IdentityContext::resolve($this->colleague);
 
     $contribution = app(TaskDigestSource::class)
         ->collect($identity, now()->subWeek(), now()->addDay());
@@ -195,7 +197,7 @@ it('contributes open tasks to the digest, which covered follow-ups only', functi
 });
 
 it('contributes nothing for somebody with no open tasks', function (): void {
-    $identity = \Goldnead\IdentityContracts\Facades\IdentityContext::resolve($this->colleague);
+    $identity = IdentityContext::resolve($this->colleague);
 
     expect(app(TaskDigestSource::class)->collect($identity, now()->subWeek(), now()->addDay()))
         ->toBe([]);

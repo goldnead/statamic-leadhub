@@ -38,9 +38,7 @@ class ScoringService
 
     protected ?int $ruleCacheBrand = null;
 
-    public function __construct(protected ContactRepository $contacts)
-    {
-    }
+    public function __construct(protected ContactRepository $contacts) {}
 
     public function enabled(): bool
     {

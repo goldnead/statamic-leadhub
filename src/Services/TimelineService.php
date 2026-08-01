@@ -9,9 +9,7 @@ use Statamic\Facades\User;
 
 class TimelineService
 {
-    public function __construct(protected EventRepository $events)
-    {
-    }
+    public function __construct(protected EventRepository $events) {}
 
     public function record(
         Contact $contact,
@@ -259,6 +257,7 @@ class TimelineService
         foreach ($data as $key => $value) {
             if (is_string($key) && $this->keyMatchesPatterns($key, $patterns)) {
                 $data[$key] = '***REDACTED***';
+
                 continue;
             }
 

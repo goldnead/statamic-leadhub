@@ -15,8 +15,7 @@ class FollowupService
     public function __construct(
         protected FollowupRepository $followups,
         protected TimelineService $timeline,
-    ) {
-    }
+    ) {}
 
     public function set(Contact $contact, Carbon|string $dueAt, ?string $note = null, ?string $createdBy = null): Followup
     {

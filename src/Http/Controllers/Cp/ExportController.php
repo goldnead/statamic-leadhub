@@ -7,9 +7,7 @@ use Illuminate\Http\Request;
 
 class ExportController extends Controller
 {
-    public function __construct(protected ExportService $exports)
-    {
-    }
+    public function __construct(protected ExportService $exports) {}
 
     public function store(Request $request)
     {

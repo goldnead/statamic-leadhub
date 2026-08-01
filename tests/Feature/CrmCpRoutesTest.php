@@ -1,6 +1,7 @@
 <?php
 
 use Goldnead\Leadhub\Facades\LeadHub;
+use Goldnead\Leadhub\Models\Pipeline;
 use Statamic\Facades\User;
 
 beforeEach(function (): void {
@@ -76,6 +77,6 @@ it('creates a pipeline with stages from the management screen', function (): voi
         ],
     ])->assertRedirect();
 
-    expect(Goldnead\Leadhub\Models\Pipeline::where('slug', 'onboarding')->exists())->toBeTrue();
-    expect(Goldnead\Leadhub\Models\Pipeline::where('slug', 'onboarding')->first()->stages()->count())->toBe(2);
+    expect(Pipeline::where('slug', 'onboarding')->exists())->toBeTrue();
+    expect(Pipeline::where('slug', 'onboarding')->first()->stages()->count())->toBe(2);
 });

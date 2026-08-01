@@ -27,7 +27,6 @@ use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
  * SAME test runs in every matrix cell and exercises the binding logic
  * specific to that cell.
  */
-
 it('binds the configured driver implementations for every repository contract', function (): void {
     $driver = env('LEADHUB_DRIVER', 'eloquent');
 

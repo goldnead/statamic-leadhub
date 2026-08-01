@@ -17,8 +17,7 @@ class OpportunityService
     public function __construct(
         protected TimelineService $timeline,
         protected StageTransitionService $transitions,
-    ) {
-    }
+    ) {}
 
     /**
      * Create a new opportunity for a contact in the given pipeline, defaulting

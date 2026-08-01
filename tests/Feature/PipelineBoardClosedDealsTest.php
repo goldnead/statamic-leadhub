@@ -8,6 +8,7 @@ use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Pipeline;
 use Goldnead\Leadhub\Models\Stage;
 use Goldnead\Leadhub\Services\StageTransitionService;
+use Illuminate\Support\Str;
 use Statamic\Facades\User;
 
 /**
@@ -68,8 +69,8 @@ function seedPipelineWithWonDeal(float $value = 4200.0, string $pipelineName = '
         ['name' => 'Lost', 'is_terminal' => true, 'terminal_outcome' => 'lost'],
     ]);
 
-    $pipeline = Pipeline::query()->where('slug', \Illuminate\Support\Str::slug($pipelineName))->firstOrFail();
-    $contact = Contact::create(['email' => \Illuminate\Support\Str::slug($pipelineName).'-deal@example.com']);
+    $pipeline = Pipeline::query()->where('slug', Str::slug($pipelineName))->firstOrFail();
+    $contact = Contact::create(['email' => Str::slug($pipelineName).'-deal@example.com']);
 
     $opportunity = Opportunity::query()->create([
         'contact_id' => $contact->id,

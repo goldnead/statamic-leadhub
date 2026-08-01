@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Services;
 
+use Goldnead\Leadhub\Contracts\SupportsContactRemoval;
 use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
@@ -20,11 +21,10 @@ class CrmSyncService
     public function __construct(
         protected DestinationManager $destinations,
         protected TimelineService $timeline,
-    ) {
-    }
+    ) {}
 
     /**
-     * @return array<string, SyncResult>  keyed by destination key
+     * @return array<string, SyncResult> keyed by destination key
      */
     public function syncContact(Contact $contact, string $event): array
     {
@@ -61,7 +61,7 @@ class CrmSyncService
         $results = [];
 
         foreach ($this->destinations->enabled() as $key => $destination) {
-            if (! $destination instanceof \Goldnead\Leadhub\Contracts\SupportsContactRemoval) {
+            if (! $destination instanceof SupportsContactRemoval) {
                 continue;
             }
 
