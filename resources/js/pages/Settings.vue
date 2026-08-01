@@ -61,7 +61,7 @@ const behaviorRows = computed(() => [
                 <Card>
                     <div class="flex items-center gap-3 p-1 text-sm">
                         <Badge :color="driver === 'flat' ? 'amber' : 'blue'" :text="driver" />
-                        <span class="text-gray-700 dark:text-gray-300">
+                        <span class="text-gray-900 dark:text-gray-300">
                             {{ driver === 'flat'
                                 ? __('YAML files under content/leadhub/')
                                 : __('Database tables (leadhub_*)') }}
@@ -105,7 +105,7 @@ const behaviorRows = computed(() => [
                                     :color="row.value ? 'green' : 'default'"
                                     :text="row.value ? __('Enabled') : __('Disabled')"
                                 />
-                                <span v-else class="font-mono text-gray-700 dark:text-gray-300">{{ row.value }}</span>
+                                <span v-else class="font-mono text-gray-900 dark:text-gray-300">{{ row.value }}</span>
                             </div>
                         </div>
                     </dl>
@@ -139,7 +139,7 @@ const behaviorRows = computed(() => [
                             :key="key"
                             class="flex items-center justify-between gap-4 py-3 first:pt-1 last:pb-1"
                         >
-                            <dt class="text-sm font-mono text-gray-700 dark:text-gray-300">{{ key }}</dt>
+                            <dt class="text-sm font-mono text-gray-900 dark:text-gray-300">{{ key }}</dt>
                             <dd>
                                 <Badge :color="value ? 'green' : 'default'" :text="value ? __('On') : __('Off')" />
                             </dd>

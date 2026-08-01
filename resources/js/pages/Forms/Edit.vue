@@ -16,7 +16,7 @@ defineProps([
 <template>
     <Head :title="[title, __('Form Mappings'), __('LeadHub')]" />
 
-    <div class="max-w-5xl 3xl:max-w-6xl mx-auto" data-max-width-wrapper>
+    <div class="max-w-page mx-auto" data-max-width-wrapper>
         <div class="mb-2">
             <Link :href="indexUrl" class="text-xs text-gray-500 hover:underline">
                 ← {{ __('Form Mappings') }}

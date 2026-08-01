@@ -135,12 +135,7 @@ function onDrop(columnId) {
     <Head :title="isEmpty ? [__('Pipelines'), __('LeadHub')] : [pipeline.name, __('Pipelines'), __('LeadHub')]" />
 
     <div v-if="isEmpty" class="max-w-page mx-auto">
-        <header class="py-8 pt-16 text-center">
-            <h1 class="text-[25px] font-medium antialiased flex justify-center items-center gap-2 sm:gap-3">
-                <Icon name="chart-pie" class="size-5 text-gray-500" />
-                {{ __('Pipelines') }}
-            </h1>
-        </header>
+        <Header :title="__('Pipelines')" icon="chart-pie" />
 
         <EmptyStateMenu
             v-if="canConfigure"
@@ -162,46 +157,44 @@ function onDrop(columnId) {
 
     <div v-else class="max-w-full mx-auto">
         <Header :title="__('Pipelines')" icon="chart-pie">
-            <template #actions>
-                <div class="flex gap-1 items-center">
-                    <Button
-                        v-for="p in pipelines"
-                        :key="p.id"
-                        :text="p.name"
-                        size="sm"
-                        :variant="p.id === pipeline.id ? 'primary' : 'ghost'"
-                        @click="switchPipeline(p.url)"
-                    />
-                    <Button
-                        v-if="newOpportunityUrl"
-                        :text="__('New opportunity')"
-                        icon="add"
-                        size="sm"
-                        variant="primary"
-                        data-leadhub-new-opportunity
-                        @click="newOpportunity()"
-                    />
-                    <Select
-                        :model-value="closedWindow"
-                        :options="closedWindowOptions"
-                        class="w-56"
-                        data-leadhub-closed-filter
-                        @update:model-value="changeClosedWindow"
-                    />
-                    <Button
-                        v-if="canConfigure"
-                        :text="__('Manage')"
-                        icon="cog"
-                        size="sm"
-                        variant="ghost"
-                        @click="switchPipeline(manageUrl)"
-                    />
-                </div>
-            </template>
+            <div class="flex gap-1 items-center">
+                <Button
+                    v-for="p in pipelines"
+                    :key="p.id"
+                    :text="p.name"
+                    size="sm"
+                    :variant="p.id === pipeline.id ? 'primary' : 'ghost'"
+                    @click="switchPipeline(p.url)"
+                />
+                <Button
+                    v-if="newOpportunityUrl"
+                    :text="__('New opportunity')"
+                    icon="add"
+                    size="sm"
+                    variant="primary"
+                    data-leadhub-new-opportunity
+                    @click="newOpportunity()"
+                />
+                <Select
+                    :model-value="closedWindow"
+                    :options="closedWindowOptions"
+                    class="w-56"
+                    data-leadhub-closed-filter
+                    @update:model-value="changeClosedWindow"
+                />
+                <Button
+                    v-if="canConfigure"
+                    :text="__('Manage')"
+                    icon="cog"
+                    size="sm"
+                    variant="ghost"
+                    @click="switchPipeline(manageUrl)"
+                />
+            </div>
         </Header>
 
         <div v-if="totals" class="flex flex-wrap items-center gap-4 px-1 pb-3 text-xs text-gray-500" data-leadhub-board-totals>
-            <span>{{ __('Open') }}: <span class="font-medium text-gray-700 dark:text-gray-200">{{ money(totals.open) }}</span></span>
+            <span>{{ __('Open') }}: <span class="font-medium text-gray-900 dark:text-gray-200">{{ money(totals.open) }}</span></span>
             <span>{{ __('Won') }}: <span class="font-medium text-green-600 dark:text-green-400">{{ money(totals.won) }}</span></span>
             <span>{{ __('Lost') }}: <span class="font-medium text-red-600 dark:text-red-400">{{ money(totals.lost) }}</span></span>
         </div>
@@ -236,7 +229,7 @@ function onDrop(columnId) {
                             v-for="card in column.cards"
                             :key="card.id"
                             :draggable="canManage"
-                            class="group relative rounded-xl bg-white dark:bg-gray-850 ring ring-gray-200 dark:ring-gray-700/80 shadow-ui-md p-3 transition"
+                            class="group relative rounded-xl bg-content-bg dark:bg-gray-850 ring ring-gray-200 dark:ring-gray-700/80 shadow-ui-md p-3 transition"
                             :class="[
                                 canManage ? 'cursor-grab active:cursor-grabbing' : '',
                                 draggingCardId === card.id ? 'opacity-50' : '',
@@ -275,7 +268,7 @@ function onDrop(columnId) {
                             </div>
 
                             <div v-if="card.value_estimate || card.confidence" class="mt-2.5 flex items-center justify-between gap-2">
-                                <Text v-if="card.value_estimate" size="sm" class="font-medium text-gray-700 dark:text-gray-200">
+                                <Text v-if="card.value_estimate" size="sm" class="font-medium text-gray-900 dark:text-gray-200">
                                     {{ money(card.value_estimate) }}
                                 </Text>
                                 <Badge v-if="card.confidence" color="default" size="sm" :text="`${card.confidence}%`" />
@@ -325,7 +318,7 @@ function onDrop(columnId) {
                         class="px-3 py-1 border-t border-content-border text-xs text-gray-500 flex items-center justify-between gap-2"
                         data-leadhub-column-total
                     >
-                        <span class="font-medium text-gray-700 dark:text-gray-200">{{ money(columnValue(column)) }}</span>
+                        <span class="font-medium text-gray-900 dark:text-gray-200">{{ money(columnValue(column)) }}</span>
                         <span v-if="columnClosedValue(column)" class="truncate">
                             {{ __('incl. closed') }} {{ money(columnClosedValue(column)) }}
                         </span>

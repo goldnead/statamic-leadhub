@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
-import { Header, Listing, Badge, Button, Select, DropdownItem } from '@statamic/cms/ui';
+import { Header, Listing, Badge, Button, Select, DropdownItem, ConfirmationModal, CommandPaletteItem } from '@statamic/cms/ui';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 
 const props = defineProps([
@@ -14,6 +14,7 @@ const props = defineProps([
 ]);
 
 const errors = ref({});
+const taskToDelete = ref(null);
 
 const filters = [
     { value: 'open', label: __('Open') },
@@ -75,11 +76,18 @@ function complete(row) {
     });
 }
 
-function destroy(row) {
-    router.delete(row.delete_url, {
+function confirmDelete(row) {
+    taskToDelete.value = row;
+}
+
+function destroy() {
+    if (! taskToDelete.value) return;
+
+    router.delete(taskToDelete.value.delete_url, {
         preserveScroll: true,
         onError: (e) => { errors.value = e || {}; },
         onSuccess: () => { errors.value = {}; },
+        onFinish: () => { taskToDelete.value = null; },
     });
 }
 </script>
@@ -89,16 +97,22 @@ function destroy(row) {
 
     <div class="max-w-page mx-auto">
         <Header :title="__('Tasks')" icon="tasks">
-            <template #actions>
+            <CommandPaletteItem
+                v-if="createUrl"
+                category="Actions"
+                :text="__('New task')"
+                icon="tasks"
+                :url="createUrl"
+                v-slot="{ text, url }"
+            >
                 <Button
-                    v-if="createUrl"
-                    :text="__('New task')"
+                    :text="text"
                     icon="add"
                     variant="primary"
                     data-leadhub-new-task
-                    @click="router.visit(createUrl)"
+                    @click="router.visit(url)"
                 />
-            </template>
+            </CommandPaletteItem>
         </Header>
 
         <ErrorSummary :errors="errors" />
@@ -144,7 +158,7 @@ function destroy(row) {
             </template>
 
             <template #cell-contact_name="{ row }">
-                <a v-if="row.contact_url" :href="row.contact_url" class="text-blue-600 text-sm">{{ row.contact_name }}</a>
+                <a v-if="row.contact_url" :href="row.contact_url" class="text-primary text-sm">{{ row.contact_name }}</a>
                 <span v-else class="text-gray-400">—</span>
             </template>
 
@@ -186,9 +200,19 @@ function destroy(row) {
                     :text="__('Delete')"
                     icon="trash"
                     variant="destructive"
-                    @click="destroy(row)"
+                    @click="confirmDelete(row)"
                 />
             </template>
         </Listing>
+
+        <ConfirmationModal
+            :open="taskToDelete !== null"
+            :title="__('Delete task')"
+            :body-text="__('Delete this task? This cannot be undone.')"
+            danger
+            :button-text="__('Delete')"
+            @cancel="taskToDelete = null"
+            @confirm="destroy"
+        />
     </div>
 </template>

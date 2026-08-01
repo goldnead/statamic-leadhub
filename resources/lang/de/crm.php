@@ -16,4 +16,9 @@ return [
     'status' => 'Status',
     'detail' => 'Detail',
     'time' => 'Zeit',
+
+    'statuses' => [
+        'success' => 'Erfolgreich',
+        'failed' => 'Fehlgeschlagen',
+    ],
 ];

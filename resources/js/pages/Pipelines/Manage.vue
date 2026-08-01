@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, watch } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
-import { Header, Panel, Badge, Button, Field, Input, Select, Switch, Text, Icon } from '@statamic/cms/ui';
+import { Header, Panel, Badge, Button, Field, Input, Select, Switch, Text, Icon, ConfirmationModal } from '@statamic/cms/ui';
 
 const props = defineProps(['pipelines', 'storeUrl', 'canManage']);
 
@@ -91,11 +91,20 @@ function saveStage(stage) {
     });
 }
 
-function deleteStage(stage) {
-    router.delete(stage.delete_url, {
+const stageToDelete = ref(null);
+
+function confirmDeleteStage(stage) {
+    stageToDelete.value = stage;
+}
+
+function deleteStage() {
+    if (! stageToDelete.value) return;
+
+    router.delete(stageToDelete.value.delete_url, {
         preserveScroll: true,
         onError: (e) => { errors.value = e || {}; },
         onSuccess: () => { errors.value = {}; },
+        onFinish: () => { stageToDelete.value = null; },
     });
 }
 
@@ -168,7 +177,7 @@ function appendStage(pipeline) {
                         <Badge color="default" :text="pipeline.slug" />
                         <Badge v-if="!pipeline.is_active" color="red" :text="__('Inactive')" />
                     </div>
-                    <Link :href="pipeline.board_url" class="text-sm text-blue-600 hover:underline">{{ __('Open board') }}</Link>
+                    <Link :href="pipeline.board_url" class="text-sm text-primary hover:underline">{{ __('Open board') }}</Link>
                 </div>
 
                 <!-- Read-only overview: the stage order as the board renders it. -->
@@ -227,7 +236,7 @@ function appendStage(pipeline) {
                             size="sm"
                             variant="ghost"
                             :aria-label="__('Delete stage')"
-                            @click="deleteStage(stage)"
+                            @click="confirmDeleteStage(stage)"
                         />
 
                         <Text v-if="stage.opportunities_count" size="xs" variant="subtle" class="pb-2">
@@ -272,5 +281,15 @@ function appendStage(pipeline) {
                 </div>
             </Panel>
         </div>
+
+        <ConfirmationModal
+            :open="stageToDelete !== null"
+            :title="__('Delete stage')"
+            :body-text="__('Delete this stage? A stage that still holds opportunities is refused.')"
+            danger
+            :button-text="__('Delete')"
+            @cancel="stageToDelete = null"
+            @confirm="deleteStage"
+        />
     </div>
 </template>

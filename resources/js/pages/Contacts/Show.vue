@@ -141,7 +141,7 @@ const showCrm = computed(() =>
 <template>
     <Head :title="[contact.display_name, __('Contacts'), __('LeadHub')]" />
 
-    <div class="max-w-5xl 3xl:max-w-6xl mx-auto" data-max-width-wrapper>
+    <div class="max-w-page mx-auto" data-max-width-wrapper>
         <Header :title="contact.display_name" icon="user">
             <Select v-model="status" :options="statusOptions()" @update:model-value="changeStatus" />
         </Header>

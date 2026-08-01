@@ -2,12 +2,13 @@
 import { computed } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
-    Header, Listing, Badge, Icon, EmptyStateMenu, EmptyStateItem, DropdownItem,
+    Header, Listing, Badge, EmptyStateMenu, EmptyStateItem, DropdownItem,
 } from '@statamic/cms/ui';
 
 const props = defineProps([
-    'forms',          // [{ handle, title, enabled, email_field, last_processed_at, edit_url }]
-    'columns',        // Array<Column>
+    'forms',            // [{ handle, title, enabled, email_field, last_processed_at, edit_url }]
+    'columns',          // Array<Column>
+    'statamicFormsUrl', // cp_route('forms.index') — the CP prefix is configurable
 ]);
 
 const isEmpty = computed(() => props.forms.length === 0);
@@ -21,15 +22,10 @@ function reloadPage() {
     <Head :title="[__('Form Mappings'), __('LeadHub')]" />
 
     <div v-if="isEmpty" class="max-w-page mx-auto">
-        <header class="py-8 pt-16 text-center">
-            <h1 class="text-[25px] font-medium antialiased flex justify-center items-center gap-2 sm:gap-3">
-                <Icon name="forms" class="size-5 text-gray-500" />
-                {{ __('Form Mappings') }}
-            </h1>
-        </header>
+        <Header :title="__('Form Mappings')" icon="forms" />
         <EmptyStateMenu :heading="__('Create a Statamic form first, then come back here to map it.')">
             <EmptyStateItem
-                href="/cp/forms"
+                :href="statamicFormsUrl"
                 icon="forms"
                 :heading="__('Open Statamic Forms')"
                 :description="__('Make at least one Statamic form. LeadHub will detect it automatically.')"
@@ -67,7 +63,7 @@ function reloadPage() {
             </template>
 
             <template #cell-email_field="{ row }">
-                <span v-if="row.email_field" class="text-xs text-gray-700 dark:text-gray-300">
+                <span v-if="row.email_field" class="text-xs text-gray-900 dark:text-gray-300">
                     ✓ {{ row.email_field }}
                 </span>
                 <span v-else class="text-xs text-gray-400">—</span>

@@ -1,12 +1,13 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
-import { Header, Panel, Badge, Button, Description } from '@statamic/cms/ui';
+import { Header, Panel, Badge, Button, Description, ConfirmationModal } from '@statamic/cms/ui';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 
 const props = defineProps(['company', 'contacts', 'canManage']);
 
 const errors = ref({});
+const confirmingDelete = ref(false);
 
 function openContact(url) {
     if (url) router.visit(url);
@@ -20,6 +21,7 @@ function destroy() {
         // delete button is indistinguishable from a broken one.
         onError: (e) => { errors.value = e || {}; },
         onSuccess: () => { errors.value = {}; },
+        onFinish: () => { confirmingDelete.value = false; },
     });
 }
 </script>
@@ -29,12 +31,10 @@ function destroy() {
 
     <div class="max-w-page mx-auto">
         <Header :title="company.name" icon="office-building">
-            <template #actions>
-                <div v-if="canManage" class="flex items-center gap-2">
-                    <Button :text="__('Edit')" icon="edit" variant="default" data-leadhub-edit-company @click="router.visit(company.edit_url)" />
-                    <Button :text="__('Delete')" icon="trash" variant="danger" data-leadhub-delete-company @click="destroy" />
-                </div>
-            </template>
+            <div v-if="canManage" class="flex items-center gap-2">
+                <Button :text="__('Edit')" icon="edit" variant="default" data-leadhub-edit-company @click="router.visit(company.edit_url)" />
+                <Button :text="__('Delete')" icon="trash" variant="danger" data-leadhub-delete-company @click="confirmingDelete = true" />
+            </div>
         </Header>
 
         <ErrorSummary :errors="errors" />
@@ -44,7 +44,7 @@ function destroy() {
                 <div class="p-4 space-y-3">
                     <div>
                         <div class="text-xs text-gray-500 uppercase">{{ __('Website') }}</div>
-                        <a v-if="company.website" :href="company.website" target="_blank" class="text-blue-600 text-sm">
+                        <a v-if="company.website" :href="company.website" target="_blank" class="text-primary text-sm">
                             {{ company.domain || company.website }}
                         </a>
                         <span v-else class="text-sm text-gray-400">—</span>
@@ -87,5 +87,15 @@ function destroy() {
                 </div>
             </Panel>
         </div>
+
+        <ConfirmationModal
+            :open="confirmingDelete"
+            :title="__('Delete company')"
+            :body-text="__('Delete this company? Its contacts stay, only the company record and the links to it go.')"
+            danger
+            :button-text="__('Delete')"
+            @cancel="confirmingDelete = false"
+            @confirm="destroy"
+        />
     </div>
 </template>

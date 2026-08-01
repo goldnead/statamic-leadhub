@@ -1,25 +1,33 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
-import { Header, Listing, Badge, Button, DropdownItem } from '@statamic/cms/ui';
+import { Header, Listing, Badge, Button, DropdownItem, ConfirmationModal, CommandPaletteItem } from '@statamic/cms/ui';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 
 const props = defineProps(['companies', 'columns', 'filters', 'canManage', 'createUrl']);
 
 const errors = ref({});
+const companyToDelete = ref(null);
 
 function reloadPage() {
     router.reload({ preserveScroll: true });
 }
 
-function destroy(row) {
+function confirmDelete(row) {
+    companyToDelete.value = row;
+}
+
+function destroy() {
+    if (! companyToDelete.value) return;
+
     // A refused deletion answers with a 422 and an error bag. Without the
     // onError branch the row would simply stay and the click would look
     // ignored, which is exactly the failure mode this release is closing.
-    router.delete(row.delete_url, {
+    router.delete(companyToDelete.value.delete_url, {
         preserveScroll: true,
         onError: (e) => { errors.value = e || {}; },
         onSuccess: () => { errors.value = {}; },
+        onFinish: () => { companyToDelete.value = null; },
     });
 }
 </script>
@@ -29,16 +37,22 @@ function destroy(row) {
 
     <div class="max-w-page mx-auto">
         <Header :title="__('Companies')" icon="office-building">
-            <template #actions>
+            <CommandPaletteItem
+                v-if="createUrl"
+                category="Actions"
+                :text="__('New company')"
+                icon="office-building"
+                :url="createUrl"
+                v-slot="{ text, url }"
+            >
                 <Button
-                    v-if="createUrl"
-                    :text="__('New company')"
+                    :text="text"
                     icon="add"
                     variant="primary"
                     data-leadhub-new-company
-                    @click="router.visit(createUrl)"
+                    @click="router.visit(url)"
                 />
-            </template>
+            </CommandPaletteItem>
         </Header>
 
         <p class="text-sm text-gray-500 dark:text-gray-400 -mt-4 mb-4">
@@ -81,9 +95,19 @@ function destroy(row) {
                     :text="__('Delete')"
                     icon="trash"
                     variant="destructive"
-                    @click="destroy(row)"
+                    @click="confirmDelete(row)"
                 />
             </template>
         </Listing>
+
+        <ConfirmationModal
+            :open="companyToDelete !== null"
+            :title="__('Delete company')"
+            :body-text="__('Delete this company? Its contacts stay, only the company record and the links to it go.')"
+            danger
+            :button-text="__('Delete')"
+            @cancel="companyToDelete = null"
+            @confirm="destroy"
+        />
     </div>
 </template>

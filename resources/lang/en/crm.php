@@ -16,4 +16,10 @@ return [
     'status' => 'Status',
     'detail' => 'Detail',
     'time' => 'Time',
+
+    // The `status` column used to render the raw database enum.
+    'statuses' => [
+        'success' => 'Success',
+        'failed' => 'Failed',
+    ],
 ];

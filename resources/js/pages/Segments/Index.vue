@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
-    Header, Listing, Badge, Button, DropdownItem, ConfirmationModal,
+    Header, Listing, Badge, Button, DropdownItem, ConfirmationModal, CommandPaletteItem,
 } from '@statamic/cms/ui';
 
 const props = defineProps([
@@ -38,12 +38,16 @@ function destroy() {
 
     <div class="max-w-page mx-auto">
         <Header :title="__('Segments')" icon="tags">
-            <Button
+            <CommandPaletteItem
                 v-if="canManage"
-                :href="createUrl"
+                category="Actions"
                 :text="__('Create segment')"
-                variant="primary"
-            />
+                icon="tags"
+                :url="createUrl"
+                v-slot="{ text, url }"
+            >
+                <Button :href="url" :text="text" variant="primary" />
+            </CommandPaletteItem>
         </Header>
 
         <p class="text-sm text-gray-500 dark:text-gray-400 -mt-4 mb-4">
@@ -57,7 +61,7 @@ function destroy() {
             @refreshing="reloadPage"
         >
             <template #cell-name="{ row }">
-                <Link :href="row.edit_url" class="font-medium text-blue-600 hover:underline">{{ row.name }}</Link>
+                <Link :href="row.edit_url" class="font-medium text-primary hover:underline">{{ row.name }}</Link>
             </template>
 
             <template #cell-handle="{ row }">

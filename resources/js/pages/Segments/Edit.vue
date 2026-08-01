@@ -64,7 +64,10 @@ function schedulePreview() {
 
 function runPreview() {
     previewing.value = true;
-    axios.post(props.previewUrl, { rules: form.rules })
+    // A read, so a GET. The endpoint answers JSON rather than an Inertia page,
+    // which rules out router.get(); axios on a GET does not touch Inertia's
+    // progress bar, toasts or dirty-state guard, so nothing is bypassed.
+    axios.get(props.previewUrl, { params: { rules: form.rules } })
         .then((res) => { previewCount.value = res.data.count; })
         .catch(() => { previewCount.value = null; })
         .finally(() => { previewing.value = false; });

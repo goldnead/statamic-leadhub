@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
-import { Header, Panel, Card, Button, Badge, Field, Input, Select, Text } from '@statamic/cms/ui';
+import { Header, Panel, Card, Button, Badge, Field, Input, Select, Text, ConfirmationModal } from '@statamic/cms/ui';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 
 const props = defineProps([
@@ -68,12 +68,15 @@ function completeTask(task) {
     });
 }
 
+const confirmingDelete = ref(false);
+
 function destroy() {
     router.delete(props.deleteUrl, {
         preserveScroll: true,
         // "This opportunity still has N tasks" comes back as an error bag.
         onError: (e) => { errors.value = e || {}; },
         onSuccess: () => { errors.value = {}; },
+        onFinish: () => { confirmingDelete.value = false; },
     });
 }
 </script>
@@ -83,9 +86,7 @@ function destroy() {
 
     <div class="max-w-2xl mx-auto">
         <Header :title="__('Edit opportunity')" icon="chart-pie">
-            <template #actions>
-                <Button :text="__('Delete')" icon="trash" variant="danger" data-leadhub-delete-opportunity @click="destroy" />
-            </template>
+            <Button :text="__('Delete')" icon="trash" variant="danger" data-leadhub-delete-opportunity @click="confirmingDelete = true" />
         </Header>
 
         <ErrorSummary
@@ -208,5 +209,15 @@ function destroy() {
                 {{ __('leadhub::pipelines.opportunity_tasks_hint') }}
             </p>
         </div>
+
+        <ConfirmationModal
+            :open="confirmingDelete"
+            :title="__('Delete opportunity')"
+            :body-text="__('Delete this opportunity? An opportunity that still has open tasks is refused.')"
+            danger
+            :button-text="__('Delete')"
+            @cancel="confirmingDelete = false"
+            @confirm="destroy"
+        />
     </div>
 </template>

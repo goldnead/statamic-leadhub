@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
-    Header, Button, Listing, Badge, Icon, EmptyStateMenu, EmptyStateItem,
-    DropdownItem, Panel, Field, Input,
+    Header, Button, Listing, Badge, EmptyStateMenu, EmptyStateItem,
+    DropdownItem, Panel, Field, Input, CommandPaletteItem,
 } from '@statamic/cms/ui';
 
 const props = defineProps([
@@ -118,12 +118,7 @@ function restore(row) {
 
     <!-- Empty state — no form connected yet -->
     <div v-if="isEmpty && !hasFormConnected" class="max-w-page mx-auto">
-        <header class="py-8 pt-16 text-center">
-            <h1 class="text-[25px] font-medium antialiased flex justify-center items-center gap-2 sm:gap-3">
-                <Icon name="users" class="size-5 text-gray-500" />
-                {{ __('Contacts') }}
-            </h1>
-        </header>
+        <Header :title="__('Contacts')" icon="users" />
         <EmptyStateMenu :heading="__('Connect a form first to start collecting contacts.')">
             <EmptyStateItem
                 :href="configureFormsUrl"
@@ -145,13 +140,21 @@ function restore(row) {
     <div v-else class="max-w-page mx-auto">
         <Header :title="__('Contacts')" icon="users">
             <Button :text="__('Export CSV')" icon="download" variant="default" @click="exportCsv" />
-            <Button
+            <CommandPaletteItem
                 v-if="createUrl"
+                category="Actions"
                 :text="__('Create contact')"
-                icon="plus"
-                variant="primary"
-                @click="router.visit(createUrl)"
-            />
+                icon="users"
+                :url="createUrl"
+                v-slot="{ text, url }"
+            >
+                <Button
+                    :text="text"
+                    icon="plus"
+                    variant="primary"
+                    @click="router.visit(url)"
+                />
+            </CommandPaletteItem>
         </Header>
 
         <Panel v-if="scoringEnabled" class="mb-4">
@@ -192,7 +195,7 @@ function restore(row) {
             </template>
 
             <template #cell-email="{ row }">
-                <span class="text-gray-700 dark:text-gray-300">{{ row.email }}</span>
+                <span class="text-gray-900 dark:text-gray-300">{{ row.email }}</span>
             </template>
 
             <template #cell-status="{ row }">

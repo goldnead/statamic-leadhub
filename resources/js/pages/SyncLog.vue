@@ -1,10 +1,12 @@
 <script setup>
 import { Head, Link } from '@statamic/cms/inertia';
-import { Header, Panel, Card, Badge, Text } from '@statamic/cms/ui';
+import { Header, Panel, Card, Badge, Text, Listing } from '@statamic/cms/ui';
 
 defineProps([
-    'enabled', // boolean — features.crm_destinations
-    'logs',    // [{ id, contact_label, contact_url, destination, driver, event, status, response_code, message, created_at }]
+    'enabled',  // boolean — features.crm_destinations
+    'columns',  // Array<Column>
+    'dataUrl',  // the listing's server-mode endpoint
+    'hasLogs',  // whether anything has ever been logged
 ]);
 </script>
 
@@ -22,54 +24,59 @@ defineProps([
         </Panel>
 
         <!-- Enabled but no syncs yet -->
-        <Panel v-else-if="logs.length === 0" :heading="__('leadhub::crm.title')">
+        <Panel v-else-if="!hasLogs" :heading="__('leadhub::crm.title')">
             <Card>
                 <Text variant="subtle">{{ __('leadhub::crm.empty') }}</Text>
             </Card>
         </Panel>
 
-        <!-- Log table -->
-        <Panel v-else :heading="__('leadhub::crm.title')">
-            <Card>
-                <table class="w-full text-sm">
-                    <thead>
-                        <tr class="text-left text-2xs uppercase tracking-wide text-gray-500 border-b border-content-border">
-                            <th class="py-2 pr-3 font-medium">{{ __('leadhub::crm.contact') }}</th>
-                            <th class="py-2 pr-3 font-medium">{{ __('leadhub::crm.destination') }}</th>
-                            <th class="py-2 pr-3 font-medium">{{ __('leadhub::crm.event') }}</th>
-                            <th class="py-2 pr-3 font-medium">{{ __('leadhub::crm.status') }}</th>
-                            <th class="py-2 pr-3 font-medium">{{ __('leadhub::crm.detail') }}</th>
-                            <th class="py-2 font-medium text-right">{{ __('leadhub::crm.time') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-content-border">
-                        <tr v-for="log in logs" :key="log.id">
-                            <td class="py-2.5 pr-3">
-                                <Link v-if="log.contact_url" :href="log.contact_url" class="font-medium hover:underline">
-                                    {{ log.contact_label }}
-                                </Link>
-                                <span v-else>{{ log.contact_label }}</span>
-                            </td>
-                            <td class="py-2.5 pr-3">
-                                {{ log.destination }}
-                                <Text size="xs" variant="subtle">{{ log.driver }}</Text>
-                            </td>
-                            <td class="py-2.5 pr-3 text-gray-500">{{ log.event }}</td>
-                            <td class="py-2.5 pr-3">
-                                <Badge
-                                    :color="log.status === 'success' ? 'green' : 'red'"
-                                    :text="log.status"
-                                />
-                            </td>
-                            <td class="py-2.5 pr-3 text-gray-500 max-w-xs truncate" :title="log.message">
-                                <span v-if="log.response_code" class="text-2xs text-gray-400">{{ log.response_code }}</span>
-                                {{ log.message }}
-                            </td>
-                            <td class="py-2.5 text-right text-xs text-gray-500 whitespace-nowrap">{{ log.created_at }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </Card>
-        </Panel>
+        <!--
+            Server mode. The log grows without bound, so it is paginated rather
+            than truncated at a fixed row count the way the old hand-built
+            table was.
+        -->
+        <Listing
+            v-else
+            :url="dataUrl"
+            :columns="columns"
+            :allow-bulk-actions="false"
+            preferences-prefix="leadhub.sync_log"
+            sort-column="created_at"
+            sort-direction="desc"
+        >
+            <template #cell-contact_label="{ row }">
+                <Link v-if="row.contact_url" :href="row.contact_url" class="font-medium hover:underline">
+                    {{ row.contact_label }}
+                </Link>
+                <span v-else>{{ row.contact_label }}</span>
+            </template>
+
+            <template #cell-destination="{ row }">
+                {{ row.destination }}
+                <Text size="xs" variant="subtle">{{ row.driver }}</Text>
+            </template>
+
+            <template #cell-event="{ row }">
+                <span class="text-gray-500">{{ row.event }}</span>
+            </template>
+
+            <template #cell-status="{ row }">
+                <Badge
+                    :color="row.status === 'success' ? 'green' : 'red'"
+                    :text="row.status_label || row.status"
+                />
+            </template>
+
+            <template #cell-message="{ row }">
+                <span class="text-gray-500 max-w-xs truncate inline-block align-bottom" :title="row.message">
+                    <span v-if="row.response_code" class="text-2xs text-gray-400">{{ row.response_code }}</span>
+                    {{ row.message }}
+                </span>
+            </template>
+
+            <template #cell-created_at="{ row }">
+                <span class="text-xs text-gray-500 whitespace-nowrap">{{ row.created_at }}</span>
+            </template>
+        </Listing>
     </div>
 </template>

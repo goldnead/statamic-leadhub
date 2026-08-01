@@ -4,17 +4,17 @@ use Goldnead\Leadhub\Http\Controllers\Cp\CompanyController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ContactController;
 use Goldnead\Leadhub\Http\Controllers\Cp\DashboardController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ExportController;
-use Goldnead\Leadhub\Http\Controllers\Cp\PipelineController;
-use Goldnead\Leadhub\Http\Controllers\Cp\TaskController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FollowupController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FormMappingController;
 use Goldnead\Leadhub\Http\Controllers\Cp\NoteController;
 use Goldnead\Leadhub\Http\Controllers\Cp\OpportunityController;
+use Goldnead\Leadhub\Http\Controllers\Cp\PipelineController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ScoringController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SegmentController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SettingsController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SyncLogController;
 use Goldnead\Leadhub\Http\Controllers\Cp\TagController;
+use Goldnead\Leadhub\Http\Controllers\Cp\TaskController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('leadhub')->name('leadhub.')->group(function () {
@@ -70,7 +70,13 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::get('/', [SegmentController::class, 'index'])->name('index');
         Route::get('/create', [SegmentController::class, 'create'])->name('create');
         Route::post('/', [SegmentController::class, 'store'])->name('store');
-        Route::post('/preview', [SegmentController::class, 'preview'])->name('preview');
+        // A GET, and deliberately so. The rule builder's live member count
+        // reads; it writes nothing. As a POST the Vue side had to reach for
+        // axios, which bypasses Inertia's progress bar, flash toasts and
+        // dirty-state guard — and `router.post()` was no alternative, because
+        // this endpoint answers JSON, not an Inertia page. A read on GET is
+        // both the honest verb and the one that stays out of Inertia's way.
+        Route::get('/preview', [SegmentController::class, 'preview'])->name('preview');
         Route::get('/{segment}', [SegmentController::class, 'edit'])->name('edit');
         Route::patch('/{segment}', [SegmentController::class, 'update'])->name('update');
         Route::delete('/{segment}', [SegmentController::class, 'destroy'])->name('destroy');
@@ -169,6 +175,8 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
 
     // CRM sync log
     Route::get('/sync-log', [SyncLogController::class, 'index'])->name('sync-log');
+    // Data endpoint for the sync log's <Listing> in server mode.
+    Route::get('/sync-log/data', [SyncLogController::class, 'data'])->name('sync-log.data');
 
     // Export
     Route::post('/export', [ExportController::class, 'store'])->name('export');

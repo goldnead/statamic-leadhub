@@ -1,22 +1,27 @@
 <?php
 
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository;
+use Goldnead\Leadhub\Repositories\FlatFile\FlatFileSegmentRepository;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 use Statamic\Facades\User;
 
 beforeEach(function (): void {
     if (config('leadhub.storage.driver') === 'flat') {
         $path = (string) config('leadhub.storage.flat.path');
         if ($path && is_dir($path)) {
-            \Illuminate\Support\Facades\File::deleteDirectory($path);
+            File::deleteDirectory($path);
         }
         try {
-            \Illuminate\Support\Facades\Storage::disk((string) config('leadhub.storage.flat.index_disk', 'local'))
+            Storage::disk((string) config('leadhub.storage.flat.index_disk', 'local'))
                 ->deleteDirectory((string) config('leadhub.storage.flat.index_path', 'leadhub/index'));
-        } catch (\Throwable) {
+        } catch (Throwable) {
         }
         foreach ([
-            \Goldnead\Leadhub\Repositories\FlatFile\FlatFileContactRepository::class,
-            \Goldnead\Leadhub\Repositories\FlatFile\FlatFileSegmentRepository::class,
+            FlatFileContactRepository::class,
+            FlatFileSegmentRepository::class,
             'leadhub.index.contacts',
         ] as $abstract) {
             app()->forgetInstance($abstract);
@@ -78,16 +83,26 @@ it('renders the segment edit builder for an existing segment', function (): void
 });
 
 it('returns a live member-count preview', function (): void {
-    app(\Goldnead\Leadhub\Contracts\Repositories\ContactRepository::class)->create([
+    app(ContactRepository::class)->create([
         'email' => 'prev@example.com', 'email_normalized' => 'prev@example.com', 'status' => 'qualified',
     ]);
 
-    $response = $this->post(cp_route('leadhub.segments.preview'), [
+    // A GET: the preview reads, it writes nothing. See routes/cp.php.
+    $response = $this->get(cp_route('leadhub.segments.preview').'?'.http_build_query([
         'rules' => ['match' => 'all', 'conditions' => [['type' => 'field', 'field' => 'status', 'operator' => 'eq', 'value' => 'qualified']]],
-    ]);
+    ]));
 
     $response->assertStatus(200);
     expect($response->json('count'))->toBe(1);
+});
+
+it('refuses the preview without the manage-segments permission', function (): void {
+    $regular = User::make()->email('seg-preview-nobody@example.com');
+    $regular->save();
+
+    $this->actingAs($regular)
+        ->get(cp_route('leadhub.segments.preview'))
+        ->assertStatus(403);
 });
 
 it('blocks users without view-segments permission', function (): void {

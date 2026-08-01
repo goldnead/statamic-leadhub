@@ -2,9 +2,11 @@
 
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
 use Goldnead\Leadhub\Models\Segment;
 use Goldnead\Leadhub\Services\SegmentService;
+use Goldnead\Leadhub\Support\SegmentEvaluator;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Statamic\CP\Column;
@@ -14,8 +16,7 @@ class SegmentController extends Controller
     public function __construct(
         protected SegmentRepository $segments,
         protected SegmentService $service,
-    ) {
-    }
+    ) {}
 
     public function index(Request $request)
     {
@@ -126,8 +127,8 @@ class SegmentController extends Controller
     }
 
     /**
-     * Live member-count preview for the builder. Evaluates the posted rules
-     * against all contacts WITHOUT persisting anything.
+     * Live member-count preview for the builder. Evaluates the submitted rules
+     * against all contacts WITHOUT persisting anything — hence a GET.
      */
     public function preview(Request $request)
     {
@@ -140,8 +141,8 @@ class SegmentController extends Controller
         $draft->handle = '__preview__';
 
         $count = 0;
-        $evaluator = app(\Goldnead\Leadhub\Support\SegmentEvaluator::class);
-        $contacts = app(\Goldnead\Leadhub\Contracts\Repositories\ContactRepository::class);
+        $evaluator = app(SegmentEvaluator::class);
+        $contacts = app(ContactRepository::class);
 
         $page = 1;
         do {
@@ -179,7 +180,7 @@ class SegmentController extends Controller
     protected function vocabulary(): array
     {
         return [
-            'fields' => \Goldnead\Leadhub\Support\SegmentEvaluator::FIELDS,
+            'fields' => SegmentEvaluator::FIELDS,
             'field_operators' => [
                 'eq', 'neq', 'in', 'not_in', 'contains', 'starts_with',
                 'gt', 'gte', 'lt', 'lte', 'is_set', 'is_empty',

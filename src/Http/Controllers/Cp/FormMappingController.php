@@ -13,9 +13,7 @@ use Statamic\Facades\Form;
 
 class FormMappingController extends Controller
 {
-    public function __construct(protected FormMappingRepository $mappings)
-    {
-    }
+    public function __construct(protected FormMappingRepository $mappings) {}
 
     public function index(Request $request)
     {
@@ -52,6 +50,10 @@ class FormMappingController extends Controller
         return Inertia::render('leadhub::Forms/Index', [
             'forms' => $rows,
             'columns' => $columns,
+            // The empty state links into Statamic's own Forms screen. Its path
+            // is not `/cp/forms`: the CP prefix is configurable and plenty of
+            // installs rename it, so the URL has to come from the route helper.
+            'statamicFormsUrl' => cp_route('forms.index'),
         ]);
     }
 
