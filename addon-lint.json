@@ -1,14 +1,17 @@
 {
-    "_comment": "Two rules are switched off here. Neither is a silent suppression: both carry a reason and a test that holds the underlying property.",
+    "_comment": "One rule is switched off here. It is not a silent suppression: it carries a reason, and the property it protects is held by a test rather than by this entry.",
 
     "disable": [
-        "bootstrap.cp-authorization",
         "testing.addon-testcase"
     ],
 
-    "_why": {
-        "bootstrap.cp-authorization": "False positive, verified. The rule greps each CP controller for `$this->authorize(`, `Gate::`, `->can(`, `abort_unless`, `abort_if` or `authorizeResource`. This addon guards through `Cp\\Controller::authorizeOrFail()` (src/Http/Controllers/Cp/Controller.php:21), which the rule's pattern list does not know — the base class deliberately routes through Laravel's Gate rather than Statamic's `hasPermission()`, because the latter crashes on eloquent-driver sites where the authenticated model is a plain App\\Models\\User. `ExportController::store()` calls it on its first line (src/Http/Controllers/Cp/ExportController.php:16). The property the rule is protecting is held by a test, not by this suppression: tests/Feature/CpWriteRouteAuthorizationTest.php walks the router, picks every POST/PATCH/PUT/DELETE route in the leadhub namespace with all feature flags on, and asserts each answers 403 to a CP user without LeadHub permissions. All 38 do. A new unguarded write route fails there on the day it is added.",
+    "_resolved": {
+        "bootstrap.cp-authorization": "Suppressed on 2026-08-01 and withdrawn the same day. The finding was a real false positive — the rule grepped for `$this->authorize(`, `Gate::`, `->can(`, `abort_unless`, `abort_if` and `authorizeResource`, and did not know `authorizeOrFail()`, Statamic's own guard on `Statamic\\Http\\Controllers\\CP\\Controller`. This addon routes through it deliberately, because `hasPermission()` crashes on eloquent-driver sites where the authenticated model is a plain App\\Models\\User. But a rule that fires on a correct addon is a broken rule, not a rule to switch off: it was fixed in the studio, so it is live again here and would catch a genuinely unguarded route. tests/Feature/CpWriteRouteAuthorizationTest.php proves the property independently — all 38 CP write routes answer 403 to a user without LeadHub permissions, and a new unguarded one fails there on the day it is added.",
 
+        "_note": "Entries under _resolved are history, not configuration. addon-lint only reads `disable`."
+    },
+
+    "_why": {
         "testing.addon-testcase": "Deliberate, and it needs a decision rather than a quiet fix. Switching tests/TestCase.php to Statamic\\Testing\\AddonTestCase was attempted on 2026-08-01 and produced 201 failures out of 501. AddonTestCase mocks the Nav facade without an `extend` expectation, and — more fundamentally — its manifest wiring makes Statamic register the addon's own routes and listeners on top of the ones this TestCase mounts by hand, so every event-driven side effect fires twice (engagement scores came out doubled). The hand-rolled setup is not accidental: it boots the brand-context sibling before this addon, flips the storage driver from LEADHUB_DRIVER, swaps SQLite for MySQL from DB_DRIVER for the InnoDB key-length suite, purges the flat-file store between tests, and mounts the CP routes with SubstituteBindings so a sibling addon's Route::bind() collision is reproducible. Migrating to AddonTestCase means rebuilding all of that against core's ordering — a project, not a sweep item. Tracked for a separate pass."
     }
 }
