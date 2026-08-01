@@ -1,7 +1,6 @@
 # Changelog
 
-## 1.12.1 — 2026-08-01
-
+## Unreleased
 ### Fixed — the webhook-manager integration job tested nothing, then tested nothing loudly
 
 `scripts/test-webhook-manager.sh` staged its throwaway copy with `git archive HEAD`.
