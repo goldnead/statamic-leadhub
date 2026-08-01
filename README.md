@@ -47,9 +47,10 @@ What it deliberately does **not** do (yet): bidirectional CRM *pull* sync. See [
 
 ## Requirements
 
-- PHP **8.2+**
+- PHP **8.2+** (**8.3+** on Laravel 13)
 - Statamic **6.0+** (the v0.3 CP rewrite uses Inertia + Vue 3 — Statamic 5 is no longer supported; pin to `^0.2.x` if you need it)
-- Laravel **11.x / 12.x / 13.x**
+- Laravel **12.x / 13.x**. Laravel 11 is not supported: v11.0.0–v11.55.0 are covered by security advisories and Composer refuses the line, so there is no installable Laravel 11 for Statamic 6 to sit on.
+- [`goldnead/statamic-brand-context`](https://github.com/goldnead/statamic-brand-context) **^1.6** — a hard dependency, not optional. It supplies the brand (tenant) every LeadHub record is scoped to. See [Brands](#brands--multi-tenancy).
 - A SQL database (MySQL, PostgreSQL, SQLite) — only required for the eloquent driver
 
 ---
@@ -60,6 +61,14 @@ What it deliberately does **not** do (yet): bidirectional CRM *pull* sync. See [
 composer require goldnead/statamic-leadhub
 php artisan migrate          # only needed for the eloquent driver (default)
 ```
+
+> **Not on Packagist yet.** `goldnead/statamic-brand-context` is still private, and Composer ignores the `repositories` block of a package it installs as a dependency. Until both packages are published, the command above resolves only in a project that declares the VCS repository itself:
+>
+> ```bash
+> composer config repositories.brand-context vcs https://github.com/goldnead/statamic-brand-context.git
+> composer config repositories.leadhub vcs https://github.com/goldnead/statamic-leadhub.git
+> composer require goldnead/statamic-leadhub
+> ```
 
 That's it — **no front-end build step is required**. LeadHub ships its compiled Control Panel assets (Inertia + Vue 3 + Tailwind v4) under `resources/dist/`, and Statamic publishes them to your `public/vendor/` automatically on install. If you ever need to (re)publish them manually:
 
@@ -279,6 +288,38 @@ Each destination implements `Goldnead\Leadhub\Contracts\CrmDestination` (`driver
 **Sync log.** Every attempt runs on the queue and is recorded twice: once on the contact's timeline, and once in a dedicated log surfaced under **LeadHub → Sync log** (contact, destination, event, status, HTTP code, message, timestamp). Failed jobs retry with backoff. On the flat-file driver the dedicated log table is skipped gracefully — the timeline entry is still written.
 
 > Syncs are queued, so configure a real queue worker (`QUEUE_CONNECTION` ≠ `sync`) in production for non-blocking pushes.
+
+---
+
+## Brands & multi-tenancy
+
+Every LeadHub record belongs to a **brand**. Brands come from
+[`goldnead/statamic-brand-context`](https://github.com/goldnead/statamic-brand-context),
+which is why that package is a hard `require` and not a suggestion: without it there is
+no tenant to scope a contact to.
+
+What that means in practice:
+
+- **Reads and writes are scoped to the current brand.** A contact created while brand A is
+  active is invisible to brand B — including in the listings, the dashboard counts, the
+  segments and the exports.
+- **Five identifiers are unique per brand rather than globally** (see
+  [Architecture](#architecture)), so the same e-mail address can exist as a separate
+  contact in two brands.
+- **Under the `flat` driver the brand lives in the path**, not in the file:
+  `content/leadhub/{brand}/contacts/{uuid}.yaml`. The JSON index is per brand too, and it
+  is invalidated in-process when the active brand changes.
+- **The scheduled commands sweep every brand.** `leadhub:storage:migrate` deliberately
+  does not: it requires `--brand`, because iterating brands there would merge contacts
+  across tenants.
+- **Upgrading from the pre-brand layout** is `php artisan leadhub:migrate-flat-brands`.
+  It only moves files, never overwrites, and a second run is a no-op.
+
+### Statamic sites
+
+LeadHub has **no notion of Statamic sites**. A multi-site install does not get one contact
+pool per site out of the box — separation is done with brands instead. If your sites map
+onto tenants, model them as brands; if they do not, all sites share one pool.
 
 ---
 
@@ -521,10 +562,35 @@ LeadHub ships with Pest unit and feature tests:
 
 ```bash
 composer install
-vendor/bin/pest
+vendor/bin/pest        # or: composer test
 ```
 
 The test suite uses `orchestra/testbench` with an in-memory SQLite database — no project setup required.
+
+Code style and static analysis run from the same place:
+
+```bash
+composer lint          # vendor/bin/pint --test — checks, never fixes
+composer fix           # vendor/bin/pint — applies the fixes
+composer analyse       # vendor/bin/phpstan analyse (Larastan, level 5)
+```
+
+PHPStan runs against `phpstan-baseline.neon`, which freezes what `src/` already carries.
+It is a ratchet for new code: shrink the baseline when you touch a file, never grow it.
+
+### The MySQL run
+
+SQLite has no InnoDB 3072-byte index limit, no utf8mb4 byte arithmetic, and it reports a
+broken migration with a different error than MySQL does. Every migration defect this addon
+has shipped was invisible under SQLite alone. Point the identical suite at a throwaway
+MySQL database with:
+
+```bash
+vendor/bin/pest -c phpunit.mysql.xml
+LEADHUB_DRIVER=flat vendor/bin/pest -c phpunit.mysql.xml
+```
+
+CI runs both, on both drivers.
 
 ### Building the Control Panel assets
 
