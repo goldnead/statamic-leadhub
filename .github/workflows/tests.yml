@@ -66,8 +66,20 @@ jobs:
             --${{ matrix.stability }} --prefer-stable \
             --prefer-dist --no-progress --no-interaction
 
+      # `composer show` accepts at most a package plus a version, so the three
+      # names that used to stand here made every one of the 20 matrix cells die
+      # with `Too many arguments to "show" command`. Because this step sits in
+      # front of the Pest step, the whole suite was skipped rather than run:
+      # twenty red cells, none of which had ever executed a single test. A
+      # diagnostic step was failing on the line it exists to explain.
+      #
+      # `--direct` prints exactly the set worth reading — laravel/framework,
+      # statamic/cms and goldnead/statamic-brand-context, alongside pest and
+      # testbench — as one table, and it cannot be handed a wrong argument. The
+      # `grep` went with it: it filtered the `name:`/`versions:` lines of the
+      # single-package detail view, which the table form does not emit.
       - name: Show resolved versions
-        run: composer show laravel/framework statamic/cms goldnead/statamic-brand-context | grep -E '^(name|versions)'
+        run: composer show --direct
 
       - name: Run Pest test suite
         run: vendor/bin/pest --colors=always
