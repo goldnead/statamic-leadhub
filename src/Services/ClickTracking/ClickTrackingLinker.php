@@ -29,6 +29,18 @@ class ClickTrackingLinker
     public const PATH = 'lh/track/click';
 
     /**
+     * Query keys this class owns; a caller's $context may not overwrite them.
+     *
+     * Distinct from TrackingParameters::RESERVED, which answers a different
+     * question — what may never be dropped from the signature check. `tpl` and
+     * `eml` are legitimate caller context (settable here) yet still carry
+     * meaning (never ignorable there), so the two lists are not the same.
+     *
+     * @var list<string>
+     */
+    public const RESERVED_CONTEXT_KEYS = ['url', 'c', 'e', 'signature', 'expires'];
+
+    /**
      * Build a signed tracking URL that redirects to $targetUrl and, on hit,
      * scores an email_link_clicked event for $contact (consent permitting).
      *
@@ -127,19 +139,27 @@ class ClickTrackingLinker
     }
 
     /**
-     * Whitelist + stringify context params. Reserved keys (url, c, e, signature)
-     * cannot be overridden by a caller.
+     * Whitelist + stringify context params. Reserved keys (url, c, e,
+     * signature, expires) cannot be overridden by a caller.
+     *
+     * Parameters listed as ESP noise are dropped too: they are excluded from
+     * the signature check on the way back in, so signing them here would
+     * produce a link whose signature can never validate.
      *
      * @param  array<string,mixed>  $context
      * @return array<string,scalar>
      */
     protected function sanitizeContext(array $context): array
     {
-        $reserved = ['url', 'c', 'e', 'signature'];
+        $ignored = TrackingParameters::ignored();
         $out = [];
 
         foreach ($context as $key => $value) {
-            if (in_array($key, $reserved, true)) {
+            if (! is_string($key)) {
+                continue;
+            }
+
+            if (in_array($key, self::RESERVED_CONTEXT_KEYS, true) || in_array($key, $ignored, true)) {
                 continue;
             }
 

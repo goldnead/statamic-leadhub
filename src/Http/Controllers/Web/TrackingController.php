@@ -7,6 +7,7 @@ use Goldnead\Leadhub\Events\LeadHubEmailLinkClicked;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Services\ClickTracking\RecipientResolver;
+use Goldnead\Leadhub\Services\ClickTracking\TrackingParameters;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -58,7 +59,13 @@ class TrackingController
 
         // Anti-forgery: an invalid/absent signature still redirects (handled by
         // the caller) but is never scored.
-        if (! $request->hasValidSignature()) {
+        //
+        // Sending services append their own parameter when forwarding a click
+        // (Brevo `_se`, Mailchimp `mc_eid`, …). Those are excluded from the
+        // check so an ESP-forwarded click still scores. Everything that carries
+        // meaning — the redirect target above all — stays signed; see
+        // TrackingParameters::RESERVED.
+        if (! $request->hasValidSignatureWhileIgnoring(TrackingParameters::ignored())) {
             return;
         }
 
