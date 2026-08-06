@@ -2,7 +2,7 @@
     "name": "goldnead/statamic-leadhub",
     "description": "Turn Statamic form submissions into contacts, timelines, and follow-ups directly inside your Control Panel.",
     "type": "statamic-addon",
-    "license": "MIT",
+    "license": "proprietary",
     "keywords": [
         "statamic",
         "statamic-addon",

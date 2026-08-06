@@ -5,7 +5,7 @@
 [![tests](https://github.com/goldnead/statamic-leadhub/actions/workflows/tests.yml/badge.svg)](https://github.com/goldnead/statamic-leadhub/actions/workflows/tests.yml)
 [![Statamic 6](https://img.shields.io/badge/Statamic-6.0%2B-orange.svg)](https://statamic.com)
 [![PHP 8.2+](https://img.shields.io/badge/PHP-8.2%2B-blue.svg)](https://www.php.net/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: Commercial](https://img.shields.io/badge/License-Commercial-blue.svg)](LICENSE)
 
 LeadHub is a lightweight lead manager built into the Statamic Control Panel. Instead of treating every form submission as an isolated event, LeadHub automatically creates contacts, merges repeated inquiries by email, tracks a timeline of submissions and notes, and helps you follow up with the right leads at the right time.
 
@@ -667,4 +667,4 @@ Pull requests welcome. Please:
 
 ## License
 
-MIT © goldnead. See [LICENSE](LICENSE).
+Commercial license, © goldnead. See [LICENSE](LICENSE).

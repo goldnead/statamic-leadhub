@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed — the licence is now proprietary
+
+This is a paid Marketplace addon. `composer.json` declares `proprietary` and the
+licence file carries the commercial addon licence instead of MIT. Entitlement is
+enforced by the Statamic Marketplace, not by code in this package.
+
+Tags up to and including `v1.12.2` remain MIT. The change takes effect with the next
+release.
+
 ## 1.12.2 — 2026-08-05
 
 ### Fixed — the breakpoint-less single-column grid utility is no longer used
