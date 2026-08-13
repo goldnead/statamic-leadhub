@@ -2,6 +2,8 @@
 
 namespace Goldnead\Leadhub\Services;
 
+use Goldnead\BrandContext\Facades\BrandContext;
+use Goldnead\BrandContext\Sending\SaidRecently;
 use Goldnead\Leadhub\Contracts\SenderIdentityResolver;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Notifications\FollowupDigestNotification;
@@ -11,6 +13,7 @@ use Goldnead\Leadhub\Sending\BrandMailer;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Notifications\Notification as LaravelNotification;
 use Illuminate\Support\Facades\Log;
+use LogicException;
 
 /**
  * Resolves recipients and dispatches LeadHub e-mail notifications. All sends
@@ -111,6 +114,19 @@ class LeadHubNotifier
 
         try {
             return $this->mailer->notify($brandId, $recipients, $notification);
+        } catch (LogicException $e) {
+            // NOT swallowed with the transport errors. This one is the door
+            // saying a notification class cannot carry a brand identity, which
+            // is a programming error and means that class will never send
+            // anything again. The fail-safe below exists so a dead SMTP host
+            // cannot roll back a form submission; hiding a permanent, silent
+            // outage behind the same warning is the opposite of fail-safe. It
+            // still does not propagate — the submission must survive — but it
+            // is reported at the level the rest of this layer refuses at.
+            report($e);
+            Log::error('[LeadHub] '.$e->getMessage());
+
+            return false;
         } catch (\Throwable $e) {
             Log::warning('[LeadHub] Notification failed', ['message' => $e->getMessage()]);
 
@@ -129,7 +145,42 @@ class LeadHubNotifier
     {
         $brandId = $contact->brand_id ?? null;
 
-        return is_numeric($brandId) ? (int) $brandId : null;
+        if (is_numeric($brandId)) {
+            return (int) $brandId;
+        }
+
+        // On a multi-brand install this is a half-migrated row, and it is
+        // exactly the state `leadhub:brands:integrity` reports. Falling through
+        // to the host identity is the right thing to do — an alert under the
+        // wrong name still beats no alert — but it must not be silent, because
+        // the resolver's own "brand declares no mail settings" warning cannot
+        // fire for a brand it never got. Once per window, like everything else
+        // in this layer.
+        $this->sayUnbranded($contact);
+
+        return null;
+    }
+
+    protected function sayUnbranded(Contact $contact): void
+    {
+        try {
+            if (! BrandContext::multiBrandEnabled()) {
+                return;
+            }
+        } catch (\Throwable) {
+            return;
+        }
+
+        if (! SaidRecently::shouldSay('leadhub:unbranded-contact')) {
+            return;
+        }
+
+        Log::warning(
+            '[LeadHub] A contact carries no brand_id on a multi-brand install, so its staff alert '
+            .'goes out under the host-wide from-address — on this host, another brand\'s identity. '
+            .'Run `leadhub:brands:integrity`.',
+            ['contact' => $contact->getAttribute('uuid')],
+        );
     }
 
     protected function cleanEmails(array $emails): array

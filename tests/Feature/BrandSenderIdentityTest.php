@@ -15,6 +15,7 @@ use Goldnead\Leadhub\Services\LeadHubNotifier;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification as LaravelNotification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -236,4 +237,63 @@ it('does not claim to have sent digests for a brand that cannot send', function 
         ->expectsOutputToContain('no follow-up digest was sent')
         ->doesntExpectOutputToContain('Sent 1 follow-up digest')
         ->assertSuccessful();
+});
+
+it('puts the brand address on the header of a message that really left', function (): void {
+    // Everything above asserts against the MailMessage object under
+    // Notification::fake(). That proves this package's half. This one runs the
+    // real channel over the array transport and reads the header off the
+    // Symfony message, so a break in the wiring between `MailMessage::from()`
+    // and what Laravel actually sends would be caught here.
+    config()->set('brand-context.multi_brand', true);
+    app('brand-context')->forget();
+    config()->set('mail.default', 'array');
+    config()->set('leadhub.notifications.recipients', ['sales@example.com']);
+
+    $brand = brandWithMail('echt', [
+        'from_address' => 'noreply@chorgesucht.de',
+        'from_name' => 'chorgesucht.de',
+        'mailer' => 'brand_relay',
+    ]);
+
+    $transport = Mail::mailer('brand_relay')->getSymfonyTransport();
+    $transport->flush();
+
+    expect(app(LeadHubNotifier::class)->newLead(contactIn($brand)))->toBeTrue();
+
+    $sent = $transport->messages();
+
+    expect($sent)->toHaveCount(1);
+
+    $from = $sent[0]->getOriginalMessage()->getFrom();
+
+    expect($from[0]->getAddress())->toBe('noreply@chorgesucht.de')
+        ->and($from[0]->getName())->toBe('chorgesucht.de');
+});
+
+it('reports a notification that cannot carry an identity at error level, through the notifier', function (): void {
+    // The path production actually takes. `LeadHubNotifier::send()` catches
+    // Throwable so a dead SMTP host cannot roll back a form submission — and
+    // that catch used to turn this permanent, silent outage into the same
+    // Log::warning as a transient one. It is fail-safe either way; the point is
+    // that somebody finds out.
+    Log::spy();
+
+    $stranger = new class extends LaravelNotification
+    {
+        public function via(object $notifiable): array
+        {
+            return ['mail'];
+        }
+    };
+
+    $notifier = app(LeadHubNotifier::class);
+
+    $send = (new ReflectionClass($notifier))->getMethod('send');
+    $send->setAccessible(true);
+
+    expect($send->invoke($notifier, ['staff@example.com'], $stranger, null))->toBeFalse();
+
+    Log::shouldHaveReceived('error')->atLeast()->once();
+    Log::shouldNotHaveReceived('warning');
 });

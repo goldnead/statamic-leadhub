@@ -45,6 +45,19 @@ class BrandMailer extends BrandContextMailer
     /**
      * Dispatch one notification to on-demand mail recipients, as the given brand.
      *
+     * **The notification instance belongs to this send afterwards.** It is
+     * mutated, not copied: the identity and the locale are written onto it,
+     * because `toMail()` is the only place a `MailMessage` exists and only the
+     * notification itself can reach it. Build a fresh instance per send — every
+     * caller in this package does. Handing the same instance to two brands
+     * would give the second one the first one's From, which is the failure this
+     * class exists to prevent.
+     *
+     * All recipients of one call get one `toMail()`: `Notification::route()`
+     * builds a single `AnonymousNotifiable` with an array route. That is why
+     * the recipients must belong to one brand, which they do — they are one
+     * contact's owner, or one brand's configured inbox.
+     *
      * @param  int|null  $brandId  null = the brand in context, if any.
      * @param  list<string>  $recipients
      * @return bool whether it went out

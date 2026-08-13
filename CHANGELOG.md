@@ -50,6 +50,19 @@ own, and so is the refusal, the contact-not-context rule and the digest's honest
 `LeadHubNotifier::newLead()`, `assigned()` and `digest()` now return `bool` (whether the mail
 went out) instead of `void`. Callers that ignored the return value are unaffected.
 
+Two further things the review of this change turned up, both fixed here:
+
+- **The fail-safe catch was swallowing the one error that must be loud.** `LeadHubNotifier`
+  catches `Throwable` so a dead SMTP host cannot roll back a form submission, and that turned
+  the `LogicException` above — a permanent, silent outage of one notification class — into the
+  same `Log::warning` as a transient failure. It is now reported and logged at error level,
+  like every other refusal in this layer. It still does not propagate.
+- **A contact with no `brand_id` on a multi-brand install now warns**, once per window. It
+  falls back to the host identity, as before, because an alert under the wrong name beats no
+  alert. But it is the half-migrated state `leadhub:brands:integrity` reports, and the
+  resolver's own "brand declares no mail settings" warning cannot fire for a brand it was
+  never given.
+
 ## 2.0.0 — 2026-08-09
 
 ### Changed — the licence is now proprietary
