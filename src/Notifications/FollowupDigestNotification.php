@@ -2,11 +2,15 @@
 
 namespace Goldnead\Leadhub\Notifications;
 
+use Goldnead\Leadhub\Contracts\BrandAddressed;
+use Goldnead\Leadhub\Notifications\Concerns\SendsAsBrand;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class FollowupDigestNotification extends Notification
+class FollowupDigestNotification extends Notification implements BrandAddressed
 {
+    use SendsAsBrand;
+
     /**
      * @param  array<int, array{name: string, due_at: string, overdue: bool, url: string, note: ?string}>  $items
      */
@@ -41,9 +45,11 @@ class FollowupDigestNotification extends Notification
             $message->line($line);
         }
 
-        return $message->action(
+        $message->action(
             __('leadhub::notifications.digest.action'),
             cp_route('leadhub.followups.index'),
         );
+
+        return $this->asBrand($message);
     }
 }

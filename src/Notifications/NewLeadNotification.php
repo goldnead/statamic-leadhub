@@ -2,12 +2,16 @@
 
 namespace Goldnead\Leadhub\Notifications;
 
+use Goldnead\Leadhub\Contracts\BrandAddressed;
 use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Notifications\Concerns\SendsAsBrand;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class NewLeadNotification extends Notification
+class NewLeadNotification extends Notification implements BrandAddressed
 {
+    use SendsAsBrand;
+
     public function __construct(public Contact $contact) {}
 
     public function via(object $notifiable): array
@@ -34,9 +38,11 @@ class NewLeadNotification extends Notification
             $message->line(__('leadhub::notifications.source', ['source' => $this->contact->source_form]));
         }
 
-        return $message->action(
+        $message->action(
             __('leadhub::notifications.view_contact'),
             cp_route('leadhub.contacts.show', $this->contact->uuid),
         );
+
+        return $this->asBrand($message);
     }
 }

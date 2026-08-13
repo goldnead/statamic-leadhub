@@ -1,5 +1,55 @@
 # Changelog
 
+## 2.1.0 — 2026-08-13
+
+### Fixed — staff notifications went out under the host's identity, not the brand's
+
+`Services\LeadHubNotifier` ended in `Notification::route('mail', …)->notify()`: the
+process-wide default mailer with the process-wide `mail.from`, identically for every brand.
+The three notification classes carried no `from()` at all. On a host where each brand's
+sending domain is verified in its own relay account (Scaleway TEM, Postmark, SES with a
+verified identity) that pairs one brand's transport with another brand's address — the relay
+refuses it or substitutes its own.
+
+These are internal mails to staff, so no customer ever saw a wrong name. What a customer saw
+was a lead nobody followed up, because the alert never arrived and nothing said so.
+
+**Now every one of them leaves as the brand the contact belongs to.**
+`Contracts\SenderIdentityResolver` answers "which mailer, which From, which locale for brand
+N" out of `brands.settings.mail`; `Sending\BrandMailer` is the single door and puts the
+answer on the message. Both inherit from `goldnead/statamic-brand-context` 1.8.0 — no fifth
+copy of the rule — which is now required at `^1.8` instead of `^1.6`.
+
+- **The brand comes from the contact row, not from the context.** A new lead is created by a
+  form submission, and a queued listener or a console import may have no brand in context by
+  the time the alert runs. The follow-up digest is the exception and takes the context, because
+  it already runs inside `forEachBrand()`.
+- **Values on the message, never state in the config.** Laravel burns `mail.from` into the
+  cached mailer instance the first time a mailer name is resolved, so a scoped `Config::set`
+  escapes its own `finally` and leaves the first brand's address standing for the rest of the
+  process. `MailMessage::mailer()` and `MailMessage::from()` are what Laravel's own
+  `MailChannel` reads.
+- **A brand that declares `settings.mail` but no `from_address` — or names a mailer
+  `config/mail.php` does not define — sends nothing** and is logged at error level. Half a
+  pair is the failure this layer exists to prevent.
+- **`leadhub:followups:digest` asks before it sends.** It used to print the number of
+  recipients it had assembled; for an unconfigured brand that was a count of refusals reported
+  as deliveries. It now checks the identity before the loop, skips that brand with a warning
+  (exit 0, so the other brands still get their digest) and reports only what went out.
+- **A notification that cannot carry an identity is refused outright.**
+  `Contracts\BrandAddressed` + the `SendsAsBrand` trait are how a notification takes one, and
+  `BrandMailer::notify()` throws rather than dispatch one that does not implement it. Without
+  that, the next notification class somebody adds would send under the host From and nothing
+  would turn red.
+
+**No host dependency, and single-brand behaviour is unchanged.** A brand that declares nothing
+under `settings.mail` resolves the config identity: no `from`, no `mailer` on the message,
+`config('mail.from')` and `config('mail.default')` exactly as before. That is a test of its
+own, and so is the refusal, the contact-not-context rule and the digest's honest count.
+
+`LeadHubNotifier::newLead()`, `assigned()` and `digest()` now return `bool` (whether the mail
+went out) instead of `void`. Callers that ignored the return value are unaffected.
+
 ## 2.0.0 — 2026-08-09
 
 ### Changed — the licence is now proprietary

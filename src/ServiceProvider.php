@@ -17,6 +17,7 @@ use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
 use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
+use Goldnead\Leadhub\Contracts\SenderIdentityResolver;
 use Goldnead\Leadhub\Crm\DestinationManager;
 use Goldnead\Leadhub\Events\LeadHubContactArchived;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
@@ -65,6 +66,8 @@ use Goldnead\Leadhub\Repositories\FlatFile\FlatFileTagRepository;
 use Goldnead\Leadhub\Repositories\FlatFile\Index;
 use Goldnead\Leadhub\Repositories\FlatFile\IndexBuilder;
 use Goldnead\Leadhub\Repositories\FlatFile\ModelHydrator;
+use Goldnead\Leadhub\Sending\BrandMailer;
+use Goldnead\Leadhub\Sending\BrandSenderIdentity;
 use Goldnead\Leadhub\Services\ClickTracking\ClickTrackingLinker;
 use Goldnead\Leadhub\Services\ClickTracking\RecipientResolver;
 use Goldnead\Leadhub\Services\IngestionService;
@@ -218,6 +221,15 @@ class ServiceProvider extends AddonServiceProvider
         // rewrite email links: app(ClickTrackingLinker::class).
         $this->app->singleton(ClickTrackingLinker::class);
         $this->app->singleton(RecipientResolver::class);
+
+        // Who this package's mail goes out as. Bindable per addon on purpose:
+        // a host may answer "who does internal staff post come from"
+        // differently from marketing post to customers, and one shared binding
+        // for every addon could not express that. The default reads
+        // `brands.settings.mail`; a brand that declares nothing there resolves
+        // the config identity, so a single-brand install is unaffected.
+        $this->app->singleton(SenderIdentityResolver::class, BrandSenderIdentity::class);
+        $this->app->singleton(BrandMailer::class);
     }
 
     public function boot(): void

@@ -96,16 +96,36 @@ class SendFollowupDigestCommand extends Command
             return self::SUCCESS;
         }
 
+        // Asked before the loop, not discovered inside it. A brand that
+        // declares `settings.mail` without a from-address, or names a mailer
+        // `config/mail.php` does not define, sends nothing at all — and this
+        // command is the one place that afterwards claims a number of digests
+        // as delivered. Finding out per recipient would leave that claim
+        // standing while every send failed into the log. The refusal itself is
+        // logged at error level by the resolver; the line here is so that
+        // whoever ran the command sees it too.
+        //
+        // SUCCESS on purpose: `forEachBrand()` stops at the first non-zero exit,
+        // and one unconfigured brand must not cost the others their digest.
+        if (! $notifier->maySend()) {
+            $this->warn('This brand has no usable sender identity — no follow-up digest was sent. See the log.');
+
+            return self::SUCCESS;
+        }
+
+        $sent = 0;
+
         foreach ($buckets as $email => $bucket) {
-            $notifier->digest(
+            $sent += $notifier->digest(
                 [$email],
                 $bucket['items'],
                 (int) ($bucket['overdue'] ?? 0),
                 (int) ($bucket['today'] ?? 0),
-            );
+            ) ? 1 : 0;
         }
 
-        $this->info('Sent '.count($buckets).' follow-up digest(s).');
+        // The number that went out, not the number that was assembled.
+        $this->info('Sent '.$sent.' follow-up digest(s).');
 
         return self::SUCCESS;
     }

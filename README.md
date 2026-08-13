@@ -196,6 +196,25 @@ php artisan leadhub:followups:digest
 
 Notifications use Laravel's mail channel, so they respect your existing `MAIL_*` config. Sending is fail-safe — a mailer error is logged and never blocks the lead pipeline.
 
+### Who they come from (multi-brand)
+
+Since 2.1.0 every one of these mails leaves as **the brand the contact belongs to**, not as the host. The address, the sender name, the transport and the language come from `brands.settings.mail` through `goldnead/statamic-brand-context` 1.8+:
+
+```
+settings->mail->from_address   (required once `mail` is present at all)
+settings->mail->from_name      (defaults to the brand name)
+settings->mail->mailer         (a mailer from config/mail.php)
+settings->mail->locale         (the language its mail is written in)
+```
+
+Why it matters even for internal mail: one relay account verifies one set of sending domains. Send brand A's alert through brand B's account and the provider rejects the address or silently rewrites it. Nobody outside sees the wrong name — what they see is a lead that was never followed up, because the alert never arrived.
+
+- A brand that declares **nothing** under `settings.mail` sends exactly as before. Every single-brand install is in this case, and it is covered by a test.
+- A brand that declares `settings.mail` but **no `from_address`**, or names a mailer `config/mail.php` does not define, sends **nothing** and logs an error. Half a pair is worse than none: it puts one brand's transport behind another brand's address.
+- `leadhub:followups:digest` asks before it sends and reports only what went out. A brand it cannot send for is skipped with a warning, and the other brands still get their digest.
+
+Rebind `Goldnead\Leadhub\Contracts\SenderIdentityResolver` to answer differently for this addon alone; rebind the brand-context contract to answer for every addon that has not been rebound.
+
 ---
 
 ## Marketing attribution
