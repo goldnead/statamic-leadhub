@@ -42,6 +42,25 @@ const status = ref(props.contact.status);
 const assignedTo = ref(props.contact.assigned_to || '');
 const showDeleteConfirm = ref(false);
 
+/**
+ * The readable lines a source attached to its event.
+ *
+ * Filtered rather than trusted: `payload` is whatever a contributing addon
+ * wrote, and a malformed entry must produce a missing line, not a broken page.
+ */
+function detailLines(event) {
+    const detail = event?.payload?.detail;
+
+    if (! Array.isArray(detail)) return [];
+
+    // `!= null` and not truthiness: a legitimate value of `0` or an empty
+    // string is data, and dropping it would turn "Anzahl: 0" into a missing
+    // line — which reads as "not recorded" rather than "none".
+    return detail
+        .filter((line) => line && line.label != null && line.value != null)
+        .map((line) => ({ label: String(line.label), value: String(line.value) }));
+}
+
 const ownerOptions = computed(() => [
     { value: '', label: __('Unassigned') },
     ...(props.assignableUsers || []),
@@ -383,13 +402,33 @@ const showCrm = computed(() =>
                         </div>
                         <ul v-else class="-my-3 divide-y divide-content-border">
                             <li v-for="event in events.data" :key="event.id" class="py-3">
-                                <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-start justify-between gap-3 text-sm">
                                     <span class="font-medium">{{ event.summary }}</span>
-                                    <Text size="xs" variant="subtle">{{ event.created_at }}</Text>
+                                    <Text size="xs" variant="subtle" class="shrink-0">{{ event.created_at }}</Text>
                                 </div>
                                 <div class="text-xs text-gray-500 mt-1">
                                     {{ event.actor_label }} · <code>{{ event.type }}</code>
                                 </div>
+
+                                <!-- Readable lines when the source supplied them.
+                                     A contributor that knows what its own event
+                                     means puts label/value pairs in
+                                     `payload.detail`; everything else still has
+                                     the raw payload below. The convention is
+                                     LeadHub's and mentions no sibling addon —
+                                     see Support\ContactPanels for the same idea
+                                     applied to whole panels. -->
+                                <dl
+                                    v-if="detailLines(event).length"
+                                    class="mt-2 grid gap-x-3 gap-y-0.5 text-xs sm:grid-cols-[auto_1fr]"
+                                    :data-leadhub-event-detail="event.id"
+                                >
+                                    <template v-for="(line, i) in detailLines(event)" :key="i">
+                                        <dt><Text size="xs" variant="subtle">{{ line.label }}</Text></dt>
+                                        <dd><Text size="xs">{{ line.value }}</Text></dd>
+                                    </template>
+                                </dl>
+
                                 <details v-if="event.payload && Object.keys(event.payload).length > 0" class="mt-2">
                                     <summary class="text-xs text-gray-500 cursor-pointer">{{ __('Payload') }}</summary>
                                     <pre class="text-xs mt-1 p-2 rounded bg-gray-50 dark:bg-gray-800 overflow-x-auto">{{ JSON.stringify(event.payload, null, 2) }}</pre>

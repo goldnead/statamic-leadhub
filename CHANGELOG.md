@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.1 — 2026-08-15
+
+### Fixed — die Zeitleiste zeigt, was in einem Ereignis steht
+
+Nachbar-Addons legen seit 2.2.0 Ereignisse mit `payload.detail` an: Betreff,
+Kampagne, Liste, Hinweise. Auf dem Kontaktschirm war davon nichts zu sehen, nur
+die Überschrift — die Zeilen lagen in der Datenbank und wurden nie gerendert.
+
+Jetzt stehen sie als Beschriftung und Wert unter dem Eintrag. Ein Ereignis ohne
+Details bleibt so schmal wie vorher.
+
 ## 2.2.0 — 2026-08-14
 
 ### Added — sibling addons can put what they know on the contact screen
