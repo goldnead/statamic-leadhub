@@ -1,5 +1,49 @@
 # Changelog
 
+## 2.2.0 — 2026-08-14
+
+### Added — sibling addons can put what they know on the contact screen
+
+The contact page is where somebody goes to answer "who is this person and what
+is going on with them", and a good deal of that lives outside LeadHub: which
+mailing lists they are on, which automations they are enrolled in, what a
+webhook last said about them. None of it could appear there, because the only
+way would have been for this addon to know about its siblings — and the
+direction of that dependency is the one thing this family keeps straight.
+Marketing requires LeadHub; LeadHub requires nobody.
+
+So the sibling registers instead:
+
+```php
+LeadHub::registerContactPanel('marketing.subscriptions', function ($contact) {
+    return [
+        'heading' => __('Mailing lists'),
+        'empty' => __('Not on any mailing list.'),
+        'rows' => [[
+            'label' => 'Der Chorleiter-Brief',
+            'url' => cp_route('marketing.lists.show', 'chorleiter-brief'),
+            'meta' => 'since March',
+            'badge' => ['text' => 'Subscribed', 'color' => 'green'],
+        ]],
+    ];
+});
+```
+
+The shape is deliberately dumb — a heading, rows of label/badge/meta, an
+optional action — rather than a component name or a slot. A registry that
+accepted markup would make every contributor's Vue build a dependency of this
+page, and the first one to ship a broken bundle would take the screen with it.
+
+A contributor that throws is logged and left out, never propagated: this runs
+while the contact screen renders, and a sibling mid-upgrade must not be able to
+500 the page somebody opened to read a phone number. One that returns null, or a
+panel with neither rows nor an empty state, is simply not shown — "nothing to
+say" is a legitimate answer and an empty box is not.
+
+`goldnead/statamic-marketing` 2.6.0 is the first user: it lists the mailing
+lists a contact is on, with their status and since when.
+
+
 ## 2.1.1 — 2026-08-13
 
 ### Fixed — two findings from the review of 2.1.0

@@ -20,6 +20,7 @@ use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Services\LeadHubNotifier;
 use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
+use Goldnead\Leadhub\Support\ContactPanels;
 use Goldnead\Leadhub\Support\ContactPicker;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
@@ -345,6 +346,12 @@ class ContactController extends Controller
             // company string that came off the form — a different thing from
             // `linkedCompanies`, which are real Company records. The view is
             // required to keep them visually apart.
+            // What sibling addons know about this person — which mailing lists
+            // they are on, and whatever else registers later. Resolved through
+            // a registry rather than read here, because the direction of the
+            // dependency is the point: marketing requires LeadHub, and LeadHub
+            // must be installable without it. See Support\ContactPanels.
+            'contactPanels' => app(ContactPanels::class)->forContact($contact),
             'crmFeatures' => $crm['features'],
             'linkedCompanies' => $crm['companies'],
             'tasks' => $crm['tasks'],

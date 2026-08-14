@@ -34,6 +34,7 @@ use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TaskService;
 use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactDto;
+use Goldnead\Leadhub\Support\ContactPanels;
 use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\SourceEvent;
 use Illuminate\Support\Carbon;
@@ -578,6 +579,21 @@ class LeadHubManager
     public function projectAndIngest(mixed $model): ?Event
     {
         return $this->ingestion->projectAndIngest($model);
+    }
+
+    // -- Contact screen -----------------------------------------------------
+
+    /**
+     * Contribute a panel to the contact screen.
+     *
+     * The way a sibling addon puts what it knows about a person on the page
+     * where somebody looks for it, without this addon learning that the sibling
+     * exists. See {@see ContactPanels} for the shape and the reasoning; the
+     * resolver receives the contact and returns a panel or null.
+     */
+    public function registerContactPanel(string $key, \Closure $resolver): void
+    {
+        app(ContactPanels::class)->register($key, $resolver);
     }
 
     // -- Internals ----------------------------------------------------------

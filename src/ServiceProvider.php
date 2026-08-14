@@ -71,6 +71,7 @@ use Goldnead\Leadhub\Sending\BrandSenderIdentity;
 use Goldnead\Leadhub\Services\ClickTracking\ClickTrackingLinker;
 use Goldnead\Leadhub\Services\ClickTracking\RecipientResolver;
 use Goldnead\Leadhub\Services\IngestionService;
+use Goldnead\Leadhub\Support\ContactPanels;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Gate;
 use Statamic\Events\SubmissionCreated;
@@ -215,6 +216,12 @@ class ServiceProvider extends AddonServiceProvider
         // host-app source projectors registered at boot persist for the request.
         $this->app->singleton(IngestionService::class);
         $this->app->singleton(LeadHubManager::class);
+
+        // Must be a singleton, or the registry a sibling addon registers into
+        // at boot is not the registry the contact screen reads from later —
+        // every panel would be silently dropped, with nothing to see but a page
+        // that is missing something.
+        $this->app->singleton(ContactPanels::class);
 
         // Click-tracking surface. Public singletons so sibling addons (the
         // automations / email-templates send path) can resolve the linker to

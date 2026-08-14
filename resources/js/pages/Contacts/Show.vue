@@ -26,6 +26,11 @@ const props = defineProps([
     'tasks',            // [{ id, title, status, priority, due_at, is_overdue, is_completed, ... }]
     'opportunities',    // [{ id, title, status, outcome, value_estimate, stage_name, ... }]
     'crmCreateUrls',    // { task, opportunity, company } — null hides the button
+    // What sibling addons know about this person, each as a panel they filled
+    // in themselves: [{ key, heading, description, empty, rows: [{ label, url,
+    // meta, badge }], action }]. Rendered generically on purpose — see
+    // Support\ContactPanels for why this is data and not a component name.
+    'contactPanels',
 ]);
 
 const noteBody = ref('');
@@ -297,6 +302,62 @@ const showCrm = computed(() =>
                         </Card>
                     </Panel>
                 </template>
+
+                <!-- Panels contributed by sibling addons: mailing lists today,
+                     whatever registers tomorrow. Above the note box because
+                     they answer "what is going on with this person", which is
+                     what somebody reads before they write anything down. -->
+                <Panel
+                    v-for="panel in (contactPanels || [])"
+                    :key="panel.key"
+                    :heading="panel.heading"
+                    :data-leadhub-contact-panel="panel.key"
+                >
+                    <Card>
+                        <p v-if="panel.description" class="mb-3 text-sm text-gray-500 dark:text-gray-400">
+                            {{ panel.description }}
+                        </p>
+
+                        <div
+                            v-if="panel.rows.length === 0"
+                            class="py-4 text-center text-sm text-gray-500"
+                        >{{ panel.empty }}</div>
+
+                        <ul v-else class="-my-3 divide-y divide-content-border">
+                            <li
+                                v-for="(row, i) in panel.rows"
+                                :key="i"
+                                class="py-3 flex items-start justify-between gap-3"
+                            >
+                                <div class="min-w-0">
+                                    <component
+                                        :is="row.url ? Link : 'span'"
+                                        :href="row.url"
+                                        class="text-sm font-medium"
+                                        :class="row.url ? 'hover:underline' : ''"
+                                    >{{ row.label }}</component>
+                                    <div v-if="row.meta" class="text-xs text-gray-500">{{ row.meta }}</div>
+                                </div>
+                                <Badge
+                                    v-if="row.badge"
+                                    :color="row.badge.color"
+                                    size="sm"
+                                    :text="row.badge.text"
+                                    class="shrink-0"
+                                />
+                            </li>
+                        </ul>
+
+                        <div v-if="panel.action" class="pt-3 mt-3 border-t border-content-border">
+                            <Button
+                                :text="panel.action.text"
+                                size="xs"
+                                variant="ghost"
+                                @click="router.visit(panel.action.url)"
+                            />
+                        </div>
+                    </Card>
+                </Panel>
 
                 <!-- Add note -->
                 <Panel :heading="__('Add a note')">
