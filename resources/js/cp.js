@@ -20,6 +20,7 @@ import PipelinesBoard from './pages/Pipelines/Board.vue';
 import PipelinesManage from './pages/Pipelines/Manage.vue';
 import OpportunityCreate from './pages/Pipelines/OpportunityCreate.vue';
 import OpportunityEdit from './pages/Pipelines/OpportunityEdit.vue';
+import OpportunityShow from './pages/Pipelines/OpportunityShow.vue';
 import FollowupsIndex from './pages/Followups/Index.vue';
 import FormsIndex from './pages/Forms/Index.vue';
 import FormsEdit from './pages/Forms/Edit.vue';
@@ -46,6 +47,7 @@ Statamic.booting(() => {
     Statamic.$inertia.register('leadhub::Pipelines/Manage', PipelinesManage);
     Statamic.$inertia.register('leadhub::Pipelines/OpportunityCreate', OpportunityCreate);
     Statamic.$inertia.register('leadhub::Pipelines/OpportunityEdit', OpportunityEdit);
+    Statamic.$inertia.register('leadhub::Pipelines/OpportunityShow', OpportunityShow);
     Statamic.$inertia.register('leadhub::Followups/Index', FollowupsIndex);
     Statamic.$inertia.register('leadhub::Forms/Index', FormsIndex);
     Statamic.$inertia.register('leadhub::Forms/Edit', FormsEdit);

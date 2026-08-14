@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import { Header, Panel, Badge, Button, Text, Icon, Select, EmptyStateMenu, EmptyStateItem } from '@statamic/cms/ui';
+import { money } from '../../support/money.js';
 
 const props = defineProps([
     'pipeline', 'pipelines', 'columns', 'manageUrl', 'canConfigure', 'canManage',
@@ -63,11 +64,6 @@ function changeClosedWindow(value) {
         preserveScroll: true,
         preserveState: false,
     });
-}
-
-function money(value) {
-    if (value === null || value === undefined) return null;
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(value);
 }
 
 function initials(name) {
@@ -256,7 +252,19 @@ function onDrop(columnId) {
                                     {{ initials(card.contact_name) }}
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <div class="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{{ card.title }}</div>
+                                    <!-- The card title opens the deal. It was
+                                         plain text for six releases because
+                                         there was nothing to open. -->
+                                    <!-- `draggable="false"` so a drag starting
+                                         on the title bubbles to the card. An
+                                         anchor is draggable by default and
+                                         would drag its own URL instead. -->
+                                    <Link
+                                        :href="card.show_url"
+                                        :draggable="false"
+                                        class="block truncate text-sm font-medium text-gray-900 hover:underline dark:text-gray-100"
+                                        data-leadhub-open-opportunity
+                                    >{{ card.title }}</Link>
                                     <Link
                                         v-if="card.contact_url"
                                         :href="card.contact_url"

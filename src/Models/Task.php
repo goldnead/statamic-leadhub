@@ -9,6 +9,31 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
+/**
+ * A piece of work somebody owes a contact, optionally hanging on a deal.
+ *
+ * Columns spelled out for the same reason as on {@see Opportunity}.
+ *
+ * @property int $id
+ * @property string $uuid
+ * @property int|null $contact_id
+ * @property int|null $opportunity_id
+ * @property string $title
+ * @property string|null $description
+ * @property string $status
+ * @property string $priority
+ * @property Carbon|null $due_at
+ * @property Carbon|null $completed_at
+ * @property string|null $assignee_id
+ * @property string|null $created_by
+ * @property string|null $completed_by
+ * @property array<string, mixed>|null $metadata_json
+ * @property int|null $brand_id
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Contact|null $contact
+ * @property-read Opportunity|null $opportunity
+ */
 class Task extends Model
 {
     use HasBrand;
@@ -40,11 +65,13 @@ class Task extends Model
         });
     }
 
+    /** @return BelongsTo<Contact, $this> */
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Contact::class);
     }
 
+    /** @return BelongsTo<Opportunity, $this> */
     public function opportunity(): BelongsTo
     {
         return $this->belongsTo(Opportunity::class);

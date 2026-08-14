@@ -51,7 +51,7 @@ class PipelineController extends Controller
                 'columns' => [],
                 'manageUrl' => cp_route('leadhub.pipelines.manage'),
                 'canConfigure' => $this->userCan($request, 'manage leadhub settings'),
-                'canManage' => $this->userCan($request, 'edit leadhub contacts'),
+                'canManage' => $this->canMoveCards($request),
                 'closedWindow' => self::DEFAULT_CLOSED_WINDOW,
                 'closedWindowOptions' => $this->closedWindowOptions(),
                 'newOpportunityUrl' => null,
@@ -97,6 +97,9 @@ class PipelineController extends Controller
                     'contact_url' => $opp->contact ? cp_route('leadhub.contacts.show', $opp->contact->id) : null,
                     'move_url' => cp_route('leadhub.pipelines.move', $opp->id),
                     'edit_url' => cp_route('leadhub.pipelines.opportunities.edit', $opp->id),
+                    // The card's own screen. `view leadhub` gets you the board,
+                    // and it gets you this — no permission prop needed.
+                    'show_url' => cp_route('leadhub.pipelines.opportunities.show', $opp->id),
                 ])->values()->all(),
                 // The stage total counts what is actually shown in the column,
                 // closed deals included — that is the number the win column was
@@ -121,7 +124,7 @@ class PipelineController extends Controller
             'columns' => $columns,
             'manageUrl' => cp_route('leadhub.pipelines.manage'),
             'canConfigure' => $this->userCan($request, 'manage leadhub settings'),
-            'canManage' => $this->userCan($request, 'edit leadhub contacts'),
+            'canManage' => $this->canMoveCards($request),
             'closedWindow' => $window,
             'closedWindowOptions' => $this->closedWindowOptions(),
             // Entry point for creating an opportunity. Null (no button) when
@@ -145,6 +148,8 @@ class PipelineController extends Controller
      *
      * The pipeline is already brand-scoped by the model's global scope, and so
      * is Opportunity — widening the status filter does not widen brand access.
+     *
+     * @return Builder<Opportunity>
      */
     protected function boardQuery(Pipeline $pipeline, string $window): Builder
     {
@@ -353,18 +358,50 @@ class PipelineController extends Controller
         return back()->with('success', __('leadhub::pipelines.stage_deleted'));
     }
 
+    /**
+     * Move a deal to another stage. The board's drag & drop posts here, and so
+     * does the stage-change form on the deal screen — the only two places a
+     * note ever gets written.
+     *
+     * **Either permission, and that is a widening.** Until v2.4.0 this route
+     * asked for `edit leadhub contacts` alone, which matched neither of its
+     * neighbours: looking at the board is `view leadhub`, creating, editing and
+     * deleting a deal is `manage leadhub opportunities`. A user set up to run
+     * the pipeline and nothing else could delete a deal but not move it.
+     *
+     * The fix accepts `manage leadhub opportunities` and falls back to the
+     * historical permission, the same shape and for the same reason as
+     * TaskController::complete(): narrowing it to the correct permission alone
+     * would take drag & drop away from every install whose roles hold the old
+     * one and not the new, on the day they upgrade — which arrives as a
+     * permissions failure, not as a fix. Nobody loses a capability here; one
+     * group of users gains the one they should have had.
+     */
     public function move(Request $request, int|string $opportunity)
     {
-        $this->authorizeOrFail($request, 'edit leadhub contacts');
+        if (! $this->userCan($request, 'manage leadhub opportunities')) {
+            $this->authorizeOrFail($request, 'edit leadhub contacts');
+        }
+
         abort_unless(config('leadhub.features.pipelines', false), 404);
 
         $validated = $request->validate([
             'stage_id' => ['required'],
-            'note' => ['nullable', 'string'],
+            // The note is rendered ungrouped in the deal's history, so an
+            // unbounded one is a wall of text on somebody else's screen.
+            'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
         $opp = Opportunity::query()->findOrFail($opportunity);
         $stage = $opp->pipeline->stages()->findOrFail($validated['stage_id']);
+
+        // A move to the stage it is already on is not a move. The deal screen
+        // stops it in the browser, a second tab or a plain POST does not, and
+        // the history — which nobody could read until that screen existed —
+        // would collect entries saying a deal went from Angebot to Angebot.
+        if ((int) $opp->stage_id === (int) $stage->id) {
+            return back()->with('success', __('leadhub::pipelines.already_in_stage'));
+        }
 
         app(StageTransitionService::class)->transition(
             $opp,
@@ -374,6 +411,17 @@ class PipelineController extends Controller
         );
 
         return back()->with('success', __('leadhub::pipelines.moved'));
+    }
+
+    /**
+     * Whether this user may drag a card into another column — the UI half of
+     * the guard on move(), and it has to accept the same two permissions the
+     * endpoint does, or the board draws a drag handle that answers 403.
+     */
+    protected function canMoveCards(Request $request): bool
+    {
+        return $this->userCan($request, 'manage leadhub opportunities')
+            || $this->userCan($request, 'edit leadhub contacts');
     }
 
     /**

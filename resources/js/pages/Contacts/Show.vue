@@ -6,6 +6,7 @@ import {
     DatePicker, Checkbox, ConfirmationModal, Pagination,
 } from '@statamic/cms/ui';
 import { toDateTimeString } from '../../support/datetime.js';
+import { money } from '../../support/money.js';
 
 const props = defineProps([
     'contact',          // { id, display_name, email, phone, company, status, status_label,
@@ -145,11 +146,6 @@ function completeTask(task) {
     router.post(task.complete_url, {}, { preserveScroll: true });
 }
 
-function money(value) {
-    if (value === null || value === undefined) return null;
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(value);
-}
-
 const features = computed(() => props.crmFeatures || {});
 const companies = computed(() => props.linkedCompanies || []);
 const contactTasks = computed(() => props.tasks || []);
@@ -285,10 +281,10 @@ const showCrm = computed(() =>
                                 <li v-for="opp in contactOpportunities" :key="opp.id" class="py-3 flex items-start justify-between gap-3">
                                     <div class="min-w-0">
                                         <component
-                                            :is="opp.board_url ? Link : 'span'"
-                                            :href="opp.board_url"
+                                            :is="opp.show_url ? Link : 'span'"
+                                            :href="opp.show_url"
                                             class="text-sm font-medium"
-                                            :class="opp.board_url ? 'hover:underline' : ''"
+                                            :class="opp.show_url ? 'hover:underline' : ''"
                                         >{{ opp.title }}</component>
                                         <div class="text-xs text-gray-500">
                                             <span v-if="opp.pipeline_name">{{ opp.pipeline_name }}</span>

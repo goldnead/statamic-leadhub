@@ -43,21 +43,34 @@ class StageTransitionService
             $opportunity->last_activity_at = now();
 
             // Apply terminal outcome.
+            //
+            // `won_at` and `lost_at` describe the deal as it stands, exactly
+            // like `status`, `outcome` and `closed_at` beside them — not the
+            // history, which is the rows in `leadhub_stage_transitions` and is
+            // never rewritten. So each branch below sets the stamp that applies
+            // and clears the one that does not.
+            //
+            // Until v2.4.0 only the setting half existed. A deal reopened out
+            // of a terminal stage kept the `won_at` of the close it had come
+            // back from, so `status = open` sat next to a win date; a deal
+            // moved from Won straight to Lost carried both. Nothing displayed
+            // those columns, which is why it went unnoticed for eight releases
+            // — and `won_at` is precisely the column somebody sums for "what
+            // did we win this quarter". See the repair migration
+            // 2026_08_15_000001 for what happened to the rows already stored.
             if ($toStage->is_terminal) {
                 $opportunity->status = Opportunity::STATUS_CLOSED;
                 $opportunity->outcome = $toStage->terminal_outcome;
                 $opportunity->closed_at = now();
-
-                if ($toStage->isWon()) {
-                    $opportunity->won_at = now();
-                } elseif ($toStage->isLost()) {
-                    $opportunity->lost_at = now();
-                }
+                $opportunity->won_at = $toStage->isWon() ? now() : null;
+                $opportunity->lost_at = $toStage->isLost() ? now() : null;
             } else {
                 // Re-opening a previously closed opportunity.
                 $opportunity->status = Opportunity::STATUS_OPEN;
                 $opportunity->outcome = null;
                 $opportunity->closed_at = null;
+                $opportunity->won_at = null;
+                $opportunity->lost_at = null;
             }
 
             $opportunity->save();

@@ -4,6 +4,7 @@ return [
     'title' => 'Pipelines',
     'singular' => 'Pipeline',
     'moved' => 'Opportunity moved.',
+    'already_in_stage' => 'The deal is already in that stage.',
     'created' => 'Pipeline created.',
     'empty' => 'No open opportunities in this stage.',
 
@@ -34,6 +35,33 @@ return [
     // to name a count nothing on screen let you check.
     'opportunity_tasks_empty' => 'No tasks on this opportunity yet.',
     'opportunity_tasks_hint' => 'Every task counts, completed ones included — deleting the opportunity is refused while any of them is still attached.',
+
+    // The opportunity detail screen (v2.4.0). Before it there was no place a
+    // single deal stood: every link in the CP went to the board.
+    'back_to_board' => 'Back to the board',
+    'last_activity' => 'Last activity',
+    'closed_at' => 'Closed',
+    'won_at' => 'Won',
+    'lost_at' => 'Lost',
+    'current_stage' => 'Current stage',
+    'change_stage' => 'Change stage',
+    'change_stage_note' => 'Note',
+    'change_stage_hint' => 'The note is the only thing that later explains why the deal moved on. It shows up in the history, and nowhere else.',
+    'change_stage_submit' => 'Move',
+
+    // The history, read out of leadhub_stage_transitions.
+    'history' => 'History',
+    'history_created' => 'Created',
+    'history_hint' => 'The duration is the time until the next change; on the top entry it runs until now.',
+    'history_hint_closed' => 'The duration is the time until the next change. This deal is closed, so the last one ends there.',
+    'stage_removed' => 'Deleted stage',
+    'actor_system' => 'System',
+    'actor_unknown' => 'Unknown',
+    'duration_running' => 'ongoing',
+    'duration_under_minute' => 'under a minute',
+    'duration_minutes' => ':count min',
+    'duration_hours' => ':count h',
+    'duration_days' => ':count days',
 
     'validation' => [
         'contact_not_found' => 'That contact does not exist.',

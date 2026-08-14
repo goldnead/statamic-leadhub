@@ -188,6 +188,13 @@ it('hides brand A opportunities from brand B and refuses every form that names o
     // is itself the assertion: brand A's pipeline is not visible here.
     expect($props['pipelines'])->toBe([]);
 
+    // The deal screen is a read, and a read is exactly where a global-scope
+    // hole hands over the data with a friendly interface: not 403, which would
+    // confirm the record exists, but 404.
+    $this->withHeaders(['X-Inertia' => 'true'])
+        ->get(asBrandB($this, 'leadhub.pipelines.opportunities.show', $this->opportunity->id))
+        ->assertStatus(404);
+
     $this->withHeaders(['X-Inertia' => 'true'])
         ->get(asBrandB($this, 'leadhub.pipelines.opportunities.edit', $this->opportunity->id))
         ->assertStatus(404);

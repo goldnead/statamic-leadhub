@@ -128,6 +128,16 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
             ->name('opportunities.store');
         Route::get('/opportunities/{opportunity}/edit', [OpportunityController::class, 'edit'])
             ->whereNumber('opportunity')->name('opportunities.edit');
+        // The deal's own screen. Registered before the `/{pipeline}` board
+        // route at the bottom of this group, and after `opportunities/create`
+        // — `whereNumber` already keeps "create" out of this one, but the
+        // ordering says so without relying on the constraint. The parameter
+        // stays `opportunity`, the name every other route in this group uses:
+        // a second name for the same thing is what a sibling addon's
+        // application-wide `Route::bind()` eventually eats (see the comment on
+        // the scoring group).
+        Route::get('/opportunities/{opportunity}', [OpportunityController::class, 'show'])
+            ->whereNumber('opportunity')->name('opportunities.show');
         Route::patch('/opportunities/{opportunity}', [OpportunityController::class, 'update'])
             ->whereNumber('opportunity')->name('opportunities.update');
         Route::delete('/opportunities/{opportunity}', [OpportunityController::class, 'destroy'])

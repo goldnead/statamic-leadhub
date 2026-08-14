@@ -8,12 +8,16 @@ use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Pipeline;
+use Goldnead\Leadhub\Models\Stage;
+use Goldnead\Leadhub\Models\StageTransition;
 use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Services\OpportunityService;
 use Goldnead\Leadhub\Services\StageTransitionService;
 use Goldnead\Leadhub\Support\ContactPicker;
 use Goldnead\Leadhub\Support\UserDirectory;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 
 /**
@@ -93,6 +97,90 @@ class OpportunityController extends Controller
             ->with('success', __('leadhub::pipelines.opportunity_created'));
     }
 
+    /**
+     * The deal's own screen: what it is, where it stands, and what happened.
+     *
+     * Until now nothing in the CP pointed at a single deal. Every link — the
+     * contact screen's opportunity list, the board's own cards — went to the
+     * *board*, which answers "what is in this column" and not "why did this one
+     * move". The stage history has been written since the pipelines module
+     * shipped (`leadhub_stage_transitions`, one row per move, with the note that
+     * says why) and nothing has ever read it. This is the reader.
+     *
+     * Reading is `view leadhub`, like the board; every action offered on the
+     * page is `manage leadhub opportunities`, like creating and deleting one.
+     * The permissions travel as props so the page never draws a button that
+     * would answer 403.
+     */
+    public function show(Request $request, int|string $opportunity)
+    {
+        $this->readGuard($request);
+
+        $model = Opportunity::query()
+            ->with(['pipeline.stages', 'contact', 'company'])
+            ->findOrFail($opportunity);
+
+        $canManage = $this->userCan($request, 'manage leadhub opportunities');
+        $pipeline = $model->pipeline;
+        $stages = $pipeline ? $pipeline->stages : new EloquentCollection;
+        $currentStage = $stages->firstWhere('id', $model->stage_id);
+
+        return Inertia::render('leadhub::Pipelines/OpportunityShow', [
+            'opportunity' => [
+                'id' => (string) $model->id,
+                'title' => $this->displayTitle($model),
+                'status' => $model->status,
+                'outcome' => $model->outcome,
+                'is_open' => $model->isOpen(),
+                'contact_name' => $model->contact?->displayName(),
+                'contact_url' => $model->contact
+                    ? cp_route('leadhub.contacts.show', $model->contact->id)
+                    : null,
+                'company_name' => config('leadhub.features.companies', false)
+                    ? $model->company?->displayName()
+                    : null,
+                'company_url' => config('leadhub.features.companies', false) && $model->company
+                    ? cp_route('leadhub.companies.show', $model->company->id)
+                    : null,
+                'pipeline_name' => $model->pipeline?->name,
+                'stage_name' => $currentStage ? $currentStage->name : __('leadhub::pipelines.stage_removed'),
+                'stage_id' => (string) $model->stage_id,
+                'stage_is_terminal' => $currentStage !== null && $currentStage->is_terminal,
+                'value_estimate' => $model->value_estimate !== null ? (float) $model->value_estimate : null,
+                'confidence' => (int) $model->confidence,
+                'owner_name' => $model->owner_id ? $this->users->label((string) $model->owner_id) : null,
+                'created_at' => $model->created_at?->format('Y-m-d H:i'),
+                'last_activity_at' => $model->last_activity_at?->format('Y-m-d H:i'),
+                'closed_at' => $model->closed_at?->format('Y-m-d H:i'),
+                // Deliberately only where the status agrees with them. See the
+                // note on StageTransitionService: before v2.4.0 a reopened deal
+                // kept the won/lost stamp of the close it had come back from,
+                // and this screen is where that first becomes visible. The
+                // service no longer leaves such a row behind and a migration
+                // repaired the ones already stored — this guard is what keeps
+                // the screen honest on an install that has not migrated yet.
+                'won_at' => $model->outcome === 'won' ? $model->won_at?->format('Y-m-d H:i') : null,
+                'lost_at' => $model->outcome === 'lost' ? $model->lost_at?->format('Y-m-d H:i') : null,
+            ],
+            'stages' => $stages->map(fn (Stage $stage) => [
+                'value' => (string) $stage->id,
+                'label' => $stage->name,
+            ])->values()->all(),
+            'history' => $this->history($model),
+            'tasks' => $this->taskPanel($model),
+            'tasksEnabled' => (bool) config('leadhub.features.tasks', false),
+            'canManageTasks' => $this->userCan($request, 'manage leadhub tasks'),
+            'canManage' => $canManage,
+            'createTaskUrl' => $this->createTaskUrl($model),
+            'editUrl' => $canManage ? cp_route('leadhub.pipelines.opportunities.edit', $model->id) : null,
+            'deleteUrl' => $canManage ? cp_route('leadhub.pipelines.opportunities.destroy', $model->id) : null,
+            // The one write path for a stage change, shared with the board's
+            // drag & drop, and the only one that records the note.
+            'moveUrl' => $canManage ? cp_route('leadhub.pipelines.move', $model->id) : null,
+            'boardUrl' => cp_route('leadhub.pipelines.board.show', $model->pipeline_id),
+        ]);
+    }
+
     public function edit(Request $request, int|string $opportunity)
     {
         $this->guard($request);
@@ -127,7 +215,9 @@ class OpportunityController extends Controller
             'createTaskUrl' => $this->createTaskUrl($model),
             'updateUrl' => cp_route('leadhub.pipelines.opportunities.update', $model->id),
             'deleteUrl' => cp_route('leadhub.pipelines.opportunities.destroy', $model->id),
-            'cancelUrl' => cp_route('leadhub.pipelines.board.show', $model->pipeline_id),
+            // Back to the deal, not to the board. Cancelling an edit means
+            // "leave it as it was", and where it was is its own screen.
+            'cancelUrl' => cp_route('leadhub.pipelines.opportunities.show', $model->id),
         ]);
     }
 
@@ -158,7 +248,7 @@ class OpportunityController extends Controller
             app(StageTransitionService::class)->transition($model, $stage, null, $this->userId($request) ?: null);
         }
 
-        return redirect(cp_route('leadhub.pipelines.board.show', $model->pipeline_id))
+        return redirect(cp_route('leadhub.pipelines.opportunities.show', $model->id))
             ->with('success', __('leadhub::pipelines.opportunity_updated'));
     }
 
@@ -254,9 +344,223 @@ class OpportunityController extends Controller
         ]));
     }
 
+    /**
+     * The deal's stage history, newest first, with how long it sat in each.
+     *
+     * Built from `leadhub_stage_transitions` rather than from the contact
+     * timeline, because the transition row is the more complete record: the
+     * note that says *why* the deal moved is written there and nowhere else
+     * (the timeline event carries the ids, not the note). The timeline is not
+     * mixed in — for a stage change it holds the same fact with less of it, and
+     * a deal's other contact events are about the person, not the deal.
+     *
+     * **A deal that was never moved still has a history.** It has no transition
+     * row at all — `create()` writes none — so the entry point into the first
+     * stage is `opportunities.created_at`. Left out, the most common deal on a
+     * young install would show an empty panel, which reads as "nothing recorded"
+     * instead of "created here, still here".
+     *
+     * Durations are the gap to the next entry, and for the newest entry the gap
+     * to now. Clamped at zero: `created_at` and the first transition can be the
+     * same second, and seeded data can have them the wrong way round.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function history(Opportunity $model): array
+    {
+        $transitions = $model->transitions()->get()
+            // The relation sorts newest first. Durations need the other
+            // direction, and `occurred_at` has second resolution — two moves in
+            // the same second would otherwise order arbitrarily.
+            ->sortBy([['occurred_at', 'asc'], ['id', 'asc']])
+            ->values();
+
+        $stageNames = $this->stageNames($model, $transitions);
+        $actorLabels = $this->actorLabels($transitions);
+
+        // The stage the deal started in: where the first recorded move came
+        // *from*, or — for a deal that was never moved — where it still is.
+        // `??`, not `?:`: the schema allows `from_stage_id` to be null, and a
+        // null there means "unknown", not "zero".
+        $startedIn = $transitions->isEmpty() ? null : $transitions->first()->from_stage_id;
+
+        $entries = [[
+            'key' => 'created',
+            'is_start' => true,
+            'from_stage_id' => null,
+            'to_stage_id' => (int) ($startedIn ?? $model->stage_id),
+            'at' => $model->created_at,
+            'actor_id' => null,
+            'note' => null,
+        ]];
+
+        foreach ($transitions as $transition) {
+            $entries[] = [
+                'key' => 'transition-'.$transition->id,
+                'is_start' => false,
+                'from_stage_id' => $transition->from_stage_id !== null ? (int) $transition->from_stage_id : null,
+                'to_stage_id' => (int) $transition->to_stage_id,
+                'at' => $transition->occurred_at,
+                'actor_id' => $transition->actor_type === 'user' ? (string) $transition->actor_id : null,
+                'note' => $transition->note,
+            ];
+        }
+
+        $last = count($entries) - 1;
+        $rows = [];
+
+        // A closed deal's last stretch ends when it closed, not now. Left at
+        // `now()` the top row reads "115 days" for a deal won in April and
+        // grows by one every day — the same column, the same typography as the
+        // real phase durations beneath it, and answering a different question.
+        // The "still running" marker that would have told them apart is
+        // deliberately hidden on a closed deal, so nothing was left to
+        // distinguish them.
+        $closedAt = $model->status === Opportunity::STATUS_CLOSED
+            ? ($model->closed_at ?? $model->won_at ?? $model->lost_at)
+            : null;
+
+        foreach ($entries as $index => $entry) {
+            $end = $entries[$index + 1]['at'] ?? $closedAt ?? now();
+            $seconds = $entry['at'] && $end
+                ? max(0, $end->getTimestamp() - $entry['at']->getTimestamp())
+                : null;
+
+            $rows[] = [
+                'key' => $entry['key'],
+                'is_start' => $entry['is_start'],
+                // The last stretch, and whether it is still running. A closed
+                // deal has a last stretch that ended.
+                'is_current' => $index === $last,
+                'is_running' => $index === $last && $closedAt === null,
+                'from_stage_name' => $entry['from_stage_id'] !== null
+                    ? ($stageNames[$entry['from_stage_id']] ?? __('leadhub::pipelines.stage_removed'))
+                    : null,
+                'to_stage_name' => $stageNames[$entry['to_stage_id']] ?? __('leadhub::pipelines.stage_removed'),
+                'occurred_at' => $entry['at']?->format('Y-m-d H:i'),
+                'actor_label' => $entry['actor_id'] !== null
+                    ? ($actorLabels[$entry['actor_id']] ?? __('leadhub::pipelines.actor_unknown'))
+                    : ($entry['is_start'] ? null : __('leadhub::pipelines.actor_system')),
+                'note' => filled($entry['note']) ? $entry['note'] : null,
+                'duration_seconds' => $seconds,
+                'duration_label' => $seconds === null ? null : $this->durationLabel($seconds),
+            ];
+        }
+
+        return array_reverse($rows);
+    }
+
+    /**
+     * Stage id => name for everything the history mentions.
+     *
+     * `from_stage_id` and `to_stage_id` are raw integers with no foreign key,
+     * so a stage that was emptied and then deleted leaves rows pointing at
+     * nothing. The pipeline's own stages are already loaded and cost nothing;
+     * anything the history names beyond them is fetched in **one** query, not
+     * one per row. Whatever is still missing after that is genuinely gone and
+     * the caller labels it as such.
+     *
+     * @param  Collection<int, StageTransition>  $transitions
+     * @return array<int, string>
+     */
+    protected function stageNames(Opportunity $model, $transitions): array
+    {
+        $names = [];
+
+        foreach ($model->pipeline?->stages ?: [] as $stage) {
+            $names[(int) $stage->id] = (string) $stage->name;
+        }
+
+        $missing = $transitions
+            ->flatMap(fn ($transition) => [$transition->from_stage_id, $transition->to_stage_id])
+            ->push($model->stage_id)
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->reject(fn (int $id) => array_key_exists($id, $names))
+            ->values();
+
+        if ($missing->isNotEmpty()) {
+            foreach (Stage::query()->whereKey($missing->all())->get() as $stage) {
+                $names[(int) $stage->id] = (string) $stage->name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
+     * Actor id => display name, resolved once per distinct actor.
+     *
+     * `UserDirectory::label()` hits the user repository each time it is called,
+     * so calling it per history row would cost one lookup per move. The number
+     * of distinct people who ever touched a deal is bounded by the team, not by
+     * the length of the history.
+     *
+     * @param  Collection<int, StageTransition>  $transitions
+     * @return array<string, string|null>
+     */
+    protected function actorLabels($transitions): array
+    {
+        $labels = [];
+
+        foreach ($transitions->where('actor_type', 'user')->pluck('actor_id')->filter()->unique() as $id) {
+            $labels[(string) $id] = $this->users->label((string) $id);
+        }
+
+        return array_filter($labels, fn ($label) => $label !== null);
+    }
+
+    /**
+     * How long a deal sat somewhere, in the coarsest unit that still says
+     * something. "37 days" is the answer to this question; "37 days, 4 hours,
+     * 12 minutes" is the same answer with the point buried.
+     */
+    protected function durationLabel(int $seconds): string
+    {
+        if ($seconds < 60) {
+            return __('leadhub::pipelines.duration_under_minute');
+        }
+
+        if ($seconds < 3600) {
+            return __('leadhub::pipelines.duration_minutes', ['count' => intdiv($seconds, 60)]);
+        }
+
+        if ($seconds < 172800) {
+            return __('leadhub::pipelines.duration_hours', ['count' => intdiv($seconds, 3600)]);
+        }
+
+        return __('leadhub::pipelines.duration_days', ['count' => intdiv($seconds, 86400)]);
+    }
+
+    /**
+     * The title as a human should read it. `title` is nullable in the schema
+     * and only the service-created path fills the fallback in, so a row written
+     * straight through the model can arrive here without one.
+     */
+    protected function displayTitle(Opportunity $model): string
+    {
+        if (filled($model->title)) {
+            return (string) $model->title;
+        }
+
+        return trim(($model->contact?->displayName() ?: '').' — '.($model->pipeline?->name ?: ''), " —\t\n");
+    }
+
     protected function guard(Request $request): void
     {
         $this->authorizeOrFail($request, 'manage leadhub opportunities');
+        abort_unless(config('leadhub.features.pipelines', false), 404);
+    }
+
+    /**
+     * Reading a deal is the same authority as reading the board it sits on:
+     * `view leadhub`. Narrower than that would mean a user who can see the card
+     * cannot open it; wider makes no sense for a screen that shows money.
+     */
+    protected function readGuard(Request $request): void
+    {
+        $this->authorizeOrFail($request, 'view leadhub');
         abort_unless(config('leadhub.features.pipelines', false), 404);
     }
 

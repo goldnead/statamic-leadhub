@@ -449,9 +449,13 @@ class ContactController extends Controller
                     'stage_name' => $opp->stage?->name,
                     'pipeline_name' => $opp->pipeline?->name,
                     'closed_at' => $opp->closed_at?->format('Y-m-d'),
-                    'board_url' => $opp->pipeline
-                        ? cp_route('leadhub.pipelines.board.show', $opp->pipeline->id)
-                        : null,
+                    // The deal's own screen, not the board it sits on. Until
+                    // v2.4.0 this pointed at the board, which answers "what is
+                    // in this column" — a person looking at *this* deal in
+                    // *this* contact's list had to find it again among the
+                    // cards, and the stage history was unreachable from
+                    // anywhere in the CP.
+                    'show_url' => cp_route('leadhub.pipelines.opportunities.show', $opp->id),
                 ])->values()->all();
         }
 

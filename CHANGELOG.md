@@ -1,5 +1,116 @@
 # Changelog
 
+## 2.4.0 — 2026-08-15
+
+### Added — ein Deal hat jetzt eine eigene Seite
+
+Bis hierher gab es im Control Panel keinen Ort, an dem ein einzelner Deal stand.
+Jeder Link, der auf einen zeigte, führte aufs Board: die Opportunity-Liste auf
+der Kontaktseite, die Karten selbst. Das Board beantwortet „was liegt in dieser
+Spalte", nicht „was ist mit diesem Deal passiert".
+
+Neu: `GET /cp/leadhub/pipelines/opportunities/{opportunity}`. Die Seite zeigt
+Stammdaten (Titel, **verlinkter** Kontakt, Firma, Pipeline, Wert, Confidence,
+Owner, Zeitstempel), die aktuelle Stufe mit einem Wechsel direkt von dort, die
+Aufgaben an diesem Deal und den **Verlauf**.
+
+Der Verlauf ist der eigentliche Punkt. `leadhub_stage_transitions` wird seit dem
+ersten Release des Pipelines-Moduls geschrieben — eine Zeile pro Wechsel, mit
+der Notiz, die sagt *warum* — und wurde von nichts gelesen. Jetzt steht dort, von
+welcher Stufe in welche, wann, durch wen, mit Notiz, und **wie lange der Deal in
+der jeweiligen Stufe lag**. Ein Deal, der nie bewegt wurde, hat keine
+Transition-Zeile; sein Eintritt in die Anfangsstufe kommt aus
+`opportunities.created_at` und ist ein vollwertiger erster Eintrag, keine Lücke.
+
+Der Wechsel von der Detailseite läuft über denselben Endpunkt wie das Drag & Drop
+des Boards, weil das der einzige Weg ist, auf dem die Notiz überhaupt geschrieben
+wird. Die Stufennamen des Verlaufs werden einmal geladen und zugeordnet: die
+Abfragenzahl der Seite ist mit 30 Wechseln dieselbe wie mit 3 (gemessen: 6).
+
+Das Board und die Kontaktseite verlinken jetzt dorthin statt aufs Board; das
+Bearbeiten-Formular kehrt nach dem Speichern und beim Abbrechen auf die Seite
+zurück.
+
+### Fixed — `won_at` und `lost_at` widersprachen dem Status
+
+`StageTransitionService` setzte die beiden Zeitstempel und räumte sie nie wieder
+ab, während `status`, `outcome` und `closed_at` daneben sehr wohl zurückgesetzt
+wurden. Ein wieder eröffneter Deal trug also ein Gewinndatum und war offen; ein
+Deal, der von „Gewonnen" direkt nach „Verloren" ging, trug beide. Acht Releases
+lang hat das niemand gesehen, weil keine Ansicht diese Spalten zeigte — und
+`won_at` ist genau die Spalte, über die jemand „was haben wir dieses Quartal
+gewonnen" summiert.
+
+Der Dienst setzt jetzt in beiden Zweigen beide Stempel, den zutreffenden auf
+`now()` und den anderen auf `null`. Die Migration
+`2026_08_15_000001_repair_leadhub_opportunity_outcome_stamps` räumt die bereits
+gespeicherten Zeilen auf: offene Deals verlieren beide Stempel, geschlossene
+behalten den, den ihr `outcome` benennt. **Es geht dabei nichts verloren** —
+wann ein Deal gewonnen wurde, ist eine Aussage über einen Stufenwechsel, und
+jeder Stufenwechsel hat seine eigene Zeile in `leadhub_stage_transitions`. `down()`
+ist deshalb bewusst leer.
+
+### Fixed — aus der Kritiker-Runde
+
+- **Die Reparatur-Migration parkt, was sie löscht.** Sie behauptete, es gehe
+  nichts verloren, weil zu jedem Stempel eine Zeile in
+  `leadhub_stage_transitions` steht. Das stimmt nur, solange die dort benannte
+  Stufe existiert und ihr `terminal_outcome` unverändert ist — und eine leere
+  Stufe ist löschbar, gerade bei einem wiedereröffneten Deal. Die alten Werte
+  landen deshalb vorher in `metadata_json` unter `repaired_outcome_stamps`. Die
+  Behauptung im Docblock ist auf ihre tatsächliche Bedingung zurückgenommen.
+- **Bei einem abgeschlossenen Deal endet die letzte Dauer beim Abschluss**, nicht
+  heute. Vorher las die oberste Zeile eines im April gewonnenen Deals „115 Tage"
+  und wuchs täglich weiter — in derselben Spalte und Schrift wie die echten
+  Verweildauern darunter, aber auf eine andere Frage antwortend. Ausgerechnet
+  der „läuft"-Marker, der die beiden unterschieden hätte, war auf einem
+  geschlossenen Deal ausgeblendet. Die Fußnote sagt jetzt beides getrennt.
+- **Ein Wechsel auf die Stufe, auf der der Deal schon steht, schreibt nichts.**
+  Der Schirm verhindert es im Browser, ein zweiter Tab oder ein nackter POST
+  nicht — und ein Verlaufseintrag „Angebot → Angebot" ist genau das Rauschen,
+  das eine Historie unlesbar macht.
+- Die Notiz beim Stufenwechsel ist auf 2000 Zeichen begrenzt. Sie wird
+  ungekürzt im Verlauf gerendert.
+- Der Anfangs-Eintrag des Verlaufs fällt bei einem unbekannten `from_stage_id`
+  jetzt über `??` statt `?:` zurück: `null` heißt „unbekannt", nicht „null".
+
+### Changed — Stufe wechseln akzeptiert jetzt auch das Deal-Recht
+
+`POST /pipelines/opportunities/{opportunity}/move` verlangte
+`edit leadhub contacts`, was zu keinem seiner Nachbarn passte: Board ansehen ist
+`view leadhub`, Deal anlegen/bearbeiten/löschen ist
+`manage leadhub opportunities`. Wer eine Rolle nur für die Pipeline hatte, konnte
+einen Deal löschen, aber nicht verschieben.
+
+Die Route akzeptiert jetzt **beide** Rechte, in derselben Form und aus demselben
+Grund wie `TaskController::complete()` seit v1.7.0: eine Verengung auf das
+richtige Recht allein hätte jeder Installation, deren Rollen nur das alte
+tragen, am Upgrade-Tag das Drag & Drop weggenommen. **Niemand verliert etwas**;
+eine Gruppe bekommt, was sie hätte haben sollen. Das Board zeigt den Ziehgriff
+entsprechend für beide Rechte.
+
+### Changed — Modelle sagen jetzt, welche Spalten sie haben
+
+`Opportunity`, `Pipeline`, `Stage`, `StageTransition` und `Task` sind
+`$guarded = []` ohne `$fillable`; nichts in den Dateien sagte, was eine Zeile
+enthält, und die statische Analyse sah keine einzige Eigenschaft. Jedes
+`$opportunity->status` im Addon war ein „undefined property" in der
+PHPStan-Baseline, und ein Tippfehler in einem Spaltennamen sah aus wie ein
+korrekter. Die Spalten und Beziehungen stehen jetzt als `@property` in den
+Klassen-Docblocks. Die Baseline schrumpft dadurch um 150 Einträge.
+
+### Intern
+
+- `money()` lag als byte-gleiche Kopie in `Board.vue` und `Contacts/Show.vue`;
+  eine dritte Kopie wäre daraus geworden. Jetzt `resources/js/support/money.js`.
+- Kein `OpportunityPanels`-Erweiterungspunkt. Die Spiegelung von
+  `ContactPanels` wäre naheliegend gewesen, hätte aber heute keinen Abnehmer:
+  `statamic-marketing` kennt Opportunities überhaupt nicht, und
+  `statamic-automations` kennt sie nur als Verben („lege an", „verschiebe"),
+  ohne einen einzigen Datensatz an einem Deal und ohne Listener auf
+  `LeadHubOpportunityWon/Lost/StageChanged`. Ein leerer Erweiterungspunkt ist
+  Ballast, den der nächste Umbau mitschleppt.
+
 ## 2.3.0 — 2026-08-15
 
 ### Added — die Einstellungsseite lässt sich bedienen
