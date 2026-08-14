@@ -172,6 +172,7 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
 
     // Settings
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+    Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
 
     // CRM sync log
     Route::get('/sync-log', [SyncLogController::class, 'index'])->name('sync-log');

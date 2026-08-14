@@ -1,5 +1,61 @@
 # Changelog
 
+## 2.3.0 — 2026-08-15
+
+### Added — die Einstellungsseite lässt sich bedienen
+
+Der Schirm unter LeadHub → Einstellungen hat bisher `config/leadhub.php`
+abgedruckt und dazu gesagt, man möge die Datei auf dem Server ändern. Jetzt ist
+er ein Formular: Verhalten bei neuen Submissions, Payload-Redaktion, alle
+Feature-Flags, Export-Ziel und Queue-Schwelle, die Scoring-Rückfallwerte, das
+Dedupe-Fenster des Klick-Trackings und die Benachrichtigungs-Schalter.
+
+Gespeichert wird nur, was von der Auslieferung abweicht, als Zeile in der neuen
+Tabelle `leadhub_settings`. Wer einen Wert auf den ausgelieferten zurücksetzt,
+löscht die Zeile wieder, und die laufende Anwendung folgt sofort wieder der
+Datei. Alles nie Angefasste folgt weiterhin `config/leadhub.php`, ein Upgrade
+verschiebt die Standards also nach wie vor.
+
+Formular, Validierung und das Anwenden der Werte beim Boot kommen aus einer
+einzigen Definition (`src/Support/Settings.php`). Die Werte greifen im
+`ServiceProvider`, nicht in einer CP-Middleware: ein Queue-Worker, der später
+hochkommt, sieht sie.
+
+Nicht angeboten werden Zugangsdaten (`crm.destinations.*` mit `token`,
+`api_key`, `secret`), alles env-Gesteuerte (Storage-Treiber, Empfängerlisten,
+Digest-Uhrzeit) und die Status-Map, weil eine Map kein Feld ist. Das
+env-Gesteuerte wird angezeigt, damit man es prüfen kann.
+
+Auf einer Installation mit dem Flat-Treiber, wo Migrationen ausdrücklich nicht
+verlangt werden, schaltet der Schirm auf nur-lesbar mit Begründung, statt beim
+Speichern einen SQL-Fehler zu melden. `php artisan migrate` legt dort auf Wunsch
+nur diese eine Tabelle an.
+
+### Fixed — zwei Fallen, die im Schwester-Addon dieselben waren
+
+Beide gefunden, weil dieselbe Bauform im `webhook-manager` heute Nacht daran
+gescheitert ist. Beide sind hier mit einem Test festgenagelt, der ohne den Fix
+umfällt.
+
+- **`config:cache` fror die Overrides ein.** Der Befehl bootet die Anwendung
+  vollständig und schreibt danach den aufgelösten Config-Baum auf die Platte;
+  die Overrides landeten mit darin. Ein eingebackener Override überlebt die
+  Zeile, aus der er stammt: eine gelöschte Einstellung wirkte bis zum nächsten
+  `config:clear` weiter. Schlimmer noch, der nächste Boot las die eingebackene
+  Datei als „ausgelieferten Default", womit ein auf den Dateiwert
+  zurückgesetzter Wert als Abweichung galt und gespeichert statt gelöscht wurde
+  — genau die Regel, die diese Klasse verspricht, kippte dauerhaft. Während des
+  Cache-Baus wird jetzt nichts angewendet.
+- **Das Schreiben lief ohne Transaktion.** Ein Fehler auf halbem Weg hinterließ
+  eine Tabelle, die keinem zusammenhängenden Zustand entsprach, und der Schirm
+  wurde anschließend aus diesem halben Zustand neu gezeichnet, als wäre er die
+  Wahrheit.
+
+Dazu ein dritter Wächter ohne zugehörigen Fehler: ein Test geht Gruppen, Felder
+und Auswahloptionen in beiden Sprachen durch und prüft, dass keine Beschriftung
+ihren eigenen Übersetzungsschlüssel zeigt. Im Schwester-Addon war genau das
+durch eine grüne Suite gelaufen, weil kein Test je ein Label angesehen hatte.
+
 ## 2.2.1 — 2026-08-15
 
 ### Fixed — die Zeitleiste zeigt, was in einem Ereignis steht

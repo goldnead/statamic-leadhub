@@ -72,6 +72,7 @@ use Goldnead\Leadhub\Services\ClickTracking\ClickTrackingLinker;
 use Goldnead\Leadhub\Services\ClickTracking\RecipientResolver;
 use Goldnead\Leadhub\Services\IngestionService;
 use Goldnead\Leadhub\Support\ContactPanels;
+use Goldnead\Leadhub\Support\Settings;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Gate;
 use Statamic\Events\SubmissionCreated;
@@ -203,6 +204,13 @@ class ServiceProvider extends AddonServiceProvider
             $this->app['translator']->addJsonPath($langPath);
         }
 
+        // Singleton because it holds the pre-override snapshot of the config
+        // files. A second instance created after `apply()` would take the
+        // already-overridden config for its baseline, and would then read every
+        // stored value as "equal to the default" and delete the lot on the next
+        // save.
+        $this->app->singleton(Settings::class);
+
         $this->bindRepositories();
 
         // CRM destinations — singleton so other addons can extend() it.
@@ -287,7 +295,34 @@ class ServiceProvider extends AddonServiceProvider
             ->registerPolicies()
             ->registerSchedule()
             ->bootCommands()
-            ->registerPublishables();
+            ->registerPublishables()
+            ->applySettingOverrides();
+    }
+
+    /**
+     * Put the settings changed in the Control Panel onto the live config.
+     *
+     * Last in the chain, and it has to be: `registerPublishables()` is where
+     * `config/leadhub.php` is merged, and an override written before the file it
+     * overrides would be flattened by the merge. Everything above that reads
+     * config lazily — the navigation from inside `Nav::extend()`, the schedule
+     * from inside `callAfterResolving(Schedule::class)` — so they all see the
+     * operator's values by the time they actually run.
+     *
+     * In `bootAddon()` rather than in a Control-Panel middleware, because a
+     * queue worker running an export or the follow-up digest boots this addon
+     * and nothing else: a setting that held only for web requests would be a
+     * setting that appears to work and silently does not where the work happens.
+     *
+     * The one thing that cannot be reached from here is `registerMigrations()`,
+     * which reads `storage.driver` a few lines earlier — and that is deliberately
+     * not an editable setting.
+     */
+    protected function applySettingOverrides(): self
+    {
+        $this->app->make(Settings::class)->apply();
+
+        return $this;
     }
 
     /**
@@ -529,7 +564,20 @@ class ServiceProvider extends AddonServiceProvider
         // Migrations only matter for the eloquent driver.
         if (config('leadhub.storage.driver', 'eloquent') === 'eloquent') {
             $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+
+            return $this;
         }
+
+        // Except this one. The flat driver keeps *lead data* in YAML, which is
+        // what "migrations are not required" is about — the settings an operator
+        // changes in the Control Panel are not lead data, they are properties of
+        // the installation, and without their table the Settings screen would be
+        // read-only on a driver where everything else works. Registered as a
+        // single file rather than the directory, so `php artisan migrate` on a
+        // flat install creates this table and nothing else.
+        $this->loadMigrationsFrom(
+            __DIR__.'/../database/migrations/2026_08_14_000001_create_leadhub_settings_table.php'
+        );
 
         return $this;
     }
