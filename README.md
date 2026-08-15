@@ -23,10 +23,11 @@ It is **not** a full CRM. It's the missing layer between your website forms and 
 - **Per-form mapping** — toggle LeadHub per form, map each form's fields to contact fields
 - **Filterable list + CSV export** — find leads fast, export filtered subsets
 - **Dashboard** — KPIs, latest activity, due/overdue follow-ups
+- **Settings in the Control Panel** — 28 of the keys in `config/leadhub.php` are editable under **LeadHub → Settings** (`manage leadhub settings`), stored as the difference to the file. See [Settings in the Control Panel](#settings-in-the-control-panel)
 - **Lead assignment + notifications** — assign an owner to each lead; e-mail your team on new leads, assignments, and a daily follow-up digest
 - **Marketing attribution** — capture UTM parameters, referrer and landing page on the originating submission
 - **CRM connectors** — push contacts to HubSpot, Brevo or any webhook (Zapier / Make / n8n) on create, update or status change, with a per-attempt **Sync log**. Opted-out contacts (`do_not_contact`) are never pushed.
-- **Outbound events** — thirteen+ domain events covering the full contact lifecycle, ready for [goldnead/statamic-webhook-manager](#webhooks--outbound-integrations) or your own listeners
+- **Outbound events** — 26 domain events covering the contact lifecycle, follow-ups, segments and the CRM-core modules, ready for [goldnead/statamic-webhook-manager](#webhooks--outbound-integrations) or your own listeners
 
 ### CRM-core modules (opt-in)
 
@@ -35,11 +36,11 @@ LeadHub can grow from a lead-capture layer into a lightweight CRM. These modules
 - **Generic ingestion API** (`features.ingestion`) — `LeadHub::ingest()` turns *any* source (purchases, bookings, logins, inbound webhooks) into contacts + timeline entries, deduplicated by email/phone and idempotent via a `dedupe_key`. Register a `SourceProjector` to auto-map your own models.
 - **Companies** (`features.companies`) — B2B company records, deduplicated by domain/name, linked to contacts with a primary flag.
 - **Tasks** (`features.tasks`) — multiple tasks per contact with priority, assignee and due date (beyond the single next-action follow-up).
-- **Pipelines & opportunities** (`features.pipelines`) — multi-pipeline deal tracking with stages, terminal won/lost outcomes, value/confidence, full stage-transition history, a **Kanban board** and a **pipeline-management** screen in the CP.
+- **Pipelines & opportunities** (`features.pipelines`) — multi-pipeline deal tracking with stages, terminal won/lost outcomes, value/confidence, a **Kanban board**, a **pipeline-management** screen, and a **page per deal** carrying its stage history, the time it spent in each stage and the note behind every move. See [Deals & stage history](#deals--stage-history).
 - **Contact merge** (`features.merge`) — `LeadHub::merge()` re-parents a duplicate's timeline/notes/tasks/opportunities onto a survivor.
 - **Lead scoring** (`features.scoring`) — accumulate an `engagement_score` per activity type. Since v1.8.0 the score is shown on the contact and in the list (sortable, filterable by range), the point table is editable per brand under LeadHub → Scoring, and every change lands in the contact timeline.
 - **Consent / opt-out** — `do_not_contact` is honoured by every CRM connector; `LeadHub::optOut()` also actively removes the contact from supported destinations (e.g. a Brevo list).
-- **Public API & events** — a stable `Goldnead\Leadhub\Facades\LeadHub` facade to read and write leads and ingest external sources, plus 20+ lifecycle events fired across the contact lifecycle. [statamic-webhook-manager](#webhooks--outbound-integrations) pairs with these via LeadHub's built-in bridge; [statamic-automations](https://github.com/goldnead/statamic-automations) detects LeadHub on its side and offers these events as workflow triggers — no configuration in LeadHub required.
+- **Public API & events** — a stable `Goldnead\Leadhub\Facades\LeadHub` facade to read and write leads and ingest external sources, plus the 26 lifecycle events listed under [Webhooks](#webhooks--outbound-integrations). [statamic-webhook-manager](#webhooks--outbound-integrations) pairs with these via LeadHub's built-in bridge; [statamic-automations](https://github.com/goldnead/statamic-automations) detects LeadHub on its side and offers these events as workflow triggers — no configuration in LeadHub required.
 
 What it deliberately does **not** do (yet): bidirectional CRM *pull* sync. See [the roadmap](#roadmap).
 
@@ -121,21 +122,59 @@ Edit `config/leadhub.php`:
 ],
 ```
 
+The status list stays in the file — removing a status would strand every contact sitting on it,
+so it is shown read-only in the Control Panel. Which of them a new contact starts on, and most
+other keys of this file, are editable under
+[LeadHub → Settings](#settings-in-the-control-panel).
+
 ---
 
 ## Permissions
 
-LeadHub registers granular permissions under the `LeadHub` group:
+LeadHub registers sixteen permissions under the `LeadHub` group. Assign them to roles in
+**CP → Users → Roles**.
 
-- `view leadhub`
-- `view leadhub contacts`
-- `create / edit / delete / archive leadhub contacts`
-- `manage leadhub tags`
-- `manage leadhub form mappings`
-- `manage leadhub settings`
-- `export leadhub contacts`
+| Permission | What it allows |
+| ---------- | -------------- |
+| `view leadhub` | The dashboard, the deal board, the deal detail page, the companies, tasks and scoring screens (read-only), and the sync log. The read side of the CRM-core modules rides on this one permission rather than a `view` of its own. |
+| `view leadhub contacts` | The contact list, a contact's detail page and its timeline, and the follow-up list. |
+| `create leadhub contacts` | Creating a contact by hand (also needs `features.manual_contacts`). |
+| `edit leadhub contacts` | Editing a contact, adding a note, setting and completing a follow-up. Historically it also covered completing a task and moving a deal, and it still does — see below. |
+| `delete leadhub contacts` | Deleting a contact for good. |
+| `archive leadhub contacts` | Archiving and unarchiving a contact. |
+| `export leadhub contacts` | The CSV export of the contact list, filters included. |
+| `manage leadhub tags` | The Tags screen: creating, renaming and deleting tags. |
+| `view leadhub segments` | The Segments screen, read-only, including a segment's member list. |
+| `manage leadhub segments` | Creating, editing, activating and deleting segments, and the rule editor. |
+| `manage leadhub companies` | Creating, editing and deleting company records. Deliberately separate from the contact permissions: "may edit a contact" and "may delete the company behind fifty contacts" are not the same authority. |
+| `manage leadhub tasks` | Creating, editing, assigning, completing and deleting tasks. |
+| `manage leadhub opportunities` | Creating, editing and deleting deals, and moving one to another stage. |
+| `manage leadhub scoring` | Editing the per-brand point table under LeadHub → Scoring. Its own authority, because that table decides the score of every contact at once. |
+| `manage leadhub form mappings` | The Forms screen: enabling LeadHub per form and mapping its fields. |
+| `manage leadhub settings` | The Settings screen (see [Settings in the Control Panel](#settings-in-the-control-panel)) **and** the pipeline-management screen — creating pipelines, adding, renaming, reordering and deleting stages. |
 
-Assign them to roles in **CP → Users → Roles**.
+### Moving a deal accepts either permission
+
+`POST /pipelines/opportunities/{opportunity}/move` — the board's drag & drop and the stage-change
+form on the [deal page](#deals--stage-history) — is satisfied by **either
+`manage leadhub opportunities` or `edit leadhub contacts`**:
+
+```php
+if (! $this->userCan($request, 'manage leadhub opportunities')) {
+    $this->authorizeOrFail($request, 'edit leadhub contacts');
+}
+```
+
+Until v2.4.0 the route asked for `edit leadhub contacts` alone, which matched neither of its
+neighbours: looking at the board is `view leadhub`, creating and deleting a deal is
+`manage leadhub opportunities`. Narrowing it to the correct permission alone would have taken
+drag & drop away, on upgrade day, from every install whose roles carry only the old one. So the
+route was widened instead: nobody loses a capability, and a role set up to run the pipeline
+gains the one it should have had. `TaskController::complete()` accepts the same pair, for the
+same reason, since v1.7.0.
+
+If you are cutting a new role for the pipeline, grant `manage leadhub opportunities`. The
+fallback exists for the roles that already carry the old permission.
 
 ---
 
@@ -149,12 +188,64 @@ Assign them to roles in **CP → Users → Roles**.
 'overwrite_existing_fields_from_submissions' // never overwrite manually edited contacts (default: false)
 'store_full_submission_payload'              // attach raw submission to timeline
 'timeline_payload_redaction'                 // sensitive keys redacted before storage
-'exports.queue_threshold'                    // when to push CSV exports onto the queue
-'features.*'                                 // toggle features (notifications, attribution, crm_destinations)
+'exports.*'                                  // queue threshold, target disk and directory
+'features.*'                                 // toggle features (attribution, crm_destinations, CRM-core modules)
+'scoring.*'                                  // fallback point table (see Lead scoring)
+'click_tracking.*'                           // dedupe window and ignored query parameters
 'notifications.*'                            // recipient e-mails, digest time (see Lead assignment)
 'attribution.fields'                         // which submission fields map to UTM / referrer / landing page
 'crm.destinations'                           // HubSpot / Brevo / webhook targets (see CRM connectors)
+'email_normalization.*'                      // how an address is normalised before deduplication
+'storage.*'                                  // driver and, for `flat`, the content path
 ```
+
+### Settings in the Control Panel
+
+The config file is the default, not the last word. Since v2.3.0, 28 of the keys above can also
+be changed under **LeadHub → Settings** (permission: `manage leadhub settings`): the behaviour
+on a new submission, the payload redaction list, all thirteen feature flags, the export target
+and queue threshold, the scoring fallback values, the click-tracking dedupe window, and the
+notification switches.
+
+Only the **difference** to the config file is stored, one row per changed key in
+`leadhub_settings`. A value set back to what the file says deletes its row again, so
+`config/leadhub.php` stays the default and a later release can still move it. An install that
+never opens the screen behaves exactly as it did before the screen existed — including its
+queue workers, since the overrides are applied in the service provider rather than in a CP
+middleware.
+
+If you edit the file on a server, check the screen: a stored override outranks the file, and a
+key changed in both places will not do what the file says.
+
+Not editable there, on purpose:
+
+- **Credentials.** `crm.destinations` holds `token`, `api_key` and `secret`. A database row
+  carrying one takes it out of the secret store and into every backup, and the screen refuses
+  to serialize those entries to the browser at all.
+- **Anything resolved from `env()`** — the storage driver and flat path, the notification
+  switch, the recipient lists and the digest time. The deployment owns them, and a database row
+  that silently outranks an env var is a setting that changes back on the next deploy with
+  nobody touching the screen. They are shown on the screen read-only, so you can still check
+  what is active.
+- **`statuses` and `attribution.fields`.** A map of key to value is not a field: editing one
+  means adding, renaming and removing rows, and removing a status strands every contact sitting
+  on it. The statuses are printed read-only and `default_status` is offered as a select over
+  them.
+- **`scoring.events`.** Since v1.8.0 it is only the fallback for a brand with no rows in
+  `leadhub_scoring_rules` — a number changed here would look effective and do nothing on every
+  brand that has rules. `scoring.default` and `scoring.timeline` are read live and are offered.
+- **`email_normalization.*`.** A data-consistency rule rather than a preference: the normalised
+  address carries a unique index, and changing the rule afterwards leaves existing rows
+  normalised by the old one, so deduplication quietly stops matching what it used to match.
+
+The settings apply to the whole installation, not to one brand — unlike the scoring rules and
+the segments, which are per brand.
+
+On a **flat-driver** install, where migrations are not required, the `leadhub_settings` table
+may genuinely not exist. Reading survives that (no overrides means the config file, which is
+correct); writing does not, so the screen goes read-only and says why, instead of offering a
+Save button that answers a SQL error. `php artisan migrate` creates the one table if you want
+the screen.
 
 ---
 
@@ -170,21 +261,22 @@ Assign an owner to any lead and keep your team in the loop by e-mail.
   - **Daily follow-up digest** — a once-a-day summary of due / overdue follow-ups
 - **Task assigned** — when `goldnead/statamic-notifications` is installed, handing a task to somebody notifies them there (in-app, mail, or digest, per their preferences), and open tasks are contributed to the digest. Assigning a task to yourself notifies nobody. Switch it off with `leadhub.notifications.on_task_assignment`. Without that addon the whole path is a no-op.
 
-Enable the feature and set recipients in `config/leadhub.php` (or via env):
+Switch them on and set recipients in `config/leadhub.php` (or via env):
 
 ```php
-'features' => [
-    'notifications' => true,
-],
-
 'notifications' => [
-    'emails' => env('LEADHUB_NOTIFY_EMAILS'),   // comma-separated team inbox(es)
+    'enabled'    => env('LEADHUB_NOTIFICATIONS', true),  // the master switch
+    'recipients' => env('LEADHUB_NOTIFY_EMAILS'),        // comma-separated team inbox(es)
     'digest' => [
         'enabled' => true,
-        'time'    => '08:00',                   // server time, daily
+        'time'    => env('LEADHUB_DIGEST_TIME', '08:00'), // server time, daily
     ],
 ],
 ```
+
+`notifications.enabled`, `recipients` and `digest.time` are env-driven and stay in the file or
+the environment. The individual switches (`new_lead`, `on_assignment`, `on_task_assignment`,
+`digest.enabled`) are also editable under [LeadHub → Settings](#settings-in-the-control-panel).
 
 The digest is wired into the Laravel scheduler automatically. Make sure your app runs the scheduler (`php artisan schedule:work`, or a cron entry calling `schedule:run`). You can also trigger it manually:
 
@@ -348,7 +440,12 @@ LeadHub ships with **two storage drivers**. Choose the one that fits your projec
 
 ### `eloquent` (default)
 
-Dedicated database tables: `leadhub_contacts`, `leadhub_events`, `leadhub_notes`, `leadhub_tags`, `leadhub_contact_tag`, `leadhub_followups`, `leadhub_form_mappings`.
+Dedicated database tables. The core: `leadhub_contacts`, `leadhub_events`, `leadhub_notes`,
+`leadhub_tags`, `leadhub_contact_tag`, `leadhub_followups`, `leadhub_form_mappings`,
+`leadhub_sync_logs`, `leadhub_settings`. The opt-in modules add
+`leadhub_companies`, `leadhub_contact_company`, `leadhub_tasks`, `leadhub_pipelines`,
+`leadhub_stages`, `leadhub_opportunities`, `leadhub_stage_transitions`,
+`leadhub_scoring_rules`, `leadhub_segments` and `leadhub_segment_contact`.
 
 - Best for any project with **>500 contacts** or **>10k timeline events**
 - Performant filtering, sorting, full-text search
@@ -441,6 +538,84 @@ The listener is **fail-safe**: any exception is caught and logged. A LeadHub err
 
 ---
 
+## Deals & stage history
+
+Enable `features.pipelines`. Alongside the Kanban board, every opportunity has a page of its
+own:
+
+```
+/cp/leadhub/pipelines/opportunities/{opportunity}
+```
+
+Reading it is `view leadhub`, the same authority as the board it sits on. Every action offered
+on it is `manage leadhub opportunities` (or, for the stage change, [either
+permission](#moving-a-deal-accepts-either-permission)), and the permissions travel to the page
+as props, so it never draws a button that would answer 403.
+
+The page carries four things:
+
+- **The deal itself** — title, the contact as a **link** to their LeadHub page, company,
+  pipeline, current stage, value, confidence, owner, and the timestamps (created, last
+  activity, closed). `won_at` / `lost_at` are shown only where the deal's outcome agrees with
+  them; see [below](#upgrading-won_at--lost_at).
+- **A stage change, with a note.** The form posts to the same endpoint as the board's drag &
+  drop, because that endpoint is the only one that writes the note.
+- **The history**, newest first.
+- **The tasks on this deal**, open work first, completed ones included — because that is what
+  the deletion rule counts, and a panel filtered to open tasks would produce the one screen it
+  exists to prevent: an empty list beside "this opportunity still has 3 tasks".
+
+### The note is the only record of *why*
+
+`leadhub_stage_transitions` has been written since the pipelines module shipped — one row per
+move, with the note — and until v2.4.0 nothing read it. The contact timeline records that a
+stage change happened and carries the ids; the note is not in it. The stage-change form on this
+page (and the board's drag & drop, which has no note field) is what writes that row, so the
+note is the only thing that will tell a later reader why the deal moved. Maximum 2000
+characters, rendered ungrouped in the history.
+
+Changing to the stage the deal is already on writes nothing. The page prevents it in the
+browser, a second tab or a bare POST does not, and a history entry reading "Proposal →
+Proposal" is exactly the noise that makes a history unreadable.
+
+### Time in stage
+
+Each entry shows how long the deal sat there: the gap to the next entry, and for the newest
+entry the gap to now — or, on a **closed** deal, the gap to when it closed. A deal won in April
+would otherwise read "115 days" at the top and grow by one every day, in the same column and
+type as the real dwell times beneath it, answering a different question. Only a still-running
+stretch carries the "running" marker, and the footnote under the history says which of the two
+you are looking at.
+
+A deal that was never moved has no transition row at all. Its first entry is built from
+`opportunities.created_at` and is a full entry, not a gap — otherwise the most common deal on a
+young install would show an empty panel, which reads as "nothing recorded" rather than "created
+here, still here".
+
+Stage ids in the history carry no foreign key, so a stage that was emptied and then deleted
+leaves rows pointing at nothing. Those are labelled as removed rather than dropped. Stage names
+are resolved in one query for the whole history: a deal with 30 moves costs the same six
+queries as one with three.
+
+### Upgrading: `won_at` / `lost_at`
+
+Before v2.4.0 `StageTransitionService` set these two timestamps and never cleared them again,
+while `status`, `outcome` and `closed_at` next to them were reset properly. A reopened deal
+therefore carried a won date while being open, and a deal moved from won straight to lost
+carried both. Nothing showed those columns, so nobody saw it — and `won_at` is precisely the
+column somebody groups revenue by.
+
+The service now writes both stamps in both branches, the applicable one to `now()` and the other
+to `null`. The migration `2026_08_15_000001_repair_leadhub_opportunity_outcome_stamps` cleans up
+the rows already stored: open deals lose both stamps, closed ones keep the one their `outcome`
+names. **It parks the old values first**, in `metadata_json` under `repaired_outcome_stamps`, so
+a report built on `won_at` can be reconciled after the fact. `down()` is deliberately empty.
+
+If you report on `won_at` or `lost_at`, read that key before you conclude a number changed for a
+business reason.
+
+---
+
 ## Lead scoring
 
 Enable `features.scoring`. Every scored activity adds points to the contact's `engagement_score`, which appears on the contact detail page and as a sortable, range-filterable column in the contact list. Each change writes a `score_changed` entry to the contact's timeline and fires `LeadHubContactScoreChanged` (available as the `leadhub.score.changed` webhook trigger).
@@ -451,7 +626,14 @@ The point table is edited in the Control Panel under **LeadHub → Scoring** (`m
 
 ### Upgrading from a config-based point table
 
-`leadhub.scoring` in `config/leadhub.php` is still read as the fallback. **While a brand has no rules, the config file decides, exactly as before** — updating the addon changes no score. Copy the config values into the table when you are ready:
+`leadhub.scoring` is still read as the fallback. **While a brand has no rules, the config decides,
+exactly as before** — updating the addon changes no score. This is the same "database over
+config" arrangement the [settings screen](#settings-in-the-control-panel) uses everywhere else;
+what is specific to scoring is that the point table is per **brand**, while the settings apply
+to the whole installation. Note that `scoring.default` and `scoring.timeline` are among the
+values editable on that screen, so the fallback itself may be an override rather than the file.
+
+Copy the config values into the table when you are ready:
 
 ```bash
 php artisan leadhub:scoring:import --dry-run   # shows what it would write
@@ -522,33 +704,50 @@ LeadHub doesn't ship its own webhook-sending UI — instead it fires a complete 
 
 ```php
 // namespace Goldnead\Leadhub\Events
-LeadHubContactCreated
-LeadHubContactUpdated
-LeadHubSubmissionAttached
-LeadHubStatusChanged
-LeadHubTagAdded
-LeadHubTagRemoved
-LeadHubNoteAdded
-LeadHubFollowupSet
-LeadHubFollowupCompleted
-LeadHubContactArchived
-LeadHubContactDeleted
+
+// Contact lifecycle
+LeadHubContactCreated        LeadHubContactUpdated       LeadHubStatusChanged
+LeadHubSubmissionAttached    LeadHubNoteAdded            LeadHubTagAdded
+LeadHubTagRemoved            LeadHubContactArchived      LeadHubContactDeleted
+LeadHubContactsMerged        LeadHubSourceIngested       LeadHubContactScoreChanged
+LeadHubEmailLinkClicked
+
+// Follow-ups
+LeadHubFollowupSet           LeadHubFollowupCompleted    LeadHubFollowupDue
+
+// Segments
+LeadHubContactEnteredSegment LeadHubContactLeftSegment
+
+// CRM-core modules
+LeadHubCompanyCreated        LeadHubTaskCreated          LeadHubTaskAssigned
+LeadHubTaskCompleted         LeadHubOpportunityCreated   LeadHubOpportunityStageChanged
+LeadHubOpportunityWon        LeadHubOpportunityLost
 ```
 
-Each event carries `$contact`, optional `$actor` (the acting user, if any), and optional `$metadata`.
+The contact, follow-up and segment events extend `LeadHubEvent` and carry `$contact`, an
+optional `$actor` (the acting user, if any) and an optional `$metadata` array. The module events
+carry their own subject instead — `$company`, `$task`, `$opportunity` — with the same `$actor`
+and `$metadata`. `LeadHubContactScoreChanged` carries the contact plus `$oldScore`, `$newScore`,
+`$delta` and a `$reason`.
 
 ### Pairing with goldnead/statamic-webhook-manager
 
 [goldnead/statamic-webhook-manager](https://github.com/goldnead/statamic-webhook-manager) is an event-driven outbound-webhook addon: you pick a **trigger** in the CP, point it at a URL, and it handles payload templating, auth (HMAC / bearer / basic), retries, delivery logging and replay.
 
-**Install both addons and it just works** — no glue code. When LeadHub boots and detects the webhook manager, it automatically registers every lifecycle event as a webhook-manager trigger:
+**Install both addons and it just works** — no glue code. When LeadHub boots and detects the webhook manager, it registers eighteen of the events above as webhook-manager triggers:
 
 ```
 leadhub.contact.created      leadhub.followup.set         leadhub.tag.added
 leadhub.contact.updated      leadhub.followup.completed   leadhub.tag.removed
-leadhub.status.changed       leadhub.note.added           leadhub.contact.archived
-leadhub.submission.attached  leadhub.contact.deleted
+leadhub.status.changed       leadhub.followup.due         leadhub.contact.archived
+leadhub.submission.attached  leadhub.note.added           leadhub.contact.deleted
+leadhub.contacts.merged      leadhub.source.ingested      leadhub.score.changed
+leadhub.task.assigned        leadhub.segment.entered      leadhub.segment.left
 ```
+
+The company, opportunity and remaining task events are not bridged — their subject is not a
+contact, and the bridge hands the contact over as the payload. Listen for them directly with
+`Event::listen()`, as below.
 
 Each fires a `TriggerDetected` event carrying the contact as the payload (plus `actor`, `metadata` and the event handle), so you create a webhook in **Webhook Manager → Webhooks**, choose e.g. *"LeadHub — status changed"* as the trigger, and you're done:
 
@@ -662,7 +861,11 @@ php artisan serve            # then visit http://127.0.0.1:8000/cp
 
 ## Roadmap
 
-Shipped beyond the core MVP: lead assignment + e-mail notifications, marketing attribution, CRM connectors (HubSpot / Brevo / webhook) with a sync log, and a full outbound event surface.
+Shipped beyond the core MVP: lead assignment + e-mail notifications, marketing attribution, CRM
+connectors (HubSpot / Brevo / webhook) with a sync log, a full outbound event surface, the
+CRM-core modules (companies, tasks, pipelines, scoring, segments, merge), an editable
+[settings screen](#settings-in-the-control-panel) and a
+[page per deal](#deals--stage-history) with its stage history.
 
 Still on the table, not yet shipped:
 
