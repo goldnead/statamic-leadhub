@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub\Integrations\Notifications;
 
+use Goldnead\IdentityContracts\Identity;
 use Goldnead\Notifications\NotificationManager;
 
 /**
@@ -64,6 +65,45 @@ class NotificationsBridge
         $notifications->registerType(self::TASK_ASSIGNED, function ($type): void {
             $type->label(__('leadhub::tasks.notifications.assigned_label'))
                 ->defaultChannels(['in_app', 'mail']);
+
+            /*
+             * Die beiden Angaben unten gibt es erst ab
+             * goldnead/statamic-notifications 1.7. Das Paket ist ein
+             * optionaler Nachbar ohne Versionsbindung — mit einer aelteren
+             * Fassung daneben waere ein direkter Aufruf ein fataler Fehler
+             * statt einer fehlenden Verfeinerung.
+             */
+            if (! method_exists($type, 'appliesTo')) {
+                return;
+            }
+
+            $type
+
+                /*
+                 * Eine interne Benachrichtigung. Aufgaben werden Menschen im
+                 * Team zugewiesen, nicht Kontakten — und ohne diese Zeile stand
+                 * "dir wurde eine Aufgabe zugewiesen" in der
+                 * Selbstbedienungs-Seite jedes Newsletter-Abonnenten.
+                 *
+                 * `userId` ist die Grenze: wer kein Konto in der Anwendung hat,
+                 * kann keine Aufgabe bekommen.
+                 */
+                ->appliesTo(fn (Identity $recipient) => $recipient->userId !== null)
+
+                /*
+                 * Kein Digest fuer die Zuweisung selbst.
+                 *
+                 * Eine Tagesuebersicht ergibt Sinn, wenn viele kleine Ereignisse
+                 * zusammenkommen. Eine Aufgabenzuweisung ist keins davon: sie
+                 * waere im Digest einen Tag alt, und wer sie erst dann liest,
+                 * hat einen Tag verloren.
+                 *
+                 * Der Digest verliert dadurch nichts Wichtiges — die offenen
+                 * Aufgaben kommen ueber die eigene Quelle unten
+                 * (self::DIGEST_SOURCE) hinein, und die ist das, was im Digest
+                 * tatsaechlich nuetzt: der Stand, nicht das einzelne Ereignis.
+                 */
+                ->supportedChannels(['in_app', 'mail']);
         });
 
         // Open tasks in the digest. The bundled `leadhub` source contributes

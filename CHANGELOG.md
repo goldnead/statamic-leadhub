@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.5.0 — 2026-08-22
+
+### Fixed — die Aufgaben-Benachrichtigung stand in jeder Selbstbedienungs-Seite
+
+`crm.task_assigned` ist eine **interne** Benachrichtigung: Aufgaben werden
+Menschen im Team zugewiesen, nicht Kontakten. Auf der Selbstbedienungs-Seite
+tauchte sie trotzdem bei jedem auf — auch bei einer Newsletter-Adresse, die
+nie eine Aufgabe bekommen kann. Aufgefallen an adriangoldner.com, wo ein
+frisch angemeldeter Abonnent fünf Benachrichtigungsarten mal drei Kanäle sah.
+
+Die Art gilt jetzt nur noch für Empfänger mit einem Konto in der Anwendung
+(`userId`), und der Digest-Kanal ist für sie zu: eine Aufgabenzuweisung wäre
+dort einen Tag alt, und wer sie erst dann liest, hat einen Tag verloren.
+
+**Der Digest verliert dadurch nichts.** Die offenen Aufgaben kommen weiterhin
+über die eigene Quelle `leadhub-tasks` hinein — und das ist im Digest das
+Nützliche: der Stand, nicht das einzelne Ereignis.
+
+Braucht `goldnead/statamic-notifications` 1.7+. Mit einer älteren Fassung
+daneben bleibt alles wie zuvor: die beiden Angaben werden übersprungen, statt
+einen fatalen Fehler auszulösen.
+
 ## 2.4.0 — 2026-08-15
 
 ### Added — ein Deal hat jetzt eine eigene Seite
