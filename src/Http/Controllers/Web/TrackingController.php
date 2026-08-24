@@ -34,7 +34,7 @@ class TrackingController
 
     public function click(Request $request): RedirectResponse
     {
-        $target = $this->safeTarget($request->query('url'));
+        $target = $this->safeTarget($request, $request->query('url'));
 
         // Everything below is a side effect: never let it break the redirect.
         try {
@@ -138,19 +138,90 @@ class TrackingController
     }
 
     /**
-     * Sanitize the redirect target. Only http(s) URLs are forwarded verbatim;
-     * anything else (missing, javascript:, data:, …) falls back to the site
-     * root so this endpoint can never be abused as an open redirect to a
-     * dangerous scheme.
+     * Decide where this click may go.
+     *
+     * Until 2026-08-24 this checked the scheme and nothing else, which made the
+     * endpoint a textbook open redirect: anyone could hand out
+     * `https://<our-domain>/c/<uuid>?url=https://phishing.example` and the link
+     * wore our domain all the way to the attacker. The reputation damage lands
+     * on the domain, not on whoever sent the link.
+     *
+     * The fix rests on something that was already true: `url` is a signed
+     * parameter (TrackingParameters::RESERVED). So:
+     *
+     *   valid signature   → we wrote this URL ourselves, forward it verbatim.
+     *   no valid signature → the URL is a stranger's claim. Forward it only to a
+     *                        host we recognise, otherwise to the site root.
+     *
+     * That keeps the golden rule intact for the case it was written for — a
+     * sending service mangling parameters so the signature breaks — because
+     * those links point at our own site or a partner we listed. It does not
+     * keep it for links we never issued, and it was never meant to.
      */
-    protected function safeTarget(mixed $url): string
+    protected function safeTarget(Request $request, mixed $url): string
     {
         $url = is_string($url) ? trim($url) : '';
 
-        if ($url !== '' && Str::startsWith(Str::lower($url), ['http://', 'https://'])) {
+        // Scheme first: javascript:, data: and protocol-relative //evil.example
+        // never reach the host check.
+        if ($url === '' || ! Str::startsWith(Str::lower($url), ['http://', 'https://'])) {
+            return url('/');
+        }
+
+        if ($request->hasValidSignatureWhileIgnoring(TrackingParameters::ignored())) {
             return $url;
         }
 
-        return url('/');
+        return $this->hostIsKnown($url) ? $url : url('/');
+    }
+
+    /**
+     * Exact host match, never a suffix one.
+     *
+     * `str_ends_with($host, 'our-domain.test')` would happily accept
+     * `evil-our-domain.test`, and comparing the raw URL instead of the parsed
+     * host accepts `https://our-domain.test@evil.example`, where the part that
+     * looks like us is userinfo and the browser goes to the other one. parse_url
+     * returns the host a browser would actually use.
+     */
+    protected function hostIsKnown(string $url): bool
+    {
+        $host = parse_url($url, PHP_URL_HOST);
+
+        if (! is_string($host) || $host === '') {
+            return false;
+        }
+
+        return in_array(Str::lower($host), $this->knownHosts(), true);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function knownHosts(): array
+    {
+        // The site's own host is always in, so an installation that configures
+        // nothing is still safe and still works for its own links.
+        $hosts = [parse_url((string) config('app.url'), PHP_URL_HOST)];
+
+        $hosts[] = $this->requestHost();
+
+        foreach ((array) config('leadhub.click_tracking.allowed_redirect_hosts', []) as $host) {
+            $hosts[] = is_string($host) ? $host : null;
+        }
+
+        return collect($hosts)
+            ->filter(fn ($host): bool => is_string($host) && $host !== '')
+            ->map(fn (string $host): string => Str::lower(trim($host)))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    protected function requestHost(): ?string
+    {
+        $host = request()?->getHost();
+
+        return is_string($host) && $host !== '' ? $host : null;
     }
 }

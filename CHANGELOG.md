@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.6.0 — 2026-08-24
+
+### Security — der Klick-Endpunkt war ein offener Redirect
+
+`/lh/track/click` prüfte am Ziel nur das Schema. Wer `http://` oder `https://`
+davorschrieb, durfte überall hin: **jeder** konnte
+`https://<deine-domain>/lh/track/click?url=https://phishing.example` verteilen,
+und der Link trug deine Domain bis zum Angreifer. Der Rufschaden trifft die
+Domain, nicht den Absender. Gefunden am 01.08.2026, seitdem offen.
+
+Der Fix ruht auf etwas, das schon galt: `url` ist ein **signierter** Parameter.
+
+- **Gültige Signatur** → die URL stammt von uns, sie wird unverändert
+  weitergeleitet. Daran ändert sich nichts.
+- **Keine gültige Signatur** → die URL ist die Behauptung eines Fremden. Sie
+  wird nur zu einem Host weitergeleitet, den wir kennen; sonst auf die
+  Startseite.
+
+Bekannt sind immer die eigene Domain und alles unter
+`click_tracking.allowed_redirect_hosts`. **Eine Installation, die dort nichts
+einträgt, ist damit sicher und funktioniert weiter** — ihre eigenen Links
+gehen ohnehin auf die eigene Domain.
+
+Die „golden rule" bleibt für den Fall, für den sie geschrieben wurde: ein
+Versanddienst hängt seinen Parameter an, die Signatur bricht, der Leser kommt
+trotzdem an. Sie gilt nicht mehr für Links, die wir nie ausgestellt haben —
+das war nie ihre Absicht.
+
+**Was du prüfen solltest:** verlinken deine Mails auf fremde Domains
+(Ticketshop, Partner, Formularanbieter)? Dann gehören die in
+`allowed_redirect_hosts`. Der Abgleich ist **exakt**: `example.com` erlaubt
+nicht `mail.example.com`.
+
+
 ## 2.5.0 — 2026-08-22
 
 ### Fixed — die Aufgaben-Benachrichtigung stand in jeder Selbstbedienungs-Seite

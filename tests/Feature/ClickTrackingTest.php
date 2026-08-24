@@ -200,6 +200,12 @@ it('scores a click carrying several appended tracking parameters', function () {
 it('ignores an unknown appended parameter only when it is configured', function () {
     config()->set('leadhub.click_tracking.ignored_query_parameters', []);
 
+    // This is the golden rule's own case: a sending service appends its
+    // parameter, the signature stops matching, and the reader must still
+    // arrive. Since the open-redirect fix that holds for hosts we know — which
+    // in production is the site's own domain, and here has to be said out loud.
+    config()->set('leadhub.click_tracking.allowed_redirect_hosts', ['adriangoldner.com']);
+
     $contact = trackedContact();
     $target = 'https://adriangoldner.com/kurse';
     $url = app(ClickTrackingLinker::class)->trackedUrl($target, $contact);
@@ -256,6 +262,15 @@ it('refuses to drop the contact and source identifiers from the signature', func
     $victim = trackedContact();
     $other = trackedContact();
     $target = 'https://adriangoldner.com/kurse';
+
+    // Tampering breaks the signature, and since 2026-08-24 a broken signature
+    // means the host decides whether we forward at all. Listing our own site
+    // here keeps this test about what it is about — that a swapped contact does
+    // not score — while the golden rule (the reader still arrives) stays
+    // exercised. A target we do NOT know now lands on the site root; that is
+    // `it refuses to forward an unsigned link to a foreign host` below.
+    config()->set('leadhub.click_tracking.allowed_redirect_hosts', ['adriangoldner.com']);
+
     $signed = app(ClickTrackingLinker::class)->trackedUrl($target, $victim);
 
     // Valid signature, contact swapped — score inflation attempt.
@@ -297,4 +312,81 @@ it('never signs a parameter that will later be ignored', function () {
 
     $this->get($url)->assertRedirect('https://adriangoldner.com/kurse');
     expect($contact->fresh()->engagement_score)->toBe(3);
+});
+
+/*
+|--------------------------------------------------------------------------
+| Open redirect (fixed 2026-08-24)
+|--------------------------------------------------------------------------
+|
+| Until this fix the endpoint checked the scheme and nothing else, so anyone
+| could hand out `https://<our-domain>/lh/track/click?url=https://phishing.example`
+| and the link wore our domain all the way to the attacker.
+|
+| The rule now: a valid signature means we wrote the URL ourselves and it is
+| forwarded verbatim. Without one, only a host we recognise.
+|
+*/
+
+it('forwards a signed link to any host, because we signed it ourselves', function () {
+    $contact = trackedContact();
+    $target = 'https://ein-partner.example/kurse';
+
+    $url = app(ClickTrackingLinker::class)->trackedUrl($target, $contact);
+
+    $this->get($url)->assertRedirect($target);
+});
+
+it('refuses to forward an unsigned link to a foreign host', function () {
+    $response = $this->get('/'.ClickTrackingLinker::PATH.'?url=https://phishing.example/login');
+
+    $response->assertRedirect(url('/'));
+    expect($response->headers->get('Location'))->not->toContain('phishing.example');
+});
+
+it('still forwards an unsigned link to our own host', function () {
+    // The golden rule case: a sending service mangled the parameters so the
+    // signature broke, but the link points where it always did.
+    $target = url('/kurse');
+
+    $this->get('/'.ClickTrackingLinker::PATH.'?url='.urlencode($target))
+        ->assertRedirect($target);
+});
+
+it('forwards an unsigned link to a host the site listed', function () {
+    config()->set('leadhub.click_tracking.allowed_redirect_hosts', ['partner.example']);
+
+    $target = 'https://partner.example/anmeldung';
+
+    $this->get('/'.ClickTrackingLinker::PATH.'?url='.urlencode($target))
+        ->assertRedirect($target);
+});
+
+it('matches the host exactly and not by suffix', function () {
+    config()->set('leadhub.click_tracking.allowed_redirect_hosts', ['partner.example']);
+
+    // str_ends_with() would accept this one. parse_url plus an exact compare
+    // does not.
+    $this->get('/'.ClickTrackingLinker::PATH.'?url='.urlencode('https://boese-partner.example/x'))
+        ->assertRedirect(url('/'));
+});
+
+it('is not fooled by a host smuggled into the userinfo', function () {
+    config()->set('leadhub.click_tracking.allowed_redirect_hosts', ['partner.example']);
+
+    // A browser goes to evil.example here; the part that looks like the partner
+    // is userinfo. Comparing the raw URL instead of the parsed host would pass.
+    $this->get('/'.ClickTrackingLinker::PATH.'?url='.urlencode('https://partner.example@evil.example/x'))
+        ->assertRedirect(url('/'));
+});
+
+it('never forwards a dangerous scheme', function () {
+    foreach (['javascript:alert(1)', 'data:text/html,<script>alert(1)</script>', '//evil.example/x'] as $bad) {
+        $this->get('/'.ClickTrackingLinker::PATH.'?url='.urlencode($bad))
+            ->assertRedirect(url('/'));
+    }
+});
+
+it('sends the recipient home rather than nowhere when the url is missing', function () {
+    $this->get('/'.ClickTrackingLinker::PATH)->assertRedirect(url('/'));
 });

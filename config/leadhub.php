@@ -188,6 +188,21 @@ return [
         // minutes are recorded once and scored once (dedupe window).
         'dedupe_window' => 60,
 
+        // Hosts this endpoint may forward to when the signature does NOT check
+        // out. With a valid signature the target is one we signed ourselves and
+        // is forwarded verbatim; without one, the URL is a stranger's claim.
+        //
+        // The site's own host is always allowed, so an installation that lists
+        // nothing here is safe and still works for its own links. Add a partner
+        // domain only if your emails genuinely link there and you accept that
+        // your domain will vouch for it.
+        //
+        // SECURITY: matching is exact, never by suffix. Listing "example.com"
+        // does not allow "mail.example.com" — list that too if you mean it.
+        // Before 2026-08-24 there was no list at all and the endpoint forwarded
+        // anywhere, which is a textbook open redirect and gets used for phishing.
+        'allowed_redirect_hosts' => [],
+
         // Query parameters that sending services append when they forward a
         // click. Laravel signs the whole query string, so an appended parameter
         // changes what was signed: the signature stops matching and the click
