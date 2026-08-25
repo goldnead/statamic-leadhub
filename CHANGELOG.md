@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.6.2 — 2026-08-25
+
+### Security
+
+- **The contact export handed a colleague an executable file.** Excel and LibreOffice run a cell that
+  begins with `=`, `+`, `-`, `@`, a tab or a carriage return the moment the file is opened.
+  `ExportService` wrote names, companies and tags straight through — and it writes a UTF-8 BOM first,
+  so the file is meant for exactly the program in which the formula fires.
+
+  What makes this the worst of the family's three CSV exports to have missed it: the others are fed
+  by data the site's own people typed. This one is fed by **strangers filling in a public form**, so
+  an attacker picks the content of a cell that a colleague later opens on their own machine.
+  `statamic-automations` and `statamic-marketing` both carry the apostrophe guard and explain it at
+  length; this one did not.
+
+  Values are now neutralised the same way, and `tests/Feature/ExportIsNotAFormulaTest.php` covers all
+  six leading characters plus the case that matters just as much: an ordinary name with umlauts comes
+  out untouched.
+
 ## 2.6.1 — 2026-08-25
 
 ### Fixed
