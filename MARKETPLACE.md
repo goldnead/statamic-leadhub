@@ -53,6 +53,14 @@ Forms · CRM · Integrations · Workflow · Utility
 
 ## Suggested Pricing Tiers
 
+> **Not implemented.** The addon declares no `extra.statamic.editions` and contains no `Addon::edition()` check, so everything below ships to everyone. This table is a pricing proposal, not a description of the package. Nothing may be sold as tier-exclusive until the edition gate exists. A paid tier whose headline feature is already in the free one is a rejectable listing.
+>
+> Two rows below are already untrue of the package as it stands. UTM attribution is **on** in the default build (`config/leadhub.php`, `features.attribution => true`, read in `SubmissionMapper` and `ContactController`), so it is Core, not Pro. `features.webhooks` is read nowhere in `src/` outside the settings form — it toggles nothing.
+>
+> The `features.*` flags are not a licence gate and cannot become one as they stand: every one of them is a switch in the CP settings form (`src/Support/Settings.php`), so the customer flips it themselves. They separate the eloquent-driver CRM modules from the lightweight flat-file build — an architecture line, not a price line. The config comment "Pro features default to false" is a leftover from this table and does not describe the code.
+>
+> The family decided against editions: see `statamic-automations/CHANGELOG.md`, 2.0.0 — "There is one feature set, and entitlement is enforced by the Statamic Marketplace rather than by code in the package."
+
 | Tier | Price | Includes |
 |---|---|---|
 | **LeadHub Core** | $59–99 | Everything in this MVP: contacts, timeline, status, tags, follow-ups, CSV export |
