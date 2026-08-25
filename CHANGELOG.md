@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.6.1 — 2026-08-25
+
+### Fixed
+
+- **A task's due date field was not there.** `<DatePicker>` passes its value to reka-ui, which calls
+  `.copy()` on it during setup; a string has no `.copy`, so the component threw before rendering and
+  every task with a due date showed the label "Due" over nothing. The page itself survived, the field
+  did not.
+- `support/datetime.js` gains `toDateValue()`, the counterpart to the `toDateTimeString()` it has had
+  since 1.4. The comment beside it claimed the way *in* needed no conversion. That was the bug.
+- Adds `@internationalized/date`. A second copy of a library core already ships, and acceptable here:
+  it is a leaf with no shared state, unlike Vue. Hand-rolling a DateValue would be forking a core
+  dependency.
+
 ## 2.6.0 — 2026-08-24
 
 ### Security — der Klick-Endpunkt war ein offener Redirect
