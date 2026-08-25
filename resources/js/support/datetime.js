@@ -13,6 +13,8 @@
  * sent.
  */
 
+import { CalendarDateTime } from '@internationalized/date';
+
 const pad = (n) => String(n).padStart(2, '0');
 
 /**
@@ -67,4 +69,49 @@ export function toDateTimeString(value) {
 /** True when the picker holds something we could actually submit. */
 export function hasDateValue(value) {
     return toDateTimeString(value) !== null;
+}
+
+/**
+ * The other direction: a stored string into what the picker can hold.
+ *
+ * `<DatePicker>` hands its value straight to reka-ui, which calls `.copy()` on
+ * it during setup. A string has no `.copy`, so binding `'2026-08-28 14:00'`
+ * throws before the component ever renders — and the field simply is not there,
+ * with only its label left behind. That is what the edit screens did to every
+ * task that had a due date.
+ *
+ * `@internationalized/date` is a dependency of this addon for exactly this, and
+ * bundling it is the right trade: it is a leaf library with no shared state, so
+ * a second copy costs bytes and nothing else. Hand-rolling a DateValue would be
+ * forking a core dependency, which is the thing this family does not do.
+ *
+ * @param {*} value  `Y-m-d H:i[:s]`, an ISO string, a Date, or something that
+ *                   is already a DateValue
+ * @returns {CalendarDateTime|null}
+ */
+export function toDateValue(value) {
+    if (value === null || value === undefined || value === '') return null;
+
+    // Already one. Passing it through is what makes this safe to call twice.
+    if (typeof value === 'object' && typeof value.copy === 'function') return value;
+
+    if (value instanceof Date) {
+        return new CalendarDateTime(
+            value.getFullYear(), value.getMonth() + 1, value.getDate(),
+            value.getHours(), value.getMinutes(), value.getSeconds(),
+        );
+    }
+
+    if (typeof value !== 'string') return null;
+
+    // `Y-m-d H:i:s`, `Y-m-d H:i`, `Y-m-dTH:i:s`, `Y-m-d`. Anything with a zone
+    // suffix is trimmed: the picker shows wall-clock time, and pretending to
+    // carry a zone it will not preserve is worse than dropping it.
+    const m = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+
+    if (! m) return null;
+
+    const [, y, mo, d, h, mi, s] = m;
+
+    return new CalendarDateTime(+y, +mo, +d, +(h ?? 0), +(mi ?? 0), +(s ?? 0));
 }

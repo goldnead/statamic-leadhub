@@ -8,6 +8,7 @@
         "build:check": "bash scripts/check-dist-fresh.sh"
     },
     "dependencies": {
+        "@internationalized/date": "^3.7.0",
         "@statamic/cms": "file:./vendor/statamic/cms/resources/dist-package",
         "axios": "^1.18.1"
     },

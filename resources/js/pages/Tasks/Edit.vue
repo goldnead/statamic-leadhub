@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
 import { Header, Panel, Card, Button, Field, Input, Textarea, Select, DatePicker } from '@statamic/cms/ui';
-import { toDateTimeString } from '../../support/datetime';
+import { toDateTimeString, toDateValue } from '../../support/datetime';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 import ContactPicker from '../../support/ContactPicker.vue';
 import OpportunityPicker from '../../support/OpportunityPicker.vue';
@@ -27,9 +27,12 @@ const form = ref({
     priority: props.task.priority || 'normal',
     assignee_id: props.task.assignee_id || '',
     opportunity_id: props.task.opportunity_id || '',
-    // The picker parses a plain string fine; it is the value coming *back* out
-    // of it that needs normalizing.
-    due_at: props.task.due_at || null,
+    // Both directions need converting, and believing otherwise is what broke
+    // this screen: the picker hands its value to reka-ui, which calls `.copy()`
+    // on it during setup. A string has no `.copy`, so the field threw and
+    // simply was not rendered — its label stood there over nothing, on every
+    // task that had a due date.
+    due_at: toDateValue(props.task.due_at),
 });
 
 const errors = ref({});
