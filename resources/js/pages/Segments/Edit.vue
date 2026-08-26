@@ -9,7 +9,7 @@ const props = defineProps([
     'storeUrl',     // present on create
     'previewUrl',
     'indexUrl',
-    'vocabulary',   // { fields, field_operators, tag_operators, event_operators, statuses }
+    'vocabulary',   // { fields, field_operators, custom_fields, tag_operators, event_operators, statuses }
 ]);
 
 const isEdit = computed(() => !! props.segment);
@@ -41,6 +41,46 @@ function normalizeCondition(c) {
 
 function addFieldCondition() {
     form.rules.conditions.push({ type: 'field', field: props.vocabulary.fields[0], operator: 'eq', value: '' });
+}
+
+function customFieldByHandle(handle) {
+    return (props.vocabulary.custom_fields || []).find((f) => f.handle === handle);
+}
+
+function operatorsFor(handle) {
+    return customFieldByHandle(handle)?.operators ?? [];
+}
+
+function optionsFor(handle) {
+    return customFieldByHandle(handle)?.options ?? [];
+}
+
+// The operator list changes with the field, so an operator that made sense for
+// the old one must not survive the switch — it would be saved, evaluated as
+// unknown, and match nobody.
+function onCustomFieldChange(condition) {
+    const erlaubt = operatorsFor(condition.field);
+
+    if (!erlaubt.includes(condition.operator)) {
+        condition.operator = erlaubt[0] ?? 'eq';
+    }
+
+    condition.value = '';
+}
+
+function addCustomCondition() {
+    const first = (props.vocabulary.custom_fields || [])[0];
+
+    if (!first) {
+        return;
+    }
+
+    form.rules.conditions.push({
+        type: 'custom',
+        field: first.handle,
+        operator: first.operators[0] ?? 'eq',
+        value: '',
+    });
 }
 function addTagCondition() {
     form.rules.conditions.push({ type: 'tag', operator: 'has', value: '' });
@@ -159,6 +199,41 @@ function submit() {
                                 </Field>
                             </template>
 
+                            <!-- custom field condition -->
+                            <template v-else-if="condition.type === 'custom'">
+                                <Field :label="__('Field')" class="min-w-[10rem]">
+                                    <Select
+                                        v-model="condition.field"
+                                        class="w-full"
+                                        :options="vocabulary.custom_fields.map(f => ({ value: f.handle, label: f.label }))"
+                                        @update:model-value="onCustomFieldChange(condition)"
+                                    />
+                                </Field>
+                                <Field :label="__('Operator')">
+                                    <!-- Only the comparisons this type can answer. A date
+                                         offering 'contains' or a yes/no offering 'greater
+                                         than' lets somebody write a condition that can
+                                         never be true, with nothing saying so. -->
+                                    <Select
+                                        v-model="condition.operator"
+                                        :options="operatorsFor(condition.field).map(o => ({ value: o, label: o }))"
+                                    />
+                                </Field>
+                                <Field
+                                    v-if="!['is_set', 'is_empty', 'is_true', 'is_false'].includes(condition.operator)"
+                                    :label="__('Value')"
+                                    class="flex-1 min-w-[8rem]"
+                                >
+                                    <Select
+                                        v-if="optionsFor(condition.field).length"
+                                        v-model="condition.value"
+                                        class="w-full"
+                                        :options="optionsFor(condition.field).map(o => ({ value: o.value, label: o.label || o.value }))"
+                                    />
+                                    <Input v-else v-model="condition.value" />
+                                </Field>
+                            </template>
+
                             <!-- tag condition -->
                             <template v-else-if="condition.type === 'tag'">
                                 <Field :label="__('Operator')">
@@ -186,6 +261,14 @@ function submit() {
 
                     <div class="flex flex-wrap gap-2 pt-1">
                         <Button :text="__('Add field condition')" icon="add" size="sm" variant="default" @click="addFieldCondition" />
+                        <Button
+                            v-if="vocabulary.custom_fields.length"
+                            :text="__('Add custom field condition')"
+                            icon="add"
+                            size="sm"
+                            variant="default"
+                            @click="addCustomCondition"
+                        />
                         <Button :text="__('Add tag condition')" icon="add" size="sm" variant="default" @click="addTagCondition" />
                         <Button :text="__('Add event condition')" icon="add" size="sm" variant="default" @click="addEventCondition" />
                     </div>

@@ -11,6 +11,7 @@ return [
     'forms' => 'Forms',
     'tags' => 'Tags',
     'segments' => 'Segments',
+    'custom_fields' => 'Custom fields',
     'scoring' => 'Scoring',
     'settings' => 'Settings',
     'sync_log' => 'Sync log',

@@ -1,5 +1,42 @@
 # Changelog
 
+## 2.7.0 — 2026-08-26
+
+### Added — eigene Felder am Kontakt
+
+Bis jetzt war ein Tag der einzige Weg, etwas über einen Kontakt festzuhalten, das nicht Name,
+E-Mail oder Status ist — und ein Tag kann nur ja oder nein sagen. Stimmlage, Chorgröße, Bundesland
+sind Werte. In Tags gepresst werden daraus `chorgroesse-20-40`, `chorgroesse-40-60` und ein Segment,
+das niemand mehr pflegen kann.
+
+Fünf Typen (Text, Zahl, Auswahl, Datum, Ja/Nein), jeder mit den Vergleichen, die er beantworten
+kann. Ein Datum bietet kein „enthält", ein Ja/Nein kein „größer als" — sonst lässt sich im
+Regelbauer eine Bedingung schreiben, die nie wahr werden kann, und nichts sagt es.
+
+**Definiert wird im Control Panel, nicht in einer Config-Datei.** Wer ein Feld braucht, ist die
+Person, die das CRM benutzt; ein Feld, das einen Deploy braucht, wird nie angelegt.
+
+**Gecastet wird beim Schreiben, nicht beim Vergleichen.** Aus einem Formular kommt eine Zahl als
+Zeichenkette und ein Häkchen als „on". So gespeichert wird jeder spätere Vergleich zum Raten —
+`"20" > 40` ist eine andere Frage als `20 > 40`, und nur eine davon hat die Antwort, die jemand
+gemeint hat.
+
+**Gelöscht wird nur die Definition, nie die Werte.** Unlesbar ist reparabel (Kürzel wieder anlegen),
+gelöscht wäre es nicht — und ein Knopf mit der Aufschrift „Feld löschen" darf keine
+unwiderrufliche Datenlöschung sein.
+
+### Fixed — `is_false` traf auch das nie beantwortete Ja/Nein
+
+`(bool) null === false` ist wahr. „Nein gesagt" und „nichts gesagt" waren im Segment nicht zu
+unterscheiden, obwohl `is_set` danebensteht.
+
+### Added — eine Wache gegen weiße Seiten
+
+`EveryInertiaPageIsRegisteredTest` vergleicht, was ein Controller ausliefern kann, mit dem, was
+`cp.js` registriert. Der neue Screen ging genau daran zuerst unter: Route 200, Inertia-Nutzlast
+nannte die Komponente, Browser weiß. Kein Test konnte das sehen — ein Routentest prüft den Status,
+ein Inertia-Test den **Namen** der Komponente, und keiner fragt, ob dieser Name irgendwo auflöst.
+
 ## 2.6.2 — 2026-08-25
 
 ### Security

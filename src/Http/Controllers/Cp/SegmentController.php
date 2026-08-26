@@ -5,6 +5,7 @@ namespace Goldnead\Leadhub\Http\Controllers\Cp;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
 use Goldnead\Leadhub\Models\Segment;
+use Goldnead\Leadhub\Services\CustomFieldService;
 use Goldnead\Leadhub\Services\SegmentService;
 use Goldnead\Leadhub\Support\SegmentEvaluator;
 use Illuminate\Http\Request;
@@ -187,6 +188,11 @@ class SegmentController extends Controller
                 'is_true', 'is_false', 'before', 'after',
                 'within_days', 'older_than_days',
             ],
+            // The site's own fields, with the comparisons that make sense for
+            // each type. Without this the builder offers `field`, `tag` and
+            // `event` and nothing else — and a custom field that cannot be
+            // segmented on is exactly the decoration the ticket warned about.
+            'custom_fields' => app(CustomFieldService::class)->forRuleBuilder(),
             'tag_operators' => ['has', 'has_not'],
             'event_operators' => ['has', 'has_not'],
             'statuses' => array_keys((array) config('leadhub.statuses', [])),

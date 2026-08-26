@@ -17,6 +17,7 @@ use Goldnead\Leadhub\Http\Requests\UpdateContactRequest;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Task;
+use Goldnead\Leadhub\Services\CustomFieldService;
 use Goldnead\Leadhub\Services\LeadHubNotifier;
 use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
@@ -41,6 +42,7 @@ class ContactController extends Controller
         protected TagService $tags,
         protected UserDirectory $users,
         protected LeadHubNotifier $notifier,
+        protected CustomFieldService $customFields,
     ) {}
 
     public function index(Request $request)
@@ -213,7 +215,7 @@ class ContactController extends Controller
 
         $validated = $request->validated();
 
-        $attributes = collect($validated)->except('tag_ids')->all();
+        $attributes = collect($validated)->except(['tag_ids', 'custom_fields'])->all();
         $attributes['status'] = $attributes['status']
             ?? (string) config('leadhub.default_status', 'new');
         $attributes['consent'] = (bool) ($validated['consent'] ?? false);
@@ -221,6 +223,15 @@ class ContactController extends Controller
         $attributes['last_activity_at'] = now();
 
         $contact = $this->contacts->create($attributes);
+
+        // After create, because apply() needs the contact's brand to resolve
+        // the definitions — and before the event, so a listener that reads the
+        // contact sees the values it was created with.
+        if (! empty($validated['custom_fields'])) {
+            $this->contacts->save(
+                $this->customFields->apply($contact, (array) $validated['custom_fields'])
+            );
+        }
 
         $this->timeline->recordContactCreated($contact);
         event(new LeadHubContactCreated($contact));
@@ -475,7 +486,15 @@ class ContactController extends Controller
         // tag_ids is not a column on the contact — it's synced to the tag
         // relation below. Filling it onto the model would try to persist a
         // non-existent column.
-        $contact->fill(collect($request->validated())->except('tag_ids')->all());
+        $contact->fill(collect($request->validated())->except(['tag_ids', 'custom_fields'])->all());
+
+        // Through the service, never straight onto the model: a value stored in
+        // the shape it arrived in — "20" for a number, "on" for a checkbox —
+        // makes every later comparison a guess, and `"20" > 40` is a different
+        // question from `20 > 40`.
+        if ($request->has('custom_fields')) {
+            $this->customFields->apply($contact, (array) $request->validated()['custom_fields']);
+        }
 
         $statusChanged = $oldStatus !== $contact->status;
         $assignmentChanged = $oldAssigned !== $contact->assigned_to;

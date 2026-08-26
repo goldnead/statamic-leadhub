@@ -32,6 +32,7 @@ class Contact extends Model
         'do_not_contact' => 'boolean',
         'engagement_score' => 'integer',
         'metadata_json' => 'array',
+        'custom_fields' => 'array',
         'last_activity_at' => 'datetime',
         'last_seen_at' => 'datetime',
         'archived_at' => 'datetime',

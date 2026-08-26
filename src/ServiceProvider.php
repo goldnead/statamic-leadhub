@@ -620,6 +620,14 @@ class ServiceProvider extends AddonServiceProvider
                     ->route('leadhub.forms.index'),
                 $nav->item(__('leadhub::nav.tags'))
                     ->route('leadhub.tags.index'),
+                // Eloquent only: the definitions are a table and the values a
+                // JSON column. On the flat-file driver the screen would offer
+                // to create something that has nowhere to go, which is worse
+                // than not offering it.
+                ...(config('leadhub.storage.driver', 'eloquent') === 'eloquent' ? [
+                    $nav->item(__('leadhub::nav.custom_fields'))
+                        ->route('leadhub.custom-fields.index'),
+                ] : []),
                 $nav->item(__('leadhub::nav.segments'))
                     ->route('leadhub.segments.index')
                     ->can('view leadhub segments'),

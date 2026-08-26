@@ -18,6 +18,20 @@ abstract class Controller extends BaseController
      * on the raw auth user crashes on eloquent-driver sites where the
      * authenticated model is a plain App\Models\User.
      */
+    /**
+     * A screen backed by a table is a screen the flat-file driver cannot serve.
+     *
+     * On the base class rather than copied into each controller, because that
+     * is how it went wrong: CustomFieldController called this method four
+     * times, the copy lived privately in ScoringController, and every one of
+     * its actions answered 500. 566 tests stayed green, because none of them
+     * asked for the route.
+     */
+    protected function abortUnlessEloquent(): void
+    {
+        abort_unless(config('leadhub.storage.driver', 'eloquent') === 'eloquent', 404);
+    }
+
     protected function authorizeOrFail(Request $request, string $permission): void
     {
         if (! $this->userCan($request, $permission)) {

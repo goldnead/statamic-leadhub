@@ -33,6 +33,12 @@ class UpdateContactRequest extends FormRequest
             // tag change on a flat-file install fail validation, which looked
             // exactly like a successful save because both redirect back.
             'tag_ids' => 'sometimes|array',
+            // Shape only. Which handles exist and what each value has to be is
+            // the definition's business, and CustomFieldService::apply()
+            // enforces it — an unknown handle is dropped, a value that does not
+            // fit its type is refused. Repeating those rules here would put the
+            // definition in two places and let them drift.
+            'custom_fields' => 'sometimes|array',
         ];
     }
 

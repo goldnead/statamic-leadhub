@@ -37,6 +37,8 @@ class StoreContactRequest extends FormRequest
             // table that the flat-file driver never writes to. Resolution goes
             // through the repository instead — see ResolvesCrmReferences.
             'tag_ids' => 'sometimes|array',
+            // See UpdateContactRequest: shape here, meaning in the service.
+            'custom_fields' => 'sometimes|array',
         ];
     }
 

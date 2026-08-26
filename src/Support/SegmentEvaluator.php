@@ -103,6 +103,7 @@ class SegmentEvaluator
         return match ($condition['type'] ?? 'field') {
             'tag' => $this->evaluateTag($contact, $condition),
             'event' => $this->evaluateEvent($contact, $condition),
+            'custom' => $this->evaluateCustom($contact, $condition),
             default => $this->evaluateField($contact, $condition),
         };
     }
@@ -120,6 +121,40 @@ class SegmentEvaluator
         $value = $condition['value'] ?? null;
 
         return $this->compare($actual, $operator, $value);
+    }
+
+    /**
+     * A field the site defined for itself.
+     *
+     * Separate from `field` on purpose: FIELDS is a fixed allow-list of contact
+     * columns, and a custom field is neither a column nor fixed. Folding them
+     * together would mean either opening that list to arbitrary attribute
+     * access — a rule could then read any column on the model — or maintaining
+     * the allow-list from the database on every evaluation.
+     *
+     * A handle nobody defined matches nobody, exactly as an unknown column
+     * does. That is the safer direction: a segment whose field was deleted
+     * empties out rather than quietly matching everybody.
+     */
+    protected function evaluateCustom(Contact $contact, array $condition): bool
+    {
+        $handle = (string) ($condition['field'] ?? '');
+
+        if ($handle === '') {
+            return false;
+        }
+
+        // Read off the attribute rather than a relation: a flat-file contact
+        // has no relations to hydrate, and this evaluator has been bitten by
+        // that before (see the class docblock).
+        $werte = $contact->getAttribute('custom_fields');
+        $werte = is_array($werte) ? $werte : (is_string($werte) ? (json_decode($werte, true) ?: []) : []);
+
+        return $this->compare(
+            $werte[$handle] ?? null,
+            (string) ($condition['operator'] ?? 'eq'),
+            $condition['value'] ?? null,
+        );
     }
 
     protected function evaluateTag(Contact $contact, array $condition): bool
@@ -213,8 +248,13 @@ class SegmentEvaluator
             'lte' => $actual !== null && (float) $actual <= (float) $value,
             'is_set' => ! $this->isEmpty($actual),
             'is_empty' => $this->isEmpty($actual),
-            'is_true' => (bool) $actual === true,
-            'is_false' => (bool) $actual === false,
+            'is_true' => ! $this->isEmpty($actual) && (bool) $actual === true,
+            // `! isEmpty` first, and it was missing: without it a value nobody
+            // ever entered answered `is_false` as readily as one somebody set
+            // to No. "Said no" and "said nothing" are different answers, and a
+            // segment built on the first would quietly have contained the
+            // second.
+            'is_false' => ! $this->isEmpty($actual) && (bool) $actual === false,
             'before' => $this->compareDate($actual, $value, 'before'),
             'after' => $this->compareDate($actual, $value, 'after'),
             'within_days' => $this->withinDays($actual, (int) $value),
