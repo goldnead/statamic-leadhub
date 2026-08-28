@@ -10,6 +10,24 @@ use Illuminate\Database\Eloquent\Model;
  *
  * The definition lives here; the value lives on the contact, under this
  * field's handle. See the migration for why the two are stored differently.
+ *
+ * The columns are declared below rather than left to inference. Larastan reads
+ * a model's schema from migrations only when it can resolve them, and it
+ * cannot resolve an addon's migrations from a consuming application — so every
+ * read of `$field->handle` in this addon was a level 5 error, and the baseline
+ * this repo keeps is a ratchet that must not grow.
+ *
+ * @property int $id
+ * @property int $brand_id
+ * @property string $handle
+ * @property string $label
+ * @property string $type
+ *                        Deliberately loose: the column is JSON, `optionValues()` defends against
+ *                        scalars and missing keys, and the shape it is written with today is not a
+ *                        guarantee about the rows a database already holds.
+ * @property array<int, mixed>|null $options
+ * @property string|null $instructions
+ * @property int $sort
  */
 class CustomField extends Model
 {

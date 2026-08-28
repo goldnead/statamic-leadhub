@@ -15,6 +15,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
+/**
+ * Two columns declared for the analyser, no more.
+ *
+ * The rest of this model's schema sits in the PHPStan baseline, which this
+ * repo treats as a ratchet: shrink it when you touch a file, never grow it.
+ * These two are the ones code written after the baseline reads, and declaring
+ * exactly them keeps the frozen entries matching.
+ *
+ * @property int $brand_id
+ * @property array<string, mixed>|null $custom_fields
+ */
 class Contact extends Model
 {
     use HasBrand;

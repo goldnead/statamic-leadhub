@@ -60,6 +60,31 @@ function contactIn(?Brand $brand, array $attributes = []): Contact
         : $make();
 }
 
+/**
+ * Fire the new-lead alert the way a request does: inside the brand it is about.
+ *
+ * The tests that use this assert what the sender-identity layer makes of a
+ * brand's `settings.mail`. They do not assert *where* the brand id came from,
+ * and only one of the two storage drivers can answer that from the contact:
+ * `HasBrand` stamps `brand_id` in an Eloquent `creating` hook, while the
+ * flat-file driver keeps brand membership in the directory path and writes no
+ * brand key into the YAML at all — a decision `Repositories\FlatFile\BrandSegments`
+ * argues at length. So `LeadHubNotifier::brandOf()` is null on flat, and a test
+ * that relied on it silently covered one driver out of two.
+ *
+ * Inside the brand context both drivers reach the same identity: `brandOf()`
+ * may return null, and `BrandSenderIdentity::resolve(null)` then falls back to
+ * `BrandContext::current()`. That is also the shape production has — a form
+ * submission is handled inside the brand whose domain it arrived on.
+ *
+ * The contact-row path keeps its own test below, which is the one that is
+ * eloquent-only.
+ */
+function notifyNewLeadAs(Brand $brand, Contact $contact): bool
+{
+    return BrandContext::runFor($brand, fn () => app(LeadHubNotifier::class)->newLead($contact));
+}
+
 it('puts the brand from-address and mailer on a new-lead alert', function (): void {
     Notification::fake();
     config()->set('brand-context.multi_brand', true);
@@ -72,7 +97,7 @@ it('puts the brand from-address and mailer on a new-lead alert', function (): vo
         'mailer' => 'brand_relay',
     ]);
 
-    app(LeadHubNotifier::class)->newLead(contactIn($brand));
+    notifyNewLeadAs($brand, contactIn($brand));
 
     Notification::assertSentOnDemand(NewLeadNotification::class, function ($notification, $channels, $notifiable) {
         $message = $notification->toMail($notifiable);
@@ -106,7 +131,11 @@ it('carries the brand of the contact, not the brand in context', function (): vo
 
         return true;
     });
-});
+})->skip(
+    fn () => config('leadhub.storage.driver') === 'flat',
+    'Eloquent-only: on the flat driver a contact carries no brand_id to read back, '
+    .'because brand membership lives in the directory path (see BrandSegments).',
+);
 
 it('sends nothing for a brand that declares mail settings but no from-address', function (): void {
     // The half-pair: one brand's transport behind the host-wide address.
@@ -119,7 +148,7 @@ it('sends nothing for a brand that declares mail settings but no from-address', 
 
     $brand = brandWithMail('halfpair', ['mailer' => 'brand_relay']);
 
-    expect(app(LeadHubNotifier::class)->newLead(contactIn($brand)))->toBeFalse();
+    expect(notifyNewLeadAs($brand, contactIn($brand)))->toBeFalse();
 
     Notification::assertNothingSent();
     Log::shouldHaveReceived('error')->atLeast()->once();
@@ -136,7 +165,7 @@ it('sends nothing for a brand naming a mailer config/mail.php does not define', 
         'mailer' => 'scaleway_typo',
     ]);
 
-    expect(app(LeadHubNotifier::class)->newLead(contactIn($brand)))->toBeFalse();
+    expect(notifyNewLeadAs($brand, contactIn($brand)))->toBeFalse();
 
     Notification::assertNothingSent();
 });
@@ -171,7 +200,7 @@ it('writes the brand locale onto the notification', function (): void {
         'locale' => 'de',
     ]);
 
-    app(LeadHubNotifier::class)->newLead(contactIn($brand));
+    notifyNewLeadAs($brand, contactIn($brand));
 
     Notification::assertSentOnDemand(
         NewLeadNotification::class,
@@ -259,7 +288,7 @@ it('puts the brand address on the header of a message that really left', functio
     $transport = Mail::mailer('brand_relay')->getSymfonyTransport();
     $transport->flush();
 
-    expect(app(LeadHubNotifier::class)->newLead(contactIn($brand)))->toBeTrue();
+    expect(notifyNewLeadAs($brand, contactIn($brand)))->toBeTrue();
 
     $sent = $transport->messages();
 

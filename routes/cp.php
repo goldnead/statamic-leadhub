@@ -2,6 +2,7 @@
 
 use Goldnead\Leadhub\Http\Controllers\Cp\CompanyController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ContactController;
+use Goldnead\Leadhub\Http\Controllers\Cp\CustomFieldController;
 use Goldnead\Leadhub\Http\Controllers\Cp\DashboardController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ExportController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FollowupController;
@@ -63,6 +64,41 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::post('/', [TagController::class, 'store'])->name('store');
         Route::patch('/{tag}', [TagController::class, 'update'])->name('update');
         Route::delete('/{tag}', [TagController::class, 'destroy'])->name('destroy');
+    });
+
+    // Custom fields (eloquent only)
+    //
+    // Registered unconditionally, and that is the whole point of 2.7.1. The
+    // navigation entry for this screen appears only on the eloquent driver,
+    // and `NavItem->route()` resolves through `cp_route()` at the moment the
+    // navigation is built — which happens on EVERY Control Panel page, not
+    // just this one. A route that exists under a narrower condition than its
+    // navigation entry does not hide a screen, it throws
+    // RouteNotFoundException while the nav is assembled and answers the whole
+    // CP with a 500.
+    //
+    // The driver gate belongs where every other one in this addon sits: in the
+    // controller, as `abortUnlessEloquent()`. A route that resolves and answers
+    // 404 is harmless; a route name that does not resolve is not.
+    //
+    // `route:cache` is the second reason and the one that would bring this
+    // back. A conditional route freezes the driver as it stood when the cache
+    // was written, while the navigation is evaluated per request. Cache on
+    // eloquent, switch to flat, and the entry disappears with the route still
+    // there — harmless. Cache on flat and switch to eloquent, and the entry
+    // returns to a route the cache does not contain, which is this outage
+    // again, on an installation that changed nothing but a config value.
+    //
+    // `customField`, not `field`: a route parameter name is an
+    // application-wide namespace, and any sibling addon's `Route::bind('field')`
+    // would capture these two writes (see the note on the scoring group below).
+    Route::prefix('custom-fields')->name('custom-fields.')->group(function () {
+        Route::get('/', [CustomFieldController::class, 'index'])->name('index');
+        Route::post('/', [CustomFieldController::class, 'store'])->name('store');
+        Route::patch('/{customField}', [CustomFieldController::class, 'update'])
+            ->whereNumber('customField')->name('update');
+        Route::delete('/{customField}', [CustomFieldController::class, 'destroy'])
+            ->whereNumber('customField')->name('destroy');
     });
 
     // Segments

@@ -7,8 +7,10 @@ use Goldnead\Leadhub\ServiceProvider;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Inertia\ServiceProvider as InertiaServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 use Statamic\Providers\StatamicServiceProvider;
+use Statamic\Statamic;
 
 abstract class TestCase extends OrchestraTestCase
 {
@@ -89,11 +91,35 @@ abstract class TestCase extends OrchestraTestCase
     {
         return [
             StatamicServiceProvider::class,
+            // In production Laravel discovers this one from the installed
+            // package; testbench discovers nothing, so it was simply absent.
+            // Its absence is invisible until a request runs through Statamic's
+            // own CP middleware: HandleAuthenticatedInertiaRequests calls
+            // $request->inertia(), a macro this provider registers, and without
+            // it every core CP page dies on a BadMethodCallException — which
+            // looks exactly like the addon breaking the Control Panel.
+            InertiaServiceProvider::class,
             // Foundation for brand scoping: registers the `brands` table + the
             // always-present default brand so brand_id backfills have a target.
             BrandContextServiceProvider::class,
             ServiceProvider::class,
         ];
+    }
+
+    /**
+     * The root-namespace `Statamic` alias.
+     *
+     * A real Statamic install has it in config/app.php; testbench loads no
+     * package aliases. Statamic's own CP views call `Statamic::pro()` against
+     * the alias, so without it every core Control Panel page dies inside
+     * `nav/updates.blade.php` — long before anything this addon registers gets
+     * a chance to be wrong.
+     *
+     * @return array<string, class-string>
+     */
+    protected function getPackageAliases($app): array
+    {
+        return ['Statamic' => Statamic::class];
     }
 
     protected function defineEnvironment($app): void

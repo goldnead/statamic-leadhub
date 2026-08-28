@@ -1,6 +1,6 @@
 <?php
 
-use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Services\ExportService;
 
 /**
@@ -14,9 +14,27 @@ use Goldnead\Leadhub\Services\ExportService;
  *
  * Two of this family's three CSV exports carried the guard and explained it at
  * length. This one — the only one fed by strangers — did not.
+ *
+ * ## Why the contacts are created through the repository
+ *
+ * `Contact::factory()->create()` writes an Eloquent row. `ExportService` reads
+ * through {@see ContactRepository}, which is bound per storage driver, so on
+ * the flat-file driver the export looked at a directory that had never heard
+ * of the factory's rows: every CSV came back as its header line alone and
+ * every assertion below failed — while the guard it is meant to protect sits
+ * in `ExportService` and applies to both drivers equally. Creating through the
+ * repository is what {@see ContactRepository}
+ * is for, and it makes this test run for real on both.
  */
+function angreiferKontakt(array $attributes): void
+{
+    app(ContactRepository::class)->create(array_merge([
+        'status' => 'new',
+    ], $attributes));
+}
+
 it('neutralises a formula a stranger typed into a public form', function () {
-    Contact::factory()->create([
+    angreiferKontakt([
         'first_name' => '=cmd|" /C calc"!A0',
         'last_name' => 'Tabelle',
         'full_name' => '=cmd|" /C calc"!A0 Tabelle',
@@ -33,7 +51,7 @@ it('neutralises a formula a stranger typed into a public form', function () {
 });
 
 it('neutralises every leading character a spreadsheet treats as code', function (string $anfang) {
-    Contact::factory()->create([
+    angreiferKontakt([
         'first_name' => $anfang.'HYPERLINK("http://boese.example")',
         'last_name' => 'Probe',
         'full_name' => $anfang.'HYPERLINK("http://boese.example") Probe',
@@ -50,7 +68,7 @@ it('neutralises every leading character a spreadsheet treats as code', function 
 it('leaves an ordinary name exactly as it is', function () {
     // The guard must not become a second bug: an apostrophe in front of every
     // value would corrupt the export it was meant to protect.
-    Contact::factory()->create([
+    angreiferKontakt([
         'first_name' => 'Bärbel',
         'last_name' => 'Öztürk-Weiß',
         'full_name' => 'Bärbel Öztürk-Weiß',
