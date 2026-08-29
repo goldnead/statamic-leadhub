@@ -18,6 +18,7 @@ use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Pipeline;
+use Goldnead\Leadhub\Models\RevenueEntry;
 use Goldnead\Leadhub\Models\Stage;
 use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Services\CompanyResolver;
@@ -27,6 +28,7 @@ use Goldnead\Leadhub\Services\CrmSyncService;
 use Goldnead\Leadhub\Services\FollowupService;
 use Goldnead\Leadhub\Services\IngestionService;
 use Goldnead\Leadhub\Services\OpportunityService;
+use Goldnead\Leadhub\Services\RevenueService;
 use Goldnead\Leadhub\Services\ScoringService;
 use Goldnead\Leadhub\Services\SegmentService;
 use Goldnead\Leadhub\Services\StageTransitionService;
@@ -581,6 +583,109 @@ class LeadHubManager
         return $this->ingestion->projectAndIngest($model);
     }
 
+    // -- Revenue ------------------------------------------------------------
+
+    /**
+     * Record money this person paid.
+     *
+     * The counterpart to `ingest()`: that says what somebody did, this says
+     * what it was worth. Split on purpose — a signal is not always money, and
+     * money does not always arrive with a story.
+     *
+     * **The contact has to exist.** This never creates one, so that a
+     * mis-addressed webhook cannot populate the CRM with strangers. Callers
+     * that legitimately create on purchase — a checkout does — call `ingest()`
+     * first, which resolves or creates, and then this.
+     *
+     * Idempotent on `$reference`, which the contributor namespaces with its own
+     * name (`payments:payment:41`). The same reference twice returns the first
+     * entry and changes nothing.
+     *
+     * Returns the contact's array shape with the new totals, or null when there
+     * is no such contact — never throws for that, because this hangs off
+     * payment webhooks where an exception costs a redelivery.
+     *
+     * @param  array<string,mixed>  $meta
+     * @return array<string,mixed>|null
+     */
+    public function recordRevenue(
+        string $email,
+        string $reference,
+        int $amountCent,
+        string $currency = 'EUR',
+        ?\DateTimeInterface $occurredAt = null,
+        ?string $source = null,
+        array $meta = [],
+    ): ?array {
+        $contact = $this->contacts->findByEmailNormalized(
+            EmailNormalizer::normalize($email)
+        );
+
+        if (! $contact instanceof Contact) {
+            return null;
+        }
+
+        $entry = app(RevenueService::class)->record(
+            $contact,
+            $reference,
+            $amountCent,
+            $currency,
+            $occurredAt,
+            $source,
+            $meta,
+        );
+
+        return $entry === null ? null : $this->present($this->reload($contact));
+    }
+
+    /**
+     * Money that went back on an entry already recorded.
+     *
+     * Takes the running total refunded for that reference, not one movement —
+     * see {@see RevenueService::refund()} for why that is the idempotent shape.
+     *
+     * @return array<string,mixed>|null
+     */
+    public function refundRevenue(string $reference, int $refundedCent): ?array
+    {
+        $entry = app(RevenueService::class)->refund($reference, $refundedCent);
+
+        if (! $entry instanceof RevenueEntry) {
+            return null;
+        }
+
+        $contact = $this->contacts->find($entry->contact_id);
+
+        return $contact instanceof Contact ? $this->present($this->reload($contact)) : null;
+    }
+
+    /**
+     * The ledger behind a contact's totals, newest first.
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function revenueFor(int|string $contactId, int $limit = 50): array
+    {
+        $contact = $this->contacts->find($contactId);
+
+        if (! $contact instanceof Contact) {
+            return [];
+        }
+
+        return app(RevenueService::class)->forContact($contact, $limit)
+            ->map(fn (RevenueEntry $entry) => [
+                'reference' => $entry->reference,
+                'source' => $entry->source,
+                'amount_cent' => $entry->amount_cent,
+                'refunded_cent' => $entry->refunded_cent,
+                'net_cent' => $entry->netCent(),
+                'currency' => $entry->currency,
+                'occurred_at' => $entry->occurred_at?->toIso8601String(),
+                'meta' => $entry->meta,
+            ])
+            ->all();
+    }
+
     // -- Contact screen -----------------------------------------------------
 
     /**
@@ -661,6 +766,17 @@ class LeadHubManager
             'owner_id' => $contact->assigned_to,
             'created_at' => optional($contact->created_at)->toIso8601String(),
             'last_activity_at' => optional($contact->last_activity_at)->toIso8601String(),
+            // Always present, zero when nobody contributed any — a caller that
+            // has to check whether the key exists ends up guessing that a
+            // missing total means nothing was paid, which is the one reading
+            // that must never be a guess.
+            'revenue_cent' => (int) $contact->revenue_cent,
+            'revenue_refunded_cent' => (int) $contact->revenue_refunded_cent,
+            'net_revenue_cent' => $contact->netRevenueCent(),
+            'revenue_currency' => $contact->revenue_currency,
+            'purchase_count' => (int) $contact->purchase_count,
+            'first_purchase_at' => optional($contact->first_purchase_at)->toIso8601String(),
+            'last_purchase_at' => optional($contact->last_purchase_at)->toIso8601String(),
         ];
     }
 }

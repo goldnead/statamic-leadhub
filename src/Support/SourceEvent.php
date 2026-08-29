@@ -30,6 +30,13 @@ class SourceEvent
         public ?string $source = null,
         public ?string $phone = null,
         public ?string $defaultStatus = null,
+        /**
+         * Attribution column => value pairs (utm_source, referrer, …), seeded
+         * onto the contact when this signal is the first thing we know about
+         * them. A contributor that knows which campaign produced a purchase is
+         * the only participant that can answer that question later.
+         */
+        public array $attribution = [],
     ) {}
 
     public function hasEmail(): bool
@@ -58,6 +65,7 @@ class SourceEvent
             source: $data['source'] ?? null,
             phone: $data['phone'] ?? ($data['contact']['phone'] ?? null),
             defaultStatus: $data['default_status'] ?? null,
+            attribution: $data['attribution'] ?? [],
         );
     }
 
@@ -76,6 +84,11 @@ class SourceEvent
             tags: $this->tags,
             source: $this->source,
             defaultStatus: $this->defaultStatus,
+            // The host's switch, honoured here as it is for form submissions
+            // (`SubmissionMapper`). A site that turned attribution off must not
+            // get it back through a side door because a sibling addon happens
+            // to know the campaign.
+            attribution: config('leadhub.features.attribution', true) ? $this->attribution : [],
         );
     }
 }

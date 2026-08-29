@@ -39,6 +39,12 @@ class SegmentEvaluator
         'do_not_contact', 'created_at', 'last_activity_at',
         'full_name', 'first_name', 'last_name', 'email', 'company',
         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+        // Cached from the revenue ledger. Here rather than as `custom` fields
+        // because a segment over "paid more than X" has to compare a number the
+        // database can index, and because a host must not have to define a
+        // field by hand before a contributed total becomes segmentable.
+        'revenue_cent', 'revenue_refunded_cent', 'purchase_count',
+        'first_purchase_at', 'last_purchase_at',
     ];
 
     public function __construct(

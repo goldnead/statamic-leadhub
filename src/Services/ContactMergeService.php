@@ -46,6 +46,12 @@ class ContactMergeService
             $this->reparentIfExists('leadhub_tasks', 'contact_id', $loser->id, $winner->id);
             $this->reparentIfExists('leadhub_opportunities', 'contact_id', $loser->id, $winner->id);
 
+            // The money too. Left behind, it stays on a tombstoned contact and
+            // the winner's lifetime total is quietly too low — which is exactly
+            // the number a merge is supposed to make right. The cached totals
+            // are rebuilt from the moved rows below, after the transaction.
+            $this->reparentIfExists('leadhub_contact_revenue', 'contact_id', $loser->id, $winner->id);
+
             // Fill empty winner fields from the loser (never overwrite).
             $this->backfillWinnerFields($loser, $winner);
 
@@ -65,6 +71,13 @@ class ContactMergeService
         });
 
         $winner->refresh();
+
+        // Outside the transaction, because it is a full recompute over the rows
+        // the merge just moved — and because a cache that is briefly stale is a
+        // smaller problem than a lock held across one.
+        if (Schema::hasTable('leadhub_contact_revenue')) {
+            app(RevenueService::class)->recalculate($winner);
+        }
 
         $this->timeline->recordSource(
             $winner,

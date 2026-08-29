@@ -5,6 +5,7 @@ namespace Goldnead\Leadhub\Models;
 use Goldnead\BrandContext\Concerns\HasBrand;
 use Goldnead\Leadhub\Database\Factories\ContactFactory;
 use Goldnead\Leadhub\Models\Concerns\ScopesPivotToBrand;
+use Goldnead\Leadhub\Services\RevenueService;
 use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\PhoneNormalizer;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,15 +17,21 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 /**
- * Two columns declared for the analyser, no more.
+ * Only the columns written after the baseline, declared for the analyser.
  *
  * The rest of this model's schema sits in the PHPStan baseline, which this
  * repo treats as a ratchet: shrink it when you touch a file, never grow it.
- * These two are the ones code written after the baseline reads, and declaring
- * exactly them keeps the frozen entries matching.
+ * Declaring exactly the post-baseline columns keeps the frozen entries
+ * matching while new code stays analysable.
  *
  * @property int $brand_id
  * @property array<string, mixed>|null $custom_fields
+ * @property int $revenue_cent
+ * @property int $revenue_refunded_cent
+ * @property int $purchase_count
+ * @property string|null $revenue_currency
+ * @property \Illuminate\Support\Carbon|null $first_purchase_at
+ * @property \Illuminate\Support\Carbon|null $last_purchase_at
  */
 class Contact extends Model
 {
@@ -42,6 +49,11 @@ class Contact extends Model
         'consent_at' => 'datetime',
         'do_not_contact' => 'boolean',
         'engagement_score' => 'integer',
+        'revenue_cent' => 'integer',
+        'revenue_refunded_cent' => 'integer',
+        'purchase_count' => 'integer',
+        'first_purchase_at' => 'datetime',
+        'last_purchase_at' => 'datetime',
         'metadata_json' => 'array',
         'custom_fields' => 'array',
         'last_activity_at' => 'datetime',
@@ -107,6 +119,23 @@ class Contact extends Model
     public function notes(): HasMany
     {
         return $this->hasMany(Note::class)->orderByDesc('created_at');
+    }
+
+    /**
+     * The money facts contributed about this person, newest first.
+     *
+     * The totals on the contact are a cache of exactly this; when the two
+     * disagree, these rows are right — see {@see RevenueService::recalculate()}.
+     */
+    public function revenueEntries(): HasMany
+    {
+        return $this->hasMany(RevenueEntry::class, 'contact_id')->orderByDesc('occurred_at');
+    }
+
+    /** Paid minus refunded, in the minor unit. Never below zero. */
+    public function netRevenueCent(): int
+    {
+        return max(0, (int) $this->revenue_cent - (int) $this->revenue_refunded_cent);
     }
 
     public function followups(): HasMany

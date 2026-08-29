@@ -343,6 +343,48 @@ The captured values appear in an **Attribution** panel on the contact detail pag
 
 ---
 
+## Revenue per contact
+
+LeadHub knew what a person did and never what they paid. It does now — as a ledger any contributor
+may write into, plus totals cached on the contact so a segment can compare them and a listing can
+sort by them.
+
+Nothing here knows what a product is. An amount, a currency and a stable reference is the whole of
+the contract:
+
+```php
+LeadHub::ingest([...]);                       // resolve or create the contact first
+
+LeadHub::recordRevenue(
+    'kaeuferin@example.com',
+    'payments:payment:41',                    // namespaced by whoever contributes it
+    1900,
+    'EUR',
+    now(),
+    'statamic-payments',
+);
+
+LeadHub::refundRevenue('payments:payment:41', 400);   // the RUNNING total, not one movement
+LeadHub::revenueFor($contactId);                      // the ledger behind the totals
+```
+
+Three rules worth knowing before you contribute to it:
+
+- **`recordRevenue()` never creates a contact.** A mis-addressed webhook must not populate the CRM
+  with strangers. Contributors that legitimately create on purchase call `ingest()` first, which
+  resolves or creates.
+- **The reference is the idempotency**, and a unique index enforces it. The same reference twice
+  returns the first entry and changes nothing, so a redelivered webhook is free.
+- **A refund takes the running total**, not the movement. A delta would subtract twice on a
+  redelivery and leave a lifetime value quietly too low — wrong in the direction nobody checks.
+
+The totals (`revenue_cent`, `revenue_refunded_cent`, `purchase_count`, `first_purchase_at`,
+`last_purchase_at`) are a cache, recomputed from the ledger in a single statement after every write.
+When the two disagree the rows are right; `RevenueService::recalculate($contact)` repairs the cache.
+All five are available to segments, so "has paid more than 100 €" is a rule and not a report.
+
+Eloquent driver only, like deals: the flat-file store has no table to aggregate over.
+
 ## CRM connectors & sync log
 
 Push contacts to external systems when they're **created**, **updated**, or their **status changes**. Turn the feature on, then declare one or more destinations:
