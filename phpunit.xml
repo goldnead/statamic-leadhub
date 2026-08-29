@@ -26,6 +26,15 @@
             <directory suffix="Test.php">./tests/Migrations</directory>
         </testsuite>
         <!--
+            The bridge to goldnead/statamic-insights. Its own suite because the
+            tests need a different base class: the sibling is a `suggest` and is
+            not installed, so its contract, its base class and its facade are
+            stood in for before the application boots.
+        -->
+        <testsuite name="Insights">
+            <directory suffix="Test.php">./tests/Insights</directory>
+        </testsuite>
+        <!--
             Live integration with the optional goldnead/statamic-webhook-manager
             peer addon. These tests skip themselves when the addon is not
             installed, so they are a no-op in the default suite; install the peer

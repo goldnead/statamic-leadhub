@@ -390,4 +390,24 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Currency
+    |--------------------------------------------------------------------------
+    |
+    | The currency an opportunity's `value_estimate` is entered in.
+    |
+    | LeadHub stores no currency on an opportunity: a deal has an amount and no
+    | unit, because nothing in the addon has ever had to add two of them
+    | together. Anything that has to PRINT the amount does need one — the
+    | Insights integration is the first — so it is stated here rather than
+    | guessed. ISO 4217, three letters.
+    |
+    | This says nothing about the contact revenue ledger, which carries its own
+    | currency per entry because it is written by whoever took the money.
+    |
+    */
+
+    'currency' => env('LEADHUB_CURRENCY', 'EUR'),
+
 ];

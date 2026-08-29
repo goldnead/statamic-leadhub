@@ -27,3 +27,13 @@ parameters:
         analyseAndScan:
             - src/Integrations/Notifications/TaskDigestSource.php
             - src/Integrations/WebhookManager/LeadhubTrigger.php
+
+    # The analytics bridge takes the other road, and the difference is worth a
+    # line. Its sibling is a `suggest` too, but this addon keeps a stand-in for
+    # that contract in tests/Fakes — so the classes can be ANALYSED rather than
+    # skipped. `InsightsContractsMatchTest` holds the stand-in against the real
+    # package wherever the real package can be found, which is what stops the
+    # analysis from being a check against a fiction.
+    scanFiles:
+        - tests/Fakes/insights-contracts.php
+        - tests/Fakes/insights-table-metric.php

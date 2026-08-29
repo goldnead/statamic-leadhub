@@ -39,7 +39,8 @@
     "suggest": {
         "goldnead/statamic-webhook-manager": "Fire outbound webhooks on LeadHub events and upsert leads from inbound webhooks",
         "goldnead/statamic-automations": "Build multi-step follow-up workflows triggered by LeadHub events",
-        "goldnead/statamic-notifications": "In-app and mail notifications for task assignments; 1.7+ also keeps the internal task type out of a subscriber's preference page"
+        "goldnead/statamic-notifications": "In-app and mail notifications for task assignments; 1.7+ also keeps the internal task type out of a subscriber's preference page",
+        "goldnead/statamic-insights": "Put the CRM figures — new and active contacts, deals won, tasks completed, score changes — on the shared Insights dashboard next to revenue"
     },
     "autoload": {
         "psr-4": {
