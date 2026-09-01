@@ -55,7 +55,8 @@ const PAGE = 25;
 const visibleCount = ref(PAGE);
 const visibleTimeline = computed(() => (props.timeline || []).slice(0, visibleCount.value));
 const hiddenTimeline = computed(() => Math.max((props.timeline || []).length - visibleCount.value, 0));
-const activeSources = computed(() => (props.timelineSources || []).filter((s) => s.available));
+const activeSources = computed(() => (props.timelineSources || []).filter((s) => s.available && !s.failed));
+const failedSources = computed(() => (props.timelineSources || []).filter((s) => s.failed));
 
 const sourceLabel = (key) => (props.timelineSources || []).find((s) => s.key === key)?.label ?? key;
 
@@ -483,6 +484,19 @@ const showCrm = computed(() =>
                                 :color="sourceColor(source.key)"
                                 :text="source.label"
                             />
+                        </div>
+
+                        <!-- A reader that threw: its entries are not in the
+                             list below, and a quiet line says so instead of a
+                             green chip over a hole. -->
+                        <div v-if="failedSources.length" class="mb-3 space-y-0.5" data-leadhub-timeline-failed>
+                            <Text
+                                v-for="source in failedSources"
+                                :key="source.key"
+                                as="div"
+                                size="xs"
+                                variant="warning"
+                            >{{ __('Could not read source :source', { source: source.label }) }}</Text>
                         </div>
 
                         <div v-if="(timeline || []).length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">

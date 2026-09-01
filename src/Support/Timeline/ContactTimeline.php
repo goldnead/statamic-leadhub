@@ -63,9 +63,16 @@ class ContactTimeline
     }
 
     /**
+     * `sources` says which readers took part in *this* build: installed,
+     * switched on, and read without throwing. A reader that threw is listed
+     * under `failed` and reported as not available, because its entries are
+     * missing from the list — a green chip over a hole would claim
+     * otherwise.
+     *
      * @return array{
      *     entries: list<array<string, mixed>>,
      *     sources: array<string, bool>,
+     *     failed: list<string>,
      *     stats: array<string, mixed>,
      *     total: int,
      * }
@@ -80,19 +87,31 @@ class ContactTimeline
         $entries = [];
         $stats = [];
         $superseded = [];
+        $failed = [];
 
         foreach ($this->sources as $key => $source) {
             if (! $available[$key]) {
                 continue;
             }
 
-            $entries = array_merge($entries, $this->safely($key, fn () => array_values(array_filter(
-                $source->entries($contact, $emails),
-                fn ($entry) => $entry instanceof TimelineEntry,
-            )), []));
+            try {
+                $own = array_values(array_filter(
+                    $source->entries($contact, $emails),
+                    fn ($entry) => $entry instanceof TimelineEntry,
+                ));
+                $ownStats = $source->stats($contact, $emails);
+                $ownSupersedes = $source->supersedes();
+            } catch (\Throwable $e) {
+                Log::warning("leadhub: the timeline source [{$key}] failed and was left out.", ['exception' => $e]);
+                $failed[] = $key;
+                $available[$key] = false;
 
-            $stats = array_replace($stats, $this->safely($key, fn () => $source->stats($contact, $emails), []));
-            $superseded = array_merge($superseded, $this->safely($key, fn () => $source->supersedes(), []));
+                continue;
+            }
+
+            $entries = array_merge($entries, $own);
+            $stats = array_replace($stats, $ownStats);
+            $superseded = array_merge($superseded, $ownSupersedes);
         }
 
         $entries = array_merge($entries, $this->ownEvents($contact, $limit, $superseded));
@@ -104,13 +123,17 @@ class ContactTimeline
             return $tb <=> $ta ?: strcmp($b->id, $a->id);
         });
 
+        // The numbers see every entry; the list is cut afterwards, so "first
+        // contact" cannot move just because the page shows 200 of 240.
         $total = count($entries);
+        $computed = $this->stats($contact, $entries, $stats);
         $entries = array_slice($entries, 0, $limit);
 
         return [
             'entries' => array_map(fn (TimelineEntry $e) => $e->toArray(), $entries),
             'sources' => $available,
-            'stats' => $this->stats($contact, $entries, $stats),
+            'failed' => $failed,
+            'stats' => $computed,
             'total' => $total,
         ];
     }
@@ -266,7 +289,7 @@ class ContactTimeline
         try {
             return $callback();
         } catch (\Throwable $e) {
-            Log::warning("leadhub: the timeline source [{$key}] failed and was left out.", ['exception' => $e]);
+            Log::warning("leadhub: the timeline source [{$key}] could not say whether it is available.", ['exception' => $e]);
 
             return $fallback;
         }

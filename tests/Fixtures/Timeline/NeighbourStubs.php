@@ -39,6 +39,7 @@ final class NeighbourStubs
 
         Schema::create('payments', function (Blueprint $t) {
             $t->id();
+            $t->unsignedBigInteger('brand_id')->default(0);
             $t->string('provider_id')->nullable();
             $t->string('product')->nullable();
             $t->unsignedInteger('amount_cent')->default(0);
@@ -260,14 +261,50 @@ class ScriptedSource implements TimelineSource
     }
 }
 
-/** The granter with the neighbour's write side replaced by a recorder. */
+/** What the recorder hands back for one write, shaped like an Eloquent grant. */
+final class FakeGrant
+{
+    public function __construct(
+        public int $id,
+        public bool $wasRecentlyCreated = true,
+        private bool $changed = false,
+    ) {}
+
+    public function getKey(): int
+    {
+        return $this->id;
+    }
+
+    public function wasChanged(): bool
+    {
+        return $this->changed;
+    }
+}
+
+/**
+ * The granter with the neighbour's write side replaced by a recorder.
+ *
+ * Two scripted situations the real facade produces: `$revoked` slugs are
+ * ones this address holds a revoked grant for (the facade would hand it back
+ * untouched); `$existing` slugs already have a live grant (handed back
+ * unchanged, `wasRecentlyCreated` false).
+ */
 class RecordingGranter extends AccessGranter
 {
     /** @var list<array<string, mixed>> */
     public array $writes = [];
 
-    /** @param  list<array{value: string, label: string, slugs: list<string>}>  $options */
-    public function __construct(protected array $scriptedOptions = [], protected bool $isAvailable = true) {}
+    /**
+     * @param  list<array{value: string, label: string, slugs: list<string>}>  $options
+     * @param  list<string>  $revoked
+     * @param  list<string>  $existing
+     */
+    public function __construct(
+        protected array $scriptedOptions = [],
+        protected bool $isAvailable = true,
+        protected array $revoked = [],
+        protected array $existing = [],
+    ) {}
 
     public function available(): bool
     {
@@ -289,18 +326,15 @@ class RecordingGranter extends AccessGranter
         return $user ? (string) $user->getAuthIdentifier() : null;
     }
 
+    protected function revokedAmong(string $email, array $slugs): array
+    {
+        return array_values(array_intersect($slugs, $this->revoked));
+    }
+
     protected function write(mixed $subject, string $slug, string $sourceRef, array $meta, mixed $actor): object
     {
         $this->writes[] = compact('subject', 'slug', 'sourceRef', 'meta', 'actor');
 
-        return new class(count($this->writes))
-        {
-            public function __construct(public int $id) {}
-
-            public function getKey(): int
-            {
-                return $this->id;
-            }
-        };
+        return new FakeGrant(count($this->writes), wasRecentlyCreated: ! in_array($slug, $this->existing, true));
     }
 }

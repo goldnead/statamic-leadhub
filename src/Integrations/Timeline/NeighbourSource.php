@@ -29,6 +29,18 @@ abstract class NeighbourSource implements TimelineSource
     }
 
     /**
+     * `Schema::hasTable()` answers, per table and process. A table does not
+     * appear or vanish between two requests of one worker, and the answer is
+     * asked several times per screen (available, then every reader).
+     *
+     * @var array<string, bool>
+     */
+    protected static array $tables = [];
+
+    /** @var array<string, mixed> */
+    protected array $memo = [];
+
+    /**
      * Installed means the class is loadable **and** its table exists. A
      * neighbour that is in `vendor/` but never migrated would otherwise take
      * the contact screen down with a "no such table".
@@ -43,11 +55,42 @@ abstract class NeighbourSource implements TimelineSource
             }
         }
 
+        return static::$tables[$table] ??= $this->tableExists($table);
+    }
+
+    protected function tableExists(string $table): bool
+    {
         try {
             return Schema::hasTable($table);
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    /** Forget the per-process table answers (tests that create tables late). */
+    public static function forgetTables(): void
+    {
+        static::$tables = [];
+    }
+
+    /**
+     * One neighbour query per contact and screen: `entries()` and `stats()`
+     * read the same rows, and the builder asks for both.
+     *
+     * @template T
+     *
+     * @param  \Closure(): T  $load
+     * @return T
+     */
+    protected function remember(Contact $contact, array $emails, \Closure $load): mixed
+    {
+        $key = spl_object_id($contact).'|'.implode(',', $emails);
+
+        if (! array_key_exists($key, $this->memo)) {
+            $this->memo = [$key => $load()];
+        }
+
+        return $this->memo[$key];
     }
 
     /**

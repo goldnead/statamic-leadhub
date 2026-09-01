@@ -99,9 +99,17 @@ class AccessGranter
     }
 
     /**
-     * Grant every slug the product carries. Returns the grants' ids.
+     * Grant every slug the product carries.
      *
-     * @return list<int|string>
+     * The facade is idempotent and **leaves a revoked grant revoked** — a
+     * retried webhook must not undo a refund. From this button that silence
+     * would be a lie: the user clicked "grant" and nothing opened. So the
+     * revoked case is refused before anything is written, with a pointer to
+     * entitlements' own "restore"; and a grant that already existed is
+     * reported as such, so the caller can say "had access already" instead of
+     * recording a grant that did not happen.
+     *
+     * @return array{ids: list<int|string>, created: list<string>, existing: list<string>}
      */
     public function grant(Contact $contact, string $product, ?string $note, ?Authenticatable $user): array
     {
@@ -127,16 +135,86 @@ class AccessGranter
             'via' => 'leadhub',
         ], fn ($v) => $v !== null && $v !== '');
 
+        $revoked = $this->revokedAmong($email, $slugs);
+
+        if ($revoked !== []) {
+            throw new InvalidArgumentException(__('leadhub::contacts.access_grant.revoked', ['slugs' => implode(', ', $revoked)]));
+        }
+
         $subject = $this->subjectFor($email);
         $actor = $this->actorFor($user);
         $ids = [];
+        $created = [];
+        $existing = [];
 
         foreach ($slugs as $slug) {
             $grant = $this->write($subject, $slug, 'leadhub:'.$uuid, $meta, $actor);
             $ids[] = $grant->getKey();
+
+            if ($this->isNew($grant)) {
+                $created[] = $slug;
+            } else {
+                $existing[] = $slug;
+            }
         }
 
-        return $ids;
+        return ['ids' => $ids, 'created' => $created, 'existing' => $existing];
+    }
+
+    /**
+     * The slugs among `$slugs` this address holds a **revoked** grant for.
+     *
+     * Asked before writing, because the facade would return such a grant
+     * untouched and the click would have done nothing visible.
+     *
+     * @param  list<string>  $slugs
+     * @return list<string>
+     */
+    protected function revokedAmong(string $email, array $slugs): array
+    {
+        $facade = static::FACADE;
+
+        try {
+            $grants = $facade::query()
+                ->where('subject_type', 'email')
+                ->where('subject_id', $email)
+                ->whereIn('product_slug', $slugs)
+                ->get();
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $revoked = [];
+        foreach ($grants as $grant) {
+            if ($this->stateOf($grant) === 'revoked') {
+                $revoked[] = (string) $grant->product_slug;
+            }
+        }
+
+        return array_values(array_unique($revoked));
+    }
+
+    /** The entitlement manager's verdict on a grant, as its enum's string value. */
+    protected function stateOf(object $grant): string
+    {
+        $facade = static::FACADE;
+        $state = $facade::stateOf($grant);
+
+        return is_object($state) && property_exists($state, 'value') ? (string) $state->value : (string) $state;
+    }
+
+    /**
+     * Whether `write()` made or changed this grant, as opposed to handing an
+     * existing one back. A pending grant claimed to active counts as new —
+     * that is a transition somebody asked for.
+     */
+    protected function isNew(object $grant): bool
+    {
+        if (($grant->wasRecentlyCreated ?? false) === true) {
+            return true;
+        }
+
+        return method_exists($grant, 'wasChanged') && $grant->wasChanged();
     }
 
     /**

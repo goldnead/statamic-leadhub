@@ -165,9 +165,16 @@ it('renders the page when a source throws, and says so in the log', function ():
     $this->timeline->register(new ScriptedSource('fine', [($this->entry)('ok', '2026-01-20 09:00:00')]));
 
     $props = ($this->props)();
+    $broken = collect($props['timelineSources'])->firstWhere('key', 'broken');
 
+    // The page stands, and it says what is missing: a source that threw is
+    // not "available" — its entries are not in the list — and is named as
+    // failed, so the screen can say so instead of showing a green chip.
     expect(array_column($props['timeline'], 'id'))->toBe(['ok'])
-        ->and(collect($props['timelineSources'])->firstWhere('key', 'broken')['available'])->toBeTrue();
+        ->and($broken['available'])->toBeFalse()
+        ->and($broken['failed'])->toBeTrue()
+        ->and(collect($props['timelineSources'])->firstWhere('key', 'fine')['failed'])->toBeFalse()
+        ->and($this->timeline->build($this->contact)['failed'])->toBe(['broken']);
 });
 
 it('registers a host source through the facade', function (): void {

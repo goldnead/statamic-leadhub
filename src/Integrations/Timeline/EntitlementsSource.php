@@ -113,6 +113,15 @@ class EntitlementsSource extends NeighbourSource
      */
     protected function grants(Contact $contact, array $emails): iterable
     {
+        return $this->remember($contact, $emails, fn () => $this->loadGrants($contact, $emails));
+    }
+
+    /**
+     * @param  list<string>  $emails
+     * @return iterable<int, object>
+     */
+    protected function loadGrants(Contact $contact, array $emails): iterable
+    {
         $query = $this->query();
 
         $query->where(function ($q) use ($contact, $emails) {

@@ -117,6 +117,52 @@ it('grants every slug the product carries, through the facade, and writes the au
         ->and($event->payload['detail'][0]['value'])->toBe('Reklamation vom 3.9.');
 });
 
+it('refuses when the contact holds a revoked grant, and writes nothing', function (): void {
+    // The facade would hand the revoked grant back untouched — a retried
+    // webhook must not undo a refund. From this button that silence would be
+    // a lie, so the case is refused with a pointer to entitlements' restore.
+    $granter = new RecordingGranter($this->products, revoked: ['begleit-cd']);
+    app()->instance(AccessGranter::class, $granter);
+
+    $this->actingAs(($this->super)())
+        ->from(cp_route('leadhub.contacts.show', $this->contact->uuid))
+        ->post($this->url, ['product' => 'kurs'])
+        ->assertRedirect()
+        ->assertSessionHasErrors('product');
+
+    expect(session('errors')->first('product'))->toContain('begleit-cd')
+        ->and($granter->writes)->toBe([])
+        ->and(Event::query()->where('contact_id', $this->contact->id)->where('type', Event::TYPE_ACCESS_GRANTED)->exists())->toBeFalse();
+});
+
+it('says so when every slug was already granted, and records no event', function (): void {
+    $granter = new RecordingGranter($this->products, existing: ['buch']);
+    app()->instance(AccessGranter::class, $granter);
+
+    $this->actingAs(($this->super)())
+        ->from(cp_route('leadhub.contacts.show', $this->contact->uuid))
+        ->post($this->url, ['product' => 'buch'])
+        ->assertRedirect()
+        ->assertSessionHas('success', fn (string $flash) => str_contains($flash, 'already') || str_contains($flash, 'bereits'));
+
+    expect($granter->writes)->toHaveCount(1)
+        ->and(Event::query()->where('contact_id', $this->contact->id)->where('type', Event::TYPE_ACCESS_GRANTED)->exists())->toBeFalse();
+});
+
+it('records only the slugs that were new when a bundle is half granted already', function (): void {
+    $granter = new RecordingGranter($this->products, existing: ['kurs-fruehling']);
+    app()->instance(AccessGranter::class, $granter);
+
+    $this->actingAs(($this->super)())
+        ->post($this->url, ['product' => 'kurs'])
+        ->assertRedirect();
+
+    $event = Event::query()->where('contact_id', $this->contact->id)->where('type', Event::TYPE_ACCESS_GRANTED)->first();
+
+    expect($event->payload['slugs'])->toBe(['begleit-cd'])
+        ->and($event->payload['already_granted'])->toBe(['kurs-fruehling']);
+});
+
 it('refuses a product the catalogue does not know', function (): void {
     $granter = new RecordingGranter($this->products);
     app()->instance(AccessGranter::class, $granter);

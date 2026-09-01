@@ -62,10 +62,12 @@ return [
         'followup_removed' => 'Follow-up removed.',
         'export_queued' => 'Export queued — you will be notified when it is ready.',
         'access_granted' => 'Access to ":product" granted.',
+        'access_already_granted' => 'This contact already had access to ":product". Nothing changed.',
     ],
     'access_grant' => [
         'no_email' => 'This contact has no email address, so there is nothing to grant access to.',
         'unknown_product' => 'This product is not known to the catalogue.',
+        'revoked' => 'Access to :slugs was revoked for this contact and stays revoked. Restore it in Entitlements if that is intended.',
     ],
     'index' => [
         'title' => 'Contacts',

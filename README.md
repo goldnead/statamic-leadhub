@@ -406,7 +406,16 @@ switched off under `leadhub.timeline.sources`, and `leadhub.timeline.limit` caps
 
 When the payments reader runs, the `payments.*` events that payments' bridge writes into
 `leadhub_events` are hidden, so a purchase appears once. When it does not run, they stay — they are
-then the only record.
+then the only record. Payments are narrowed to the contact's brand plus `brand_id = 0` (what a
+single-brand install wrote before brands existed); the shop itself is one pot.
+
+A reader that throws while the screen renders is logged, left out and named on the screen
+("Could not read source …"); the page never fails because a sibling is mid-upgrade.
+
+Matching runs on `LOWER(TRIM(email))` in the neighbour's database. **SQLite lower-cases ASCII
+only**: an address stored there with an upper-case umlaut (`Bärbel.ÖZTÜRK@…`) is not matched to a
+contact whose normalized address has it in lower case. MySQL and PostgreSQL fold Unicode and are not
+affected.
 
 A host or another addon can contribute a feed of its own:
 

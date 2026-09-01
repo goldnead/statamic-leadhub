@@ -18,15 +18,21 @@ eine Klasse unter `src/Integrations/Timeline/`, Nachbar per String-Klassenname u
 erkannt — LeadHub setzt weiterhin nichts voraus. Ein fehlender Nachbar heißt: seine Quelle
 fehlt, mehr nicht. Ein Leser, der wirft, wird protokolliert und ausgelassen, die Seite steht.
 Zuordnung über `LOWER(TRIM(email))`, weil die Demo-Daten `doppelt@` und `DOPPELT@` als zwei
-Zeilen führen und beide zur selben Person gehören. Läuft der Zahlungs-Leser, werden die
-`payments.*`-Ereignisse der Payments-Bridge in `leadhub_events` ausgeblendet, damit ein Kauf
-einmal erscheint; läuft er nicht, bleiben sie.
+Zeilen führen und beide zur selben Person gehören (SQLite faltet dabei nur ASCII, siehe README).
+Zahlungen werden auf die Marke des Kontakts plus `brand_id = 0` eingegrenzt, wie es Payments'
+eigene Kennzahl hält. Läuft der Zahlungs-Leser, werden die `payments.*`-Ereignisse der
+Payments-Bridge in `leadhub_events` ausgeblendet, damit ein Kauf einmal erscheint; läuft er
+nicht, bleiben sie. Ein Leser, der beim Lesen wirft, steht auf der Seite als „Quelle X konnte
+nicht gelesen werden" statt als grüner Chip über einer Lücke.
 
 Neu dazu die Handlung **„Zugang freischalten“** in den Aktionen, nur mit installiertem
 entitlements: Produkt wählen, Notiz, ein Schreibvorgang über die Entitlements-Fassade
 (Quelle `manual`, Referenz `leadhub:<uuid>`, Notiz und Nutzer in `meta`). Eigene Berechtigung
 `grant leadhub access`; ohne sie 403, mit ihr ohne entitlements 404. Der Klick steht als
-`access_granted` auf der LeadHub-Zeitleiste.
+`access_granted` auf der LeadHub-Zeitleiste — nur, wenn wirklich etwas Neues geöffnet wurde:
+hatte die Person den Zugang schon, sagt die Meldung das und es entsteht kein Ereignis; ist der
+Zugang entzogen, wird der Klick abgelehnt und auf „Wiederherstellen" in Entitlements verwiesen,
+denn die Fassade lässt einen entzogenen Zugang absichtlich entzogen.
 
 Konfiguration: `leadhub.timeline.sources.*` schaltet einzelne Leser ab, `leadhub.timeline.limit`
 begrenzt die Liste. Fassade: `LeadHub::registerTimelineSource()` für eigene Quellen.

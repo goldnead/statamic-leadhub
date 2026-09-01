@@ -197,5 +197,6 @@
     "Grant access": "Zugang freischalten",
     "Product": "Produkt",
     "Choose a product": "Produkt wählen",
-    "Note (optional)": "Notiz (optional)"
+    "Note (optional)": "Notiz (optional)",
+    "Could not read source :source": "Quelle :source konnte nicht gelesen werden"
 }

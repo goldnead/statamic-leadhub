@@ -6,6 +6,7 @@ use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Support\Timeline\Amount;
 use Goldnead\Leadhub\Support\Timeline\TimelineEntry;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * What this person bought — read from `goldnead/statamic-payments`.
@@ -43,7 +44,7 @@ class PaymentsSource extends NeighbourSource
     {
         $out = [];
 
-        foreach ($this->payments($emails) as $payment) {
+        foreach ($this->payments($contact, $emails) as $payment) {
             $items = $this->itemsLabel($payment);
             $amount = ['cent' => (int) $payment->amount_cent, 'currency' => (string) ($payment->currency ?: 'EUR')];
             $status = (string) $payment->status;
@@ -96,7 +97,7 @@ class PaymentsSource extends NeighbourSource
         $count = 0;
         $value = [];
 
-        foreach ($this->payments($emails) as $payment) {
+        foreach ($this->payments($contact, $emails) as $payment) {
             if ((string) $payment->status !== 'paid') {
                 continue;
             }
@@ -110,23 +111,46 @@ class PaymentsSource extends NeighbourSource
     }
 
     /**
+     * Payments are not brand-scoped by their own model (the shop is one pot,
+     * see payments' README), but a contact is. So the rows are narrowed to
+     * the contact's brand here, plus `brand_id = 0` for what a single-brand
+     * install wrote before brands existed — the same two-part rule payments'
+     * own `PaymentMetric` applies when it reads the table without Eloquent.
+     *
      * @param  list<string>  $emails
      * @return iterable<int, object>
      */
-    protected function payments(array $emails): iterable
+    protected function payments(Contact $contact, array $emails): iterable
     {
         if ($emails === []) {
             return [];
         }
 
-        $model = static::MODEL;
+        return $this->remember($contact, $emails, function () use ($contact, $emails) {
+            $model = static::MODEL;
+            $brandId = (int) $contact->getAttribute('brand_id');
 
-        return $model::query()
-            ->with('items')
-            ->whereIn(DB::raw('LOWER(TRIM(email))'), $emails)
-            ->orderByDesc('created_at')
-            ->limit(500)
-            ->get();
+            $query = $model::query()
+                ->with('items')
+                ->whereIn(DB::raw('LOWER(TRIM(email))'), $emails);
+
+            if ($brandId > 0 && $this->hasBrandColumn()) {
+                $query->where(fn ($q) => $q->where('brand_id', $brandId)->orWhere('brand_id', 0));
+            }
+
+            return $query->orderByDesc('created_at')->limit(500)->get();
+        });
+    }
+
+    protected function hasBrandColumn(): bool
+    {
+        return static::$tables['payments.brand_id'] ??= (function () {
+            try {
+                return Schema::hasColumn('payments', 'brand_id');
+            } catch (\Throwable) {
+                return false;
+            }
+        })();
     }
 
     protected function itemsLabel(object $payment): string

@@ -80,6 +80,23 @@ it('lists purchases with their items, a refund as its own line, and counts only 
         ->and($source->supersedes())->toBe(['payments.']);
 });
 
+it('reads only the contact\'s brand, plus what a single-brand install wrote as brand 0', function (): void {
+    // Payments' own model is not brand-scoped — the shop is one pot — but a
+    // contact belongs to a brand, and the same address can buy from two.
+    $own = (int) $this->contact->getAttribute('brand_id');
+    expect($own)->toBeGreaterThan(0);
+
+    StubPayment::create(['brand_id' => $own, 'provider_id' => 'tr_own', 'product' => 'a', 'amount_cent' => 1000, 'status' => 'paid', 'email' => 'doppelt@beispiel.de', 'paid_at' => '2026-02-01 10:00:00']);
+    StubPayment::create(['brand_id' => $own + 7, 'provider_id' => 'tr_other', 'product' => 'a', 'amount_cent' => 2000, 'status' => 'paid', 'email' => 'doppelt@beispiel.de', 'paid_at' => '2026-02-02 10:00:00']);
+    StubPayment::create(['brand_id' => 0, 'provider_id' => 'tr_legacy', 'product' => 'a', 'amount_cent' => 4000, 'status' => 'paid', 'email' => 'doppelt@beispiel.de', 'paid_at' => '2026-02-03 10:00:00']);
+
+    $source = new StubPaymentsSource;
+    $refs = collect($source->entries($this->contact, $this->emails))->map(fn ($e) => $e->toArray()['detail'][0]['value']);
+
+    expect($refs->all())->toEqualCanonicalizing(['tr_own', 'tr_legacy'])
+        ->and($source->stats($this->contact, $this->emails))->toBe(['purchase_count' => 2, 'lifetime_value' => ['EUR' => 5000]]);
+});
+
 it('finds grants by address and by the contact record, and counts the ones that open something', function (): void {
     StubEntitlement::create(['subject_type' => 'email', 'subject_id' => 'DOPPELT@Beispiel.de', 'product_slug' => 'kurs', 'source' => 'statamic-payments', 'starts_at' => '2026-02-01 10:00:00']);
     StubEntitlement::create(['subject_type' => $this->contact->getMorphClass(), 'subject_id' => (string) $this->contact->id, 'product_slug' => 'bonus', 'source' => 'manual', 'meta' => ['note' => 'Weil.', 'granted_by_label' => 'Mira'], 'starts_at' => '2026-02-02 10:00:00']);

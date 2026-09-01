@@ -384,6 +384,9 @@ class ContactController extends Controller
                         ? __('leadhub::timeline.sources.'.$key)
                         : $key,
                     'available' => $available,
+                    // Installed and switched on, but threw while reading:
+                    // its entries are missing and the screen says so.
+                    'failed' => in_array($key, $timeline['failed'], true),
                 ])
                 ->values()
                 ->all(),
