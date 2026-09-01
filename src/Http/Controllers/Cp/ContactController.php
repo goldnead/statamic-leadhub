@@ -14,6 +14,7 @@ use Goldnead\Leadhub\Events\LeadHubContactDeleted;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Http\Requests\StoreContactRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateContactRequest;
+use Goldnead\Leadhub\Integrations\Entitlements\AccessGranter;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Task;
@@ -23,6 +24,7 @@ use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactPanels;
 use Goldnead\Leadhub\Support\ContactPicker;
+use Goldnead\Leadhub\Support\Timeline\ContactTimeline;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -299,6 +301,14 @@ class ContactController extends Controller
 
         $crm = $this->crmPanels($contact);
 
+        // Everything about this person in one order: LeadHub's own events plus
+        // what payments, entitlements, booking and consent know, each only when
+        // installed. The headline numbers ride along. See Support\Timeline.
+        $timeline = app(ContactTimeline::class)->build($contact);
+
+        $granter = app(AccessGranter::class);
+        $canGrant = $granter->available() && $this->userCan($request, 'grant leadhub access');
+
         return Inertia::render('leadhub::Contacts/Show', [
             'contact' => [
                 'id' => (string) $contact->uuid,
@@ -363,6 +373,30 @@ class ContactController extends Controller
             // dependency is the point: marketing requires LeadHub, and LeadHub
             // must be installable without it. See Support\ContactPanels.
             'contactPanels' => app(ContactPanels::class)->forContact($contact),
+            // The merged timeline and the numbers above it. `events` above is
+            // kept for callers that read it; the screen renders `timeline`.
+            'timeline' => $timeline['entries'],
+            'timelineTotal' => $timeline['total'],
+            'timelineSources' => collect(['leadhub' => true] + $timeline['sources'])
+                ->map(fn (bool $available, string $key) => [
+                    'key' => $key,
+                    'label' => __('leadhub::timeline.sources.'.$key) !== 'leadhub::timeline.sources.'.$key
+                        ? __('leadhub::timeline.sources.'.$key)
+                        : $key,
+                    'available' => $available,
+                ])
+                ->values()
+                ->all(),
+            'stats' => $timeline['stats'],
+            // The "grant access" action. Null hides the button: either the
+            // entitlements addon is not installed or the user may not.
+            'accessGrant' => $canGrant ? [
+                'url' => cp_route('leadhub.contacts.grant-access', $contact->getAttribute('uuid')),
+                'products' => array_map(
+                    fn (array $option) => ['value' => $option['value'], 'label' => $option['label']],
+                    $granter->options(),
+                ),
+            ] : null,
             'crmFeatures' => $crm['features'],
             'linkedCompanies' => $crm['companies'],
             'tasks' => $crm['tasks'],

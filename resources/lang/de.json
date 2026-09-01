@@ -186,5 +186,16 @@
     "engaged-buyers": "aktive-kaeufer",
     "example.com": "example.com",
     "incl. closed": "inkl. abgeschlossen",
-    "jane@example.com": "erika@example.com"
+    "jane@example.com": "erika@example.com",
+    "First contact": "Erster Kontakt",
+    "Last contact": "Letzter Kontakt",
+    "Purchases": "Käufe",
+    "Lifetime value": "Lebenszeitwert",
+    "Active access": "Aktive Zugänge",
+    "Timeline sources": "Quellen",
+    "Show more entries": "Weitere Einträge anzeigen",
+    "Grant access": "Zugang freischalten",
+    "Product": "Produkt",
+    "Choose a product": "Produkt wählen",
+    "Note (optional)": "Notiz (optional)"
 }

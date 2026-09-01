@@ -61,6 +61,11 @@ return [
         'followup_completed' => 'Follow-up completed.',
         'followup_removed' => 'Follow-up removed.',
         'export_queued' => 'Export queued — you will be notified when it is ready.',
+        'access_granted' => 'Access to ":product" granted.',
+    ],
+    'access_grant' => [
+        'no_email' => 'This contact has no email address, so there is nothing to grant access to.',
+        'unknown_product' => 'This product is not known to the catalogue.',
     ],
     'index' => [
         'title' => 'Contacts',

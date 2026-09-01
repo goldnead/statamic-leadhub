@@ -9,6 +9,7 @@ use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
 use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Contracts\SourceProjector;
+use Goldnead\Leadhub\Contracts\TimelineSource;
 use Goldnead\Leadhub\Events\LeadHubContactScoreChanged;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
@@ -39,6 +40,7 @@ use Goldnead\Leadhub\Support\ContactDto;
 use Goldnead\Leadhub\Support\ContactPanels;
 use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\SourceEvent;
+use Goldnead\Leadhub\Support\Timeline\ContactTimeline;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
@@ -699,6 +701,19 @@ class LeadHubManager
     public function registerContactPanel(string $key, \Closure $resolver): void
     {
         app(ContactPanels::class)->register($key, $resolver);
+    }
+
+    /**
+     * Add a feed to the merged timeline on the contact screen.
+     *
+     * The four sibling readers (payments, entitlements, booking, consent) are
+     * built in; this is for a host or another addon with events about a person
+     * that live somewhere else. See {@see TimelineSource} for the contract and
+     * {@see ContactTimeline} for how entries are merged.
+     */
+    public function registerTimelineSource(TimelineSource $source): void
+    {
+        app(ContactTimeline::class)->register($source);
     }
 
     // -- Internals ----------------------------------------------------------

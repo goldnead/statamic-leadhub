@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Facade;
  * @method static \Goldnead\Leadhub\Models\Event|null ingest(\Goldnead\Leadhub\Support\SourceEvent|array $event)
  * @method static void registerSourceProjector(\Goldnead\Leadhub\Contracts\SourceProjector $projector)
  * @method static \Goldnead\Leadhub\Models\Event|null projectAndIngest(mixed $model)
+ * @method static void registerTimelineSource(\Goldnead\Leadhub\Contracts\TimelineSource $source)
  *
  * @see LeadHubManager
  */

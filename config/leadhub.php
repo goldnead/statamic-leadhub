@@ -126,6 +126,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Contact timeline
+    |--------------------------------------------------------------------------
+    |
+    | The contact screen merges LeadHub's own events with what the sibling
+    | addons know about the same person: payments (purchases, refunds),
+    | entitlements (access granted, expired, revoked), booking (appointments)
+    | and consent (decisions, when the contact carries a consent_id). Each
+    | reader only runs when its addon is installed and migrated; a switch here
+    | turns one off even then. `limit` caps the merged list per page load.
+    */
+    'timeline' => [
+        'limit' => 200,
+        'sources' => [
+            'payments' => true,
+            'entitlements' => true,
+            'booking' => true,
+            'consent' => true,
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Lead Scoring
     |--------------------------------------------------------------------------
     |

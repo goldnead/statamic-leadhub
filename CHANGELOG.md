@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+### Neu: eine Seite je Mensch
+
+Die Kontaktseite zeigt jetzt oben fünf Kopfzahlen (erster Kontakt, letzter Kontakt, Käufe,
+Lebenszeitwert je Währung, aktive Zugänge) und darunter **eine** Zeitleiste, in der LeadHubs
+eigene Ereignisse mit dem stehen, was die Nachbar-Addons über dieselbe Person wissen: Käufe,
+offene und fehlgeschlagene Zahlungen und Erstattungen aus `statamic-payments`, erteilte,
+abgelaufene und entzogene Zugänge aus `statamic-entitlements`, Termine aus `statamic-booking`,
+Einwilligungen aus `statamic-consent` (nur, wenn der Kontakt eine `consent_id` trägt; die
+Einwilligungsdatensätze kennen absichtlich keine Adresse). Jeder Eintrag hat Zeitpunkt, Art,
+einen Satz, ein Zustandsbadge und, wo das Nachbar-Addon eine Ansicht hat, einen Link dorthin.
+
+**Die Leser liegen in LeadHub, nicht in den Nachbarn.** Ein `TimelineSource`-Contract, je Nachbar
+eine Klasse unter `src/Integrations/Timeline/`, Nachbar per String-Klassenname und `class_exists`
+erkannt — LeadHub setzt weiterhin nichts voraus. Ein fehlender Nachbar heißt: seine Quelle
+fehlt, mehr nicht. Ein Leser, der wirft, wird protokolliert und ausgelassen, die Seite steht.
+Zuordnung über `LOWER(TRIM(email))`, weil die Demo-Daten `doppelt@` und `DOPPELT@` als zwei
+Zeilen führen und beide zur selben Person gehören. Läuft der Zahlungs-Leser, werden die
+`payments.*`-Ereignisse der Payments-Bridge in `leadhub_events` ausgeblendet, damit ein Kauf
+einmal erscheint; läuft er nicht, bleiben sie.
+
+Neu dazu die Handlung **„Zugang freischalten“** in den Aktionen, nur mit installiertem
+entitlements: Produkt wählen, Notiz, ein Schreibvorgang über die Entitlements-Fassade
+(Quelle `manual`, Referenz `leadhub:<uuid>`, Notiz und Nutzer in `meta`). Eigene Berechtigung
+`grant leadhub access`; ohne sie 403, mit ihr ohne entitlements 404. Der Klick steht als
+`access_granted` auf der LeadHub-Zeitleiste.
+
+Konfiguration: `leadhub.timeline.sources.*` schaltet einzelne Leser ab, `leadhub.timeline.limit`
+begrenzt die Liste. Fassade: `LeadHub::registerTimelineSource()` für eigene Quellen.
+
 ## 2.8.0 — 2026-08-29
 
 ### Neu: die Zahlen dieses Addons erscheinen in Insights

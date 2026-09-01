@@ -186,5 +186,16 @@
     "engaged-buyers": "engaged-buyers",
     "example.com": "example.com",
     "incl. closed": "incl. closed",
-    "jane@example.com": "jane@example.com"
+    "jane@example.com": "jane@example.com",
+    "First contact": "First contact",
+    "Last contact": "Last contact",
+    "Purchases": "Purchases",
+    "Lifetime value": "Lifetime value",
+    "Active access": "Active access",
+    "Timeline sources": "Timeline sources",
+    "Show more entries": "Show more entries",
+    "Grant access": "Grant access",
+    "Product": "Product",
+    "Choose a product": "Choose a product",
+    "Note (optional)": "Note (optional)"
 }

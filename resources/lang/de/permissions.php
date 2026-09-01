@@ -8,6 +8,7 @@ return [
     'delete_contacts' => 'Kontakte löschen',
     'archive_contacts' => 'Kontakte archivieren',
     'export_contacts' => 'Kontakte exportieren',
+    'grant_access' => 'Zugang freischalten (Entitlements)',
     'manage_tags' => 'Tags verwalten',
     'view_segments' => 'Segmente sehen',
     'manage_segments' => 'Segmente verwalten',

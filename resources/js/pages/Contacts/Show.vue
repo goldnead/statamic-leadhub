@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
     Header, Panel, Card, Button, Badge, Text, Field, Label, Select, Textarea, Input,
-    DatePicker, Checkbox, ConfirmationModal, Pagination,
+    DatePicker, Checkbox, ConfirmationModal, Modal,
 } from '@statamic/cms/ui';
 import { toDateTimeString } from '../../support/datetime.js';
 import { money } from '../../support/money.js';
@@ -32,9 +32,67 @@ const props = defineProps([
     // meta, badge }], action }]. Rendered generically on purpose — see
     // Support\ContactPanels for why this is data and not a component name.
     'contactPanels',
+    // The merged timeline: LeadHub's own events plus what payments,
+    // entitlements, booking and consent know about this person, newest first.
+    // [{ id, source, kind, at, at_human, summary, url, badge, amount, detail,
+    //    actor, payload }]. `events` above is the raw LeadHub feed and is no
+    // longer rendered here.
+    'timeline',
+    'timelineTotal',    // how many entries existed before the server cap
+    'timelineSources',  // [{ key, label, available }] — which readers took part
+    'stats',            // { first_contact_human, last_contact_human, purchase_count,
+                        //   lifetime_value: [{ currency, cent, formatted }], active_access }
+    // The "grant access" action, or null when entitlements is not installed
+    // or the user may not: { url, products: [{ value, label }] }
+    'accessGrant',
 ]);
 
 const noteBody = ref('');
+
+// ── Timeline ────────────────────────────────────────────────────────────────
+
+const PAGE = 25;
+const visibleCount = ref(PAGE);
+const visibleTimeline = computed(() => (props.timeline || []).slice(0, visibleCount.value));
+const hiddenTimeline = computed(() => Math.max((props.timeline || []).length - visibleCount.value, 0));
+const activeSources = computed(() => (props.timelineSources || []).filter((s) => s.available));
+
+const sourceLabel = (key) => (props.timelineSources || []).find((s) => s.key === key)?.label ?? key;
+
+/** Entry kind → Badge colour for the source chip, so a glance tells the feeds apart. */
+const sourceColor = (source) => ({
+    leadhub: 'default',
+    payments: 'green',
+    entitlements: 'blue',
+    booking: 'purple',
+    consent: 'amber',
+}[source] ?? 'default');
+
+// ── Grant access ────────────────────────────────────────────────────────────
+
+const showGrant = ref(false);
+const grantProduct = ref('');
+const grantNote = ref('');
+const grantErrors = ref({});
+const granting = ref(false);
+
+function openGrant() {
+    grantErrors.value = {};
+    grantProduct.value = props.accessGrant?.products?.[0]?.value ?? '';
+    grantNote.value = '';
+    showGrant.value = true;
+}
+
+function grantAccess() {
+    if (! props.accessGrant?.url || ! grantProduct.value || granting.value) return;
+    granting.value = true;
+    router.post(props.accessGrant.url, { product: grantProduct.value, note: grantNote.value || null }, {
+        preserveScroll: true,
+        onSuccess: () => { showGrant.value = false; grantErrors.value = {}; },
+        onError: (errors) => { grantErrors.value = errors || {}; },
+        onFinish: () => { granting.value = false; },
+    });
+}
 const followupDueAt = ref(null);
 const followupNote = ref('');
 const followupErrors = ref({});
@@ -42,25 +100,6 @@ const tagIds = ref(props.contact.tags.map(t => String(t.id)));
 const status = ref(props.contact.status);
 const assignedTo = ref(props.contact.assigned_to || '');
 const showDeleteConfirm = ref(false);
-
-/**
- * The readable lines a source attached to its event.
- *
- * Filtered rather than trusted: `payload` is whatever a contributing addon
- * wrote, and a malformed entry must produce a missing line, not a broken page.
- */
-function detailLines(event) {
-    const detail = event?.payload?.detail;
-
-    if (! Array.isArray(detail)) return [];
-
-    // `!= null` and not truthiness: a legitimate value of `0` or an empty
-    // string is data, and dropping it would turn "Anzahl: 0" into a missing
-    // line — which reads as "not recorded" rather than "none".
-    return detail
-        .filter((line) => line && line.label != null && line.value != null)
-        .map((line) => ({ label: String(line.label), value: String(line.value) }));
-}
 
 const ownerOptions = computed(() => [
     { value: '', label: __('Unassigned') },
@@ -169,6 +208,41 @@ const showCrm = computed(() =>
         <div class="grid gap-6 lg:grid-cols-3">
             <!-- Main column -->
             <div class="lg:col-span-2 space-y-4">
+                <!-- Headline numbers: what a glance should answer before the
+                     detail does. Read from the merged timeline, so "purchases"
+                     is payments' count when payments is installed and
+                     LeadHub's own ledger otherwise. -->
+                <!-- auto-fit rather than a breakpoint variant: every addon's
+                     stylesheet lands in the same layer, and a sibling's
+                     `sm:grid-cols-2` loaded later wins over an `md:` variant
+                     from this one. An arbitrary track list is emitted by
+                     nobody else. -->
+                <div class="grid gap-3 grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] *:min-w-0" data-leadhub-contact-stats>
+                    <Card>
+                        <Text size="xs" variant="subtle" as="div">{{ __('First contact') }}</Text>
+                        <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ stats?.first_contact_human || '—' }}</div>
+                    </Card>
+                    <Card>
+                        <Text size="xs" variant="subtle" as="div">{{ __('Last contact') }}</Text>
+                        <div class="mt-1 text-sm font-semibold text-gray-900 dark:text-gray-100">{{ stats?.last_contact_human || '—' }}</div>
+                    </Card>
+                    <Card>
+                        <Text size="xs" variant="subtle" as="div">{{ __('Purchases') }}</Text>
+                        <div class="mt-1 text-lg font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ stats?.purchase_count ?? 0 }}</div>
+                    </Card>
+                    <Card>
+                        <Text size="xs" variant="subtle" as="div">{{ __('Lifetime value') }}</Text>
+                        <div v-if="stats?.lifetime_value?.length" class="mt-1 text-lg font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                            <div v-for="value in stats.lifetime_value" :key="value.currency">{{ value.formatted }}</div>
+                        </div>
+                        <div v-else class="mt-1 text-lg font-semibold text-gray-500 dark:text-gray-400">—</div>
+                    </Card>
+                    <Card>
+                        <Text size="xs" variant="subtle" as="div">{{ __('Active access') }}</Text>
+                        <div class="mt-1 text-lg font-semibold tabular-nums text-gray-900 dark:text-gray-100">{{ stats?.active_access ?? '—' }}</div>
+                    </Card>
+                </div>
+
                 <!-- Contact summary -->
                 <Panel :heading="__('Contact')">
                     <Card>
@@ -390,20 +464,56 @@ const showCrm = computed(() =>
                     </Card>
                 </Panel>
 
-                <!-- Timeline -->
-                <Panel :heading="__('Timeline')">
+                <!-- Timeline: one order for everything about this person.
+                     Entries from the sibling addons carry a source chip and a
+                     state badge the source itself chose; LeadHub's own events
+                     keep the actor line and the folded payload they had. -->
+                <Panel :heading="__('Timeline')" data-leadhub-timeline>
                     <Card>
-                        <div v-if="events.data.length === 0" class="py-6 text-center text-sm text-gray-500">
+                        <div
+                            v-if="activeSources.length"
+                            class="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"
+                            data-leadhub-timeline-sources
+                        >
+                            <span>{{ __('Timeline sources') }}:</span>
+                            <Badge
+                                v-for="source in activeSources"
+                                :key="source.key"
+                                size="sm"
+                                :color="sourceColor(source.key)"
+                                :text="source.label"
+                            />
+                        </div>
+
+                        <div v-if="(timeline || []).length === 0" class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                             {{ __('No timeline events yet.') }}
                         </div>
                         <ul v-else class="-my-3 divide-y divide-content-border">
-                            <li v-for="event in events.data" :key="event.id" class="py-3">
+                            <li v-for="entry in visibleTimeline" :key="entry.id" class="py-3" :data-leadhub-timeline-entry="entry.kind">
                                 <div class="flex items-start justify-between gap-3 text-sm">
-                                    <span class="font-medium">{{ event.summary }}</span>
-                                    <Text size="xs" variant="subtle" class="shrink-0">{{ event.created_at }}</Text>
+                                    <div class="min-w-0">
+                                        <component
+                                            :is="entry.url ? 'a' : 'span'"
+                                            :href="entry.url"
+                                            class="font-medium"
+                                            :class="entry.url ? 'hover:underline' : ''"
+                                        >{{ entry.summary }}</component>
+                                        <span v-if="entry.amount" class="ms-2 tabular-nums text-gray-900 dark:text-gray-100">{{ entry.amount.formatted }}</span>
+                                    </div>
+                                    <div class="flex shrink-0 items-center gap-2">
+                                        <Badge
+                                            v-if="entry.badge"
+                                            size="sm"
+                                            :color="entry.badge.color"
+                                            :text="entry.badge.text"
+                                        />
+                                        <Text size="xs" variant="subtle" :title="entry.at">{{ entry.at_human }}</Text>
+                                    </div>
                                 </div>
-                                <div class="text-xs text-gray-500 mt-1">
-                                    {{ event.actor_label }} · <code>{{ event.type }}</code>
+                                <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    <Badge v-if="entry.source !== 'leadhub'" size="sm" :color="sourceColor(entry.source)" :text="sourceLabel(entry.source)" />
+                                    <span v-if="entry.actor">{{ entry.actor }}</span>
+                                    <code>{{ entry.kind }}</code>
                                 </div>
 
                                 <!-- Readable lines when the source supplied them.
@@ -415,28 +525,28 @@ const showCrm = computed(() =>
                                      see Support\ContactPanels for the same idea
                                      applied to whole panels. -->
                                 <dl
-                                    v-if="detailLines(event).length"
+                                    v-if="entry.detail && entry.detail.length"
                                     class="mt-2 grid gap-x-3 gap-y-0.5 text-xs sm:grid-cols-[auto_1fr]"
-                                    :data-leadhub-event-detail="event.id"
+                                    :data-leadhub-event-detail="entry.id"
                                 >
-                                    <template v-for="(line, i) in detailLines(event)" :key="i">
+                                    <template v-for="(line, i) in entry.detail" :key="i">
                                         <dt><Text size="xs" variant="subtle">{{ line.label }}</Text></dt>
                                         <dd><Text size="xs">{{ line.value }}</Text></dd>
                                     </template>
                                 </dl>
 
-                                <details v-if="event.payload && Object.keys(event.payload).length > 0" class="mt-2">
+                                <details v-if="entry.payload && Object.keys(entry.payload).length > 0" class="mt-2">
                                     <summary class="text-xs text-gray-500 cursor-pointer">{{ __('Payload') }}</summary>
-                                    <pre class="text-xs mt-1 p-2 rounded bg-gray-50 dark:bg-gray-800 overflow-x-auto">{{ JSON.stringify(event.payload, null, 2) }}</pre>
+                                    <pre class="text-xs mt-1 p-2 rounded bg-gray-50 dark:bg-gray-800 overflow-x-auto">{{ JSON.stringify(entry.payload, null, 2) }}</pre>
                                 </details>
                             </li>
                         </ul>
-                        <div v-if="events.meta.last_page > 1" class="mt-4 pt-4 border-t border-content-border">
-                            <Pagination
-                                :resource-meta="events.meta"
-                                :show-totals="false"
-                                :show-per-page-selector="false"
-                                @page-selected="page => router.get(window.location.pathname, { page }, { preserveScroll: true, preserveState: true })"
+                        <div v-if="hiddenTimeline > 0" class="mt-4 pt-4 border-t border-content-border text-center">
+                            <Button
+                                :text="__('Show more entries') + ' (' + hiddenTimeline + ')'"
+                                size="sm"
+                                variant="ghost"
+                                @click="visibleCount += PAGE"
                             />
                         </div>
                     </Card>
@@ -547,6 +657,14 @@ const showCrm = computed(() =>
                     <Card>
                         <div class="space-y-2">
                             <Button
+                                v-if="accessGrant"
+                                :text="__('Grant access')"
+                                variant="primary"
+                                class="w-full"
+                                data-leadhub-grant-access
+                                @click="openGrant"
+                            />
+                            <Button
                                 v-if="canArchive && !contact.archived_at"
                                 :text="__('Archive contact')"
                                 variant="default"
@@ -572,6 +690,35 @@ const showCrm = computed(() =>
                 </Panel>
             </aside>
         </div>
+
+        <!-- Grant access: a product from the catalogue, an optional note, one
+             write through the entitlements facade. -->
+        <Modal v-if="accessGrant" v-model:open="showGrant" :title="__('Grant access')" icon="key">
+            <div class="space-y-4">
+                <Field :label="__('Product')" :error="grantErrors.product" required>
+                    <Select
+                        v-model="grantProduct"
+                        :options="accessGrant.products"
+                        :placeholder="__('Choose a product')"
+                    />
+                </Field>
+                <Field :label="__('Note (optional)')" :error="grantErrors.note">
+                    <Textarea v-model="grantNote" rows="3" />
+                </Field>
+            </div>
+            <template #footer>
+                <div class="flex justify-end gap-2">
+                    <Button :text="__('Cancel')" variant="ghost" @click="showGrant = false" />
+                    <Button
+                        :text="__('Grant access')"
+                        variant="primary"
+                        :disabled="!grantProduct"
+                        :loading="granting"
+                        @click="grantAccess"
+                    />
+                </div>
+            </template>
+        </Modal>
 
         <ConfirmationModal
             :open="showDeleteConfirm"

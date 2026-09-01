@@ -385,6 +385,52 @@ All five are available to segments, so "has paid more than 100 €" is a rule an
 
 Eloquent driver only, like deals: the flat-file store has no table to aggregate over.
 
+## One page per person
+
+The contact screen answers "what is going on with this person" in one place. Above the detail
+sit five numbers — first contact, last contact, purchases, lifetime value per currency, active
+access — and below it one timeline, newest first, that merges LeadHub's own events with what the
+sibling addons know:
+
+| Source | What it adds | Matched on |
+| --- | --- | --- |
+| `goldnead/statamic-payments` | purchases with their line items, pending and failed payments, refunds | `LOWER(TRIM(email))` |
+| `goldnead/statamic-entitlements` | access granted / expired / revoked, with the state that is true now | subject `('email', address)` and `(Contact, id)` |
+| `goldnead/statamic-booking` | appointments, dated by the appointment | `LOWER(TRIM(email))` |
+| `goldnead/statamic-consent` | consent decisions | the `consent_id` in `metadata_json` or `custom_fields` — consent records carry no address, on purpose |
+
+Each reader lives **inside LeadHub** (`src/Integrations/Timeline/`), refers to its neighbour by a
+string class name and runs only when that addon is installed and migrated. Nothing is required;
+an install with LeadHub alone shows its own events and the revenue ledger's totals. A reader can be
+switched off under `leadhub.timeline.sources`, and `leadhub.timeline.limit` caps the merged list.
+
+When the payments reader runs, the `payments.*` events that payments' bridge writes into
+`leadhub_events` are hidden, so a purchase appears once. When it does not run, they stay — they are
+then the only record.
+
+A host or another addon can contribute a feed of its own:
+
+```php
+use Goldnead\Leadhub\Contracts\TimelineSource;
+use Goldnead\Leadhub\Facades\LeadHub;
+
+LeadHub::registerTimelineSource(new class implements TimelineSource { /* key(), available(), entries(), stats(), supersedes() */ });
+```
+
+### Grant access from the contact
+
+With entitlements installed, the Actions panel gains **Grant access**: pick a product, add a note,
+and LeadHub writes through the entitlements facade (`Entitlements::grant()`, source `manual`,
+reference `leadhub:<contact uuid>`, the note and the granting user in `meta`). Idempotent per
+contact and product; a revoked grant stays revoked, as the facade guarantees. The product list is
+payments' catalogue when payments is installed (a bundle grants every slug it carries), otherwise
+the slugs entitlements has already seen. The click is also recorded on the LeadHub timeline as
+`access_granted`.
+
+Its own permission — **Grant access (entitlements)**, `grant leadhub access` — because reading a
+contact and opening a paid course for them are not the same authority. Without it the route answers
+403; with it but without entitlements, 404.
+
 ## CRM connectors & sync log
 
 Push contacts to external systems when they're **created**, **updated**, or their **status changes**. Turn the feature on, then declare one or more destinations:

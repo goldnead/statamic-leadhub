@@ -1,5 +1,6 @@
 <?php
 
+use Goldnead\Leadhub\Http\Controllers\Cp\AccessGrantController;
 use Goldnead\Leadhub\Http\Controllers\Cp\CompanyController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ContactController;
 use Goldnead\Leadhub\Http\Controllers\Cp\CustomFieldController;
@@ -41,6 +42,9 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
 
         Route::post('/{contact}/notes', [NoteController::class, 'store'])->name('notes.store');
         Route::post('/{contact}/followup', [FollowupController::class, 'store'])->name('followup.store');
+        // "Grant access" from the contact screen. Writes through the
+        // entitlements facade; 404 when that addon is not installed.
+        Route::post('/{contact}/grant-access', [AccessGrantController::class, 'store'])->name('grant-access');
     });
 
     // Follow-ups

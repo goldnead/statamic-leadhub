@@ -37,6 +37,7 @@ use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
+use Goldnead\Leadhub\Integrations\Entitlements\AccessGranter;
 use Goldnead\Leadhub\Integrations\Insights\ContactsActive;
 use Goldnead\Leadhub\Integrations\Insights\ContactsCreated;
 use Goldnead\Leadhub\Integrations\Insights\OpportunitiesWon;
@@ -44,6 +45,10 @@ use Goldnead\Leadhub\Integrations\Insights\OpportunityValueWon;
 use Goldnead\Leadhub\Integrations\Insights\ScoreChanges;
 use Goldnead\Leadhub\Integrations\Insights\TasksCompleted;
 use Goldnead\Leadhub\Integrations\Notifications\NotificationsBridge;
+use Goldnead\Leadhub\Integrations\Timeline\BookingSource;
+use Goldnead\Leadhub\Integrations\Timeline\ConsentSource;
+use Goldnead\Leadhub\Integrations\Timeline\EntitlementsSource;
+use Goldnead\Leadhub\Integrations\Timeline\PaymentsSource;
 use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Listeners\CreateOrUpdateLeadFromSubmission;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
@@ -79,6 +84,7 @@ use Goldnead\Leadhub\Services\ClickTracking\RecipientResolver;
 use Goldnead\Leadhub\Services\IngestionService;
 use Goldnead\Leadhub\Support\ContactPanels;
 use Goldnead\Leadhub\Support\Settings;
+use Goldnead\Leadhub\Support\Timeline\ContactTimeline;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
@@ -238,6 +244,26 @@ class ServiceProvider extends AddonServiceProvider
         // every panel would be silently dropped, with nothing to see but a page
         // that is missing something.
         $this->app->singleton(ContactPanels::class);
+
+        // The merged timeline on the contact screen. One reader per sibling,
+        // each guarded by class_exists inside — the siblings are suggested,
+        // never required. A singleton for the same reason as ContactPanels: a
+        // source a host registers at boot has to be the one the screen reads.
+        $this->app->singleton(ContactTimeline::class, function ($app) {
+            $timeline = new ContactTimeline($app->make(EventRepository::class));
+
+            foreach ([
+                PaymentsSource::class,
+                EntitlementsSource::class,
+                BookingSource::class,
+                ConsentSource::class,
+            ] as $source) {
+                $timeline->register($app->make($source));
+            }
+
+            return $timeline;
+        });
+        $this->app->singleton(AccessGranter::class);
 
         // Click-tracking surface. Public singletons so sibling addons (the
         // automations / email-templates send path) can resolve the linker to
@@ -756,6 +782,12 @@ class ServiceProvider extends AddonServiceProvider
                                     ->label(__('leadhub::permissions.archive_contacts')),
                                 Permission::make('export leadhub contacts')
                                     ->label(__('leadhub::permissions.export_contacts')),
+                                // Writes into a neighbour (entitlements), so
+                                // its own authority: reading a contact and
+                                // opening a paid course for them are not the
+                                // same thing.
+                                Permission::make('grant leadhub access')
+                                    ->label(__('leadhub::permissions.grant_access')),
                             ]),
                         Permission::make('manage leadhub tags')
                             ->label(__('leadhub::permissions.manage_tags')),

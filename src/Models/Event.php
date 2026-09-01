@@ -54,6 +54,9 @@ class Event extends Model
     public const TYPE_OPPORTUNITY_LOST = 'opportunity_lost';
     public const TYPE_SCORE_CHANGED = 'score_changed';
 
+    /** A user granted access from the contact screen (through entitlements). */
+    public const TYPE_ACCESS_GRANTED = 'access_granted';
+
     protected static function booted(): void
     {
         static::creating(function (self $event): void {
