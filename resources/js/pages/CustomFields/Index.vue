@@ -1,140 +1,128 @@
 <script setup>
-import { ref } from 'vue';
+/**
+ * Custom fields.
+ *
+ * The screen used to carry two inline forms — one above the table to add a
+ * field, one below it to edit the row you had picked. The CP does neither:
+ * creating and editing a record happens on its own surface, and the listing
+ * stays a listing. Both now open the same `Stack` from the right, the way
+ * the listing's own filters do.
+ *
+ * The edit action existed before but sat in a `#actions` slot, which `Listing`
+ * does not have — so it rendered nowhere and no field could be edited at all.
+ * The slot is `prepended-row-actions`.
+ */
+import { computed, ref } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
 import {
-    Header, Panel, Card, Listing, Badge, Button, Field, Input, Select,
-    DropdownItem, ConfirmationModal, Text, Textarea,
+    Header, Panel, PanelHeader, Card, Heading, Stack, Listing, Badge, Button,
+    Field, Input, Select, DropdownItem, ConfirmationModal, Text,
 } from '@statamic/cms/ui';
 
 const props = defineProps([
-    'fields',    // [{ id, handle, label, type, options, instructions, sort, in_use, update_url, delete_url }]
+    'fields',    // [{ id, handle, label, type, type_label, options, instructions, sort, in_use, update_url, delete_url }]
     'columns',
     'canManage', // bool
     'storeUrl',  // string
     'types',     // [{ value, label }] — labels resolved server-side
 ]);
 
-// The create form. `errors` + onError + `Field :error` is this addon's pattern
-// since v1.5.0: a rejected input says what was wrong at the field that was
-// wrong, rather than looking like a dead button.
 const blank = { handle: '', label: '', type: 'text', options: [], instructions: '', sort: 0 };
-const newField = ref({ ...blank });
+
+const open = ref(false);
+/** The row being edited, or null while creating. */
+const editing = ref(null);
+const form = ref({ ...blank, options: [] });
 const errors = ref({});
+const saving = ref(false);
 
-const editingId = ref(null);
-const editField = ref({ ...blank });
-const editErrors = ref({});
-
-const fieldToDelete = ref(null);
-
-// Already {value,label}: see the controller for why the labels are resolved
-// there and not interpolated into a translation call here: the parity test
-// requires every one of those to carry a single-quoted literal.
 const typeOptions = props.types;
+const isSelect = computed(() => form.value.type === 'select');
 
-function reload() {
-    router.reload({ preserveScroll: true });
-}
-
-// Options are only meaningful for a select; the form hides them elsewhere and
-// the controller drops them, so a type changed after the fact cannot leave
-// stored data nothing reads.
-function isSelect(f) {
-    return f.type === 'select';
-}
-
-function addOption(f) {
-    f.options = [...(f.options || []), { value: '', label: '' }];
-}
-
-function removeOption(f, i) {
-    f.options = f.options.filter((_, n) => n !== i);
-}
-
-function create() {
+function startCreate() {
+    editing.value = null;
+    form.value = { ...blank, options: [] };
     errors.value = {};
-    router.post(props.storeUrl, newField.value, {
-        preserveScroll: true,
-        onSuccess: () => { newField.value = { ...blank, options: [] }; reload(); },
-        onError: (e) => { errors.value = e; },
-    });
+    open.value = true;
 }
 
 function startEdit(row) {
-    editingId.value = row.id;
-    editErrors.value = {};
-    editField.value = {
-        label: row.label, type: row.type,
+    editing.value = row;
+    form.value = {
+        handle: row.handle,
+        label: row.label,
+        type: row.type,
         options: (row.options || []).map((o) => ({ ...o })),
-        instructions: row.instructions || '', sort: row.sort,
+        instructions: row.instructions || '',
+        sort: row.sort,
     };
+    errors.value = {};
+    open.value = true;
 }
 
-function saveEdit(row) {
-    editErrors.value = {};
-    router.patch(row.update_url, editField.value, {
-        preserveScroll: true,
-        onSuccess: () => { editingId.value = null; reload(); },
-        onError: (e) => { editErrors.value = e; },
-    });
+function addOption() {
+    form.value.options = [...(form.value.options || []), { value: '', label: '' }];
 }
+
+function removeOption(i) {
+    form.value.options = form.value.options.filter((_, n) => n !== i);
+}
+
+function save() {
+    if (saving.value) return;
+    saving.value = true;
+    errors.value = {};
+
+    const done = {
+        preserveScroll: true,
+        onSuccess: () => { open.value = false; router.reload({ preserveScroll: true }); },
+        onError: (e) => { errors.value = e || {}; },
+        onFinish: () => { saving.value = false; },
+    };
+
+    editing.value
+        ? router.patch(editing.value.update_url, form.value, done)
+        : router.post(props.storeUrl, form.value, done);
+}
+
+const fieldToDelete = ref(null);
 
 function destroy() {
     const row = fieldToDelete.value;
     fieldToDelete.value = null;
-    router.delete(row.delete_url, { preserveScroll: true, onSuccess: reload });
+    router.delete(row.delete_url, {
+        preserveScroll: true,
+        onSuccess: () => router.reload({ preserveScroll: true }),
+    });
 }
 </script>
 
 <template>
     <Head :title="__('leadhub::custom_fields.title')" />
 
-    <Header :title="__('leadhub::custom_fields.title')" icon="list-bullets" />
+    <div class="max-w-page mx-auto">
+        <Header :title="__('leadhub::custom_fields.title')" icon="list-ul">
+            <Button
+                v-if="canManage"
+                :text="__('leadhub::custom_fields.add')"
+                icon="plus"
+                variant="primary"
+                data-leadhub-new-custom-field
+                @click="startCreate"
+            />
+        </Header>
 
-    <Panel>
-        <Text class="mb-4 text-gray-600 dark:text-gray-400">
+        <Text class="mb-4 block text-gray-600 dark:text-gray-400">
             {{ __('leadhub::custom_fields.description') }}
         </Text>
 
-        <Card v-if="canManage" class="mb-6">
-            <div class="grid items-end gap-4 md:grid-cols-4">
-                <Field :label="__('leadhub::custom_fields.label')" :error="errors.label">
-                    <Input v-model="newField.label" />
-                </Field>
-                <Field
-                    :label="__('leadhub::custom_fields.handle')"
-                    :instructions="__('leadhub::custom_fields.handle_hint')"
-                    :error="errors.handle"
-                >
-                    <Input v-model="newField.handle" />
-                </Field>
-                <Field :label="__('leadhub::custom_fields.type')" :error="errors.type">
-                    <Select v-model="newField.type" :options="typeOptions" />
-                </Field>
-                <Field :label="__('leadhub::custom_fields.instructions')" :error="errors.instructions">
-                    <Input v-model="newField.instructions" />
-                </Field>
-            </div>
+        <Listing :items="fields" :columns="columns" preferences-prefix="leadhub.custom-fields">
+            <template #cell-label="{ row }">
+                <span class="font-medium">{{ row.label }}</span>
+            </template>
 
-            <div v-if="isSelect(newField)" class="mt-4">
-                <Field :label="__('leadhub::custom_fields.options')">
-                    <div v-for="(o, i) in newField.options" :key="i" class="mb-2 flex gap-2">
-                        <Input v-model="o.value" placeholder="wert" />
-                        <Input v-model="o.label" placeholder="Bezeichnung" />
-                        <Button variant="ghost" size="sm" @click="removeOption(newField, i)">&times;</Button>
-                    </div>
-                    <Button variant="ghost" size="sm" @click="addOption(newField)">+</Button>
-                </Field>
-            </div>
-
-            <div class="mt-4">
-                <Button variant="primary" @click="create">{{ __('leadhub::custom_fields.add') }}</Button>
-            </div>
-        </Card>
-
-        <Listing :items="fields" :columns="columns">
             <template #cell-type="{ row }">
-                <Badge :text="row.type_label" />
+                <Badge pill :text="row.type_label" />
             </template>
 
             <template #cell-handle="{ row }">
@@ -148,55 +136,89 @@ function destroy() {
                 <span class="tabular-nums">{{ row.in_use }}</span>
             </template>
 
-            <template v-if="canManage" #actions="{ row }">
-                <DropdownItem :text="__('Edit')" @click="startEdit(row)" />
-                <DropdownItem :text="__('Delete')" variant="destructive" @click="fieldToDelete = row" />
-            </template>
-
-            <template #empty>
-                <Text>{{ __('leadhub::custom_fields.empty') }}</Text>
+            <template v-if="canManage" #prepended-row-actions="{ row }">
+                <DropdownItem :text="__('Edit')" icon="edit" @click="startEdit(row)" />
+                <DropdownItem
+                    :text="__('Delete')"
+                    icon="trash"
+                    variant="destructive"
+                    @click="fieldToDelete = row"
+                />
             </template>
         </Listing>
 
-        <Card v-if="editingId" class="mt-6">
-            <div class="grid items-end gap-4 md:grid-cols-3">
-                <Field :label="__('leadhub::custom_fields.label')" :error="editErrors.label">
-                    <Input v-model="editField.label" />
-                </Field>
-                <Field :label="__('leadhub::custom_fields.type')" :error="editErrors.type">
-                    <Select v-model="editField.type" :options="typeOptions" />
-                </Field>
-                <Field :label="__('leadhub::custom_fields.instructions')" :error="editErrors.instructions">
-                    <Input v-model="editField.instructions" />
-                </Field>
-            </div>
+        <Stack
+            v-model:open="open"
+            size="narrow"
+            :title="editing ? __('Edit') : __('leadhub::custom_fields.add')"
+            icon="list-ul"
+        >
+            <Panel>
+                <PanelHeader>
+                    <Heading :text="editing ? editing.label : __('leadhub::custom_fields.add')" />
+                </PanelHeader>
+                <Card class="space-y-4">
+                    <Field :label="__('leadhub::custom_fields.label')" :error="errors.label" required>
+                        <Input v-model="form.label" />
+                    </Field>
 
-            <div v-if="isSelect(editField)" class="mt-4">
-                <Field :label="__('leadhub::custom_fields.options')">
-                    <div v-for="(o, i) in editField.options" :key="i" class="mb-2 flex gap-2">
-                        <Input v-model="o.value" placeholder="wert" />
-                        <Input v-model="o.label" placeholder="Bezeichnung" />
-                        <Button variant="ghost" size="sm" @click="removeOption(editField, i)">&times;</Button>
-                    </div>
-                    <Button variant="ghost" size="sm" @click="addOption(editField)">+</Button>
-                </Field>
-            </div>
+                    <!-- The handle is what stored values hang on, so it is
+                         set once and read-only afterwards. -->
+                    <Field
+                        :label="__('leadhub::custom_fields.handle')"
+                        :instructions="__('leadhub::custom_fields.handle_hint')"
+                        :error="errors.handle"
+                    >
+                        <Input v-model="form.handle" :read-only="!!editing" :disabled="!!editing" />
+                    </Field>
 
-            <div class="mt-4 flex gap-2">
-                <Button variant="primary" @click="saveEdit(fields.find((f) => f.id === editingId))">
-                    {{ __('Save') }}
-                </Button>
-                <Button variant="ghost" @click="editingId = null">{{ __('Cancel') }}</Button>
-            </div>
-        </Card>
-    </Panel>
+                    <Field :label="__('leadhub::custom_fields.type')" :error="errors.type">
+                        <Select v-model="form.type" :options="typeOptions" class="w-full" adaptive-width />
+                    </Field>
 
-    <ConfirmationModal
-        v-if="fieldToDelete"
-        :title="__('leadhub::custom_fields.title')"
-        :body-text="__('leadhub::custom_fields.delete_confirm')"
-        :danger="true"
-        @confirm="destroy"
-        @cancel="fieldToDelete = null"
-    />
+                    <Field :label="__('leadhub::custom_fields.instructions')" :error="errors.instructions">
+                        <Input v-model="form.instructions" />
+                    </Field>
+
+                    <Field v-if="isSelect" :label="__('leadhub::custom_fields.options')">
+                        <div class="space-y-2">
+                            <div v-for="(o, i) in form.options" :key="i" class="flex gap-2">
+                                <Input v-model="o.value" :placeholder="__('Value')" />
+                                <Input v-model="o.label" :placeholder="__('Label')" />
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    icon="trash"
+                                    :aria-label="__('Remove')"
+                                    @click="removeOption(i)"
+                                />
+                            </div>
+                            <Button size="sm" icon="plus" :text="__('Add')" @click="addOption" />
+                        </div>
+                    </Field>
+                </Card>
+            </Panel>
+
+            <div class="flex gap-2">
+                <Button
+                    variant="primary"
+                    :text="__('Save')"
+                    :loading="saving"
+                    :disabled="!String(form.label || '').trim()"
+                    @click="save"
+                />
+                <Button variant="ghost" :text="__('Cancel')" @click="open = false" />
+            </div>
+        </Stack>
+
+        <ConfirmationModal
+            :open="fieldToDelete !== null"
+            :title="__('leadhub::custom_fields.title')"
+            :body-text="__('leadhub::custom_fields.delete_confirm')"
+            danger
+            :button-text="__('Delete')"
+            @confirm="destroy"
+            @cancel="fieldToDelete = null"
+        />
+    </div>
 </template>

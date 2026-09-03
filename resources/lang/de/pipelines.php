@@ -8,6 +8,17 @@ return [
     'created' => 'Pipeline erstellt.',
     'empty' => 'Keine offenen Opportunities in dieser Stufe.',
 
+    // Status-Badges am Deal. Die Spaltenwerte sind `open`/`closed` und
+    // `won`/`lost`; unbeschriftet gehört davon nichts ins CP.
+    'opportunity_status' => [
+        'open' => 'Offen',
+        'closed' => 'Abgeschlossen',
+    ],
+    'opportunity_outcome' => [
+        'won' => 'Gewonnen',
+        'lost' => 'Verloren',
+    ],
+
     // Abgeschlossene Opportunities auf dem Board
     'closed_filter' => 'Abgeschlossene Deals',
     'closed_none' => 'Nur offene',

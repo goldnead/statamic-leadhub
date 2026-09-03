@@ -29,6 +29,30 @@ use Illuminate\Support\Facades\Log;
  * optional action — rather than a component name or a slot. A registry that
  * accepted markup would make every contributor's Vue build a dependency of this
  * page, and the first one to ship a broken bundle would take the screen with it.
+ *
+ * An action comes in two shapes, both still data:
+ *
+ *     'action' => ['text' => 'Manage lists', 'url' => '/cp/…']
+ *
+ * is a link. And, for "do the thing from here" without LeadHub learning what
+ * the thing is:
+ *
+ *     'action' => [
+ *         'text' => 'Add to list',
+ *         'icon' => 'plus',
+ *         'select' => [
+ *             'placeholder' => 'Pick a list…',
+ *             'options' => [[
+ *                 'value' => 'chorbrief',
+ *                 'label' => 'Der Chorbrief',
+ *                 'url' => '/cp/marketing/lists/chorbrief/subscribers',
+ *                 'payload' => ['email' => 'someone@example.com'],
+ *             ]],
+ *         ],
+ *     ]
+ *
+ * renders a picker plus a button; the chosen option says where it posts and
+ * what it sends. LeadHub posts what it is handed and redirects back.
  */
 class ContactPanels
 {
@@ -104,13 +128,72 @@ class ContactPanels
                         'color' => (string) ($row['badge']['color'] ?? 'default'),
                     ] : null,
                 ], $rows),
-                'action' => isset($panel['action']['text'], $panel['action']['url']) ? [
-                    'text' => (string) $panel['action']['text'],
-                    'url' => (string) $panel['action']['url'],
-                ] : null,
+                'action' => $this->action($panel['action'] ?? null),
             ];
         }
 
         return $panels;
+    }
+
+    /**
+     * Normalise a panel's action, or null when it is not usable.
+     *
+     * Both shapes are validated rather than passed through: what a contributor
+     * hands over lands in a Vue template on somebody's contact screen, and a
+     * half-filled action renders as a button that does nothing.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function action(mixed $action): ?array
+    {
+        if (! is_array($action) || ! isset($action['text'])) {
+            return null;
+        }
+
+        $icon = isset($action['icon']) ? (string) $action['icon'] : null;
+
+        // Select-shaped: a picker plus a button, each option carrying the URL
+        // it posts to and the body it sends.
+        if (isset($action['select']['options']) && is_array($action['select']['options'])) {
+            $options = [];
+
+            foreach ($action['select']['options'] as $option) {
+                if (! is_array($option) || ! isset($option['value'], $option['label'], $option['url'])) {
+                    continue;
+                }
+
+                $options[] = [
+                    'value' => (string) $option['value'],
+                    'label' => (string) $option['label'],
+                    'url' => (string) $option['url'],
+                    'payload' => is_array($option['payload'] ?? null) ? $option['payload'] : [],
+                ];
+            }
+
+            if ($options === []) {
+                return null;
+            }
+
+            return [
+                'text' => (string) $action['text'],
+                'icon' => $icon,
+                'select' => [
+                    'placeholder' => isset($action['select']['placeholder'])
+                        ? (string) $action['select']['placeholder']
+                        : null,
+                    'options' => $options,
+                ],
+            ];
+        }
+
+        if (! isset($action['url'])) {
+            return null;
+        }
+
+        return [
+            'text' => (string) $action['text'],
+            'icon' => $icon,
+            'url' => (string) $action['url'],
+        ];
     }
 }

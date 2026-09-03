@@ -131,7 +131,7 @@ function onDrop(columnId) {
     <Head :title="isEmpty ? [__('Pipelines'), __('LeadHub')] : [pipeline.name, __('Pipelines'), __('LeadHub')]" />
 
     <div v-if="isEmpty" class="max-w-page mx-auto">
-        <Header :title="__('Pipelines')" icon="chart-pie" />
+        <Header :title="__('Pipelines')" icon="charts-donut-graph" />
 
         <EmptyStateMenu
             v-if="canConfigure"
@@ -139,20 +139,22 @@ function onDrop(columnId) {
         >
             <EmptyStateItem
                 :href="manageUrl"
-                icon="chart-pie"
+                icon="charts-donut-graph"
                 :heading="__('Create a pipeline')"
                 :description="__('Define the stages your opportunities move through, then manage them on the board.')"
             />
         </EmptyStateMenu>
 
         <div v-else class="text-center py-16">
-            <Icon name="chart-pie" class="size-12 text-gray-400 mx-auto mb-4" />
+            <!-- `chart-pie` is not in the icon set; an unknown name renders an
+                 empty box, silently. -->
+            <Icon name="charts-donut-graph" class="size-12 text-gray-400 mx-auto mb-4" />
             <p class="text-gray-500 dark:text-gray-400">{{ __('No pipeline has been configured yet.') }}</p>
         </div>
     </div>
 
     <div v-else class="max-w-full mx-auto">
-        <Header :title="__('Pipelines')" icon="chart-pie">
+        <Header :title="__('Pipelines')" icon="charts-donut-graph">
             <div class="flex gap-1 items-center">
                 <Button
                     v-for="p in pipelines"
@@ -165,7 +167,7 @@ function onDrop(columnId) {
                 <Button
                     v-if="newOpportunityUrl"
                     :text="__('New opportunity')"
-                    icon="add"
+                    icon="plus"
                     size="sm"
                     variant="primary"
                     data-leadhub-new-opportunity
@@ -205,12 +207,15 @@ function onDrop(columnId) {
                     <div class="px-3 py-2 border-b border-content-border flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="font-medium text-sm text-gray-900 dark:text-gray-100">{{ column.name }}</span>
-                            <Badge color="default" size="sm" :text="String(column.cards.length)" />
+                            <Badge color="default" size="sm" :text="String(column.cards.length)" pill />
                         </div>
+                        <!-- The raw column value ("won") used to be printed
+                             here. Same defect as on the contact screen. -->
                         <Badge
                             v-if="column.is_terminal"
+                            pill
                             :color="column.terminal_outcome === 'won' ? 'green' : 'red'"
-                            :text="column.terminal_outcome"
+                            :text="__('leadhub::pipelines.opportunity_outcome.' + column.terminal_outcome)"
                         />
                     </div>
 
@@ -240,7 +245,7 @@ function onDrop(columnId) {
                                     :color="card.outcome === 'won' ? 'green' : 'red'"
                                     size="sm"
                                     :text="card.outcome === 'won' ? __('Won') : __('Lost')"
-                                />
+                                 pill />
                                 <Text v-if="card.closed_at" size="xs" variant="subtle">{{ card.closed_at }}</Text>
                             </div>
 
@@ -279,7 +284,7 @@ function onDrop(columnId) {
                                 <Text v-if="card.value_estimate" size="sm" class="font-medium text-gray-900 dark:text-gray-200">
                                     {{ money(card.value_estimate) }}
                                 </Text>
-                                <Badge v-if="card.confidence" color="default" size="sm" :text="`${card.confidence}%`" />
+                                <Badge v-if="card.confidence" color="default" size="sm" :text="`${card.confidence}%`" pill />
                             </div>
 
                             <div v-if="canManage || canManageOpportunities" class="mt-2 flex flex-wrap items-center gap-1 border-t border-content-border pt-2">
@@ -312,7 +317,7 @@ function onDrop(columnId) {
                         <Button
                             v-if="newOpportunityUrl"
                             :text="__('New opportunity')"
-                            icon="add"
+                            icon="plus"
                             size="xs"
                             variant="ghost"
                             class="w-full justify-center"

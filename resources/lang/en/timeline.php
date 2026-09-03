@@ -30,8 +30,13 @@ return [
     'score_changed' => 'Engagement score :from → :to (:delta)',
     'assigned' => 'Assigned to :owner',
     'unassigned' => 'Owner removed',
-    'actor_system' => 'System',
-    'actor_user' => 'User',
+    'actor_system' => 'Automatically',
+    'actor_user' => 'By hand',
+    'technical_details' => 'Technical details',
+    // Fallback for an event recorded without a summary. Better an honest
+    // "something changed" than the raw key printed at a reader.
+    'unlabelled' => 'Contact updated',
+    'user.updated' => 'Contact updated',
     'access_granted' => 'Access to ":product" granted',
 
     // Entries read from the sibling addons (Support\Timeline)

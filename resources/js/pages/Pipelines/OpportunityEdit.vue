@@ -1,7 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
-import { Header, Panel, Card, Button, Badge, Field, Input, Select, Text, ConfirmationModal } from '@statamic/cms/ui';
+import {
+    Header, Panel, Card, Button, Badge, Field, Input, Select, Text,
+    Dropdown, DropdownMenu, DropdownItem, ConfirmationModal,
+} from '@statamic/cms/ui';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 
 const props = defineProps([
@@ -85,8 +88,20 @@ function destroy() {
     <Head :title="[__('Edit opportunity'), opportunity.title, __('LeadHub')]" />
 
     <div class="max-w-2xl mx-auto">
-        <Header :title="__('Edit opportunity')" icon="chart-pie">
-            <Button :text="__('Delete')" icon="trash" variant="danger" data-leadhub-delete-opportunity @click="confirmingDelete = true" />
+        <Header :title="__('Edit opportunity')" icon="charts-donut-graph">
+            <!-- `danger` is core's confirm button inside a modal; a
+                 destructive page action goes in the "…" menu. -->
+            <Dropdown>
+                <DropdownMenu>
+                    <DropdownItem
+                        :text="__('Delete')"
+                        icon="trash"
+                        variant="destructive"
+                        data-leadhub-delete-opportunity
+                        @click="confirmingDelete = true"
+                    />
+                </DropdownMenu>
+            </Dropdown>
         </Header>
 
         <ErrorSummary

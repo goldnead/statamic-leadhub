@@ -80,7 +80,7 @@ function submit() {
     <Head :title="[__('New opportunity'), __('Pipelines'), __('LeadHub')]" />
 
     <div class="max-w-2xl mx-auto">
-        <Header :title="__('New opportunity')" icon="chart-pie" />
+        <Header :title="__('New opportunity')" icon="charts-donut-graph" />
 
         <ErrorSummary
             :errors="errors"

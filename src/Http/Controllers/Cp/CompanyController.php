@@ -58,6 +58,34 @@ class CompanyController extends Controller
         ]);
     }
 
+    /**
+     * Option feed for the company picker on the contact screen.
+     *
+     * Same shape as the contact picker's feed: a first page plus a search
+     * query, so the Combobox keeps working past the point where a plain
+     * `<Select>` over every company would not.
+     */
+    public function options(Request $request)
+    {
+        $this->authorizeOrFail($request, 'view leadhub');
+        abort_unless(config('leadhub.features.companies', false), 404);
+
+        $options = Company::query()
+            ->search($request->string('q')->toString() ?: null)
+            ->orderBy('name')
+            ->limit(50)
+            ->get()
+            ->map(fn (Company $company) => [
+                'value' => (string) $company->id,
+                'label' => $company->domain
+                    ? "{$company->name} ({$company->domain})"
+                    : $company->name,
+            ])
+            ->all();
+
+        return response()->json(['options' => $options]);
+    }
+
     public function show(Request $request, int|string $company)
     {
         $this->authorizeOrFail($request, 'view leadhub');
@@ -79,13 +107,25 @@ class CompanyController extends Controller
                 'delete_url' => cp_route('leadhub.companies.destroy', $model->id),
             ],
             'contacts' => $model->contacts->map(fn ($contact) => [
-                'id' => $contact->id,
+                'id' => (string) $contact->id,
                 'name' => $contact->displayName(),
                 'email' => $contact->email,
+                'status' => $contact->status,
+                // Same source the contacts screen reads, so the two never
+                // disagree about what "won" is called.
+                'status_label' => ((array) config('leadhub.statuses', []))[$contact->status] ?? $contact->status,
                 'relationship_label' => $contact->pivot->relationship_label,
                 'is_primary' => (bool) $contact->pivot->is_primary,
                 'url' => cp_route('leadhub.contacts.show', $contact->id),
             ])->all(),
+            // The contacts of a company are a list of records, so they get the
+            // same table the contacts screen uses — not a stack of cards.
+            'contactColumns' => collect([
+                Column::make('name')->label(__('Name')),
+                Column::make('email')->label(__('Email')),
+                Column::make('status_label')->label(__('Status')),
+                Column::make('relationship_label')->label(__('Relationship')),
+            ])->map(fn ($c) => $c->toArray())->all(),
             'canManage' => $this->userCan($request, 'manage leadhub companies'),
         ]);
     }

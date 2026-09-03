@@ -48,7 +48,7 @@ function submit() {
     <Head :title="[__('New company'), __('Companies'), __('LeadHub')]" />
 
     <div class="max-w-2xl mx-auto">
-        <Header :title="__('New company')" icon="office-building" />
+        <Header :title="__('New company')" icon="building-generic" />
 
         <ErrorSummary :errors="errors" :fields="['name', 'website', 'industry', 'employee_range', 'description', 'owner_id']" />
 

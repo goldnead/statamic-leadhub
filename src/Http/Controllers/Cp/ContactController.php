@@ -15,6 +15,7 @@ use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Http\Requests\StoreContactRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateContactRequest;
 use Goldnead\Leadhub\Integrations\Entitlements\AccessGranter;
+use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Task;
@@ -418,6 +419,26 @@ class ContactController extends Controller
                     ? cp_route('leadhub.companies.create')
                     : null,
             ],
+            // Linking an existing company. Null hides the picker entirely, so
+            // a reader without the permission sees the list and no dead
+            // controls. `options` is the first page; the picker searches.
+            'companyLink' => $crm['features']['companies'] && $this->userCan($request, 'manage leadhub companies')
+                ? [
+                    'url' => cp_route('leadhub.contacts.companies.attach', $contact->id),
+                    'search_url' => cp_route('leadhub.companies.options'),
+                    'options' => Company::query()
+                        ->orderBy('name')
+                        ->limit(50)
+                        ->get()
+                        ->map(fn (Company $company) => [
+                            'value' => (string) $company->id,
+                            'label' => $company->domain
+                                ? "{$company->name} ({$company->domain})"
+                                : $company->name,
+                        ])
+                        ->all(),
+                ]
+                : null,
         ]);
     }
 
@@ -456,6 +477,7 @@ class ContactController extends Controller
                     'relationship_label' => $company->pivot->relationship_label ?? null,
                     'is_primary' => (bool) ($company->pivot->is_primary ?? false),
                     'url' => cp_route('leadhub.companies.show', $company->id),
+                    'detach_url' => cp_route('leadhub.contacts.companies.detach', [$contact->id, $company->id]),
                 ])->values()->all();
         }
 
@@ -492,6 +514,13 @@ class ContactController extends Controller
                     'title' => $opp->title,
                     'status' => $opp->status,
                     'outcome' => $opp->outcome,
+                    // The badge on the contact screen used to print the raw
+                    // column value ("open"), which reads like a broken button
+                    // rather than a state. Label it here, next to the value.
+                    'status_label' => __('leadhub::pipelines.opportunity_status.'.$opp->status),
+                    'outcome_label' => $opp->outcome
+                        ? __('leadhub::pipelines.opportunity_outcome.'.$opp->outcome)
+                        : null,
                     'value_estimate' => $opp->value_estimate !== null ? (float) $opp->value_estimate : null,
                     'confidence' => $opp->confidence,
                     'stage_name' => $opp->stage?->name,
@@ -585,6 +614,69 @@ class ContactController extends Controller
 
         return redirect(cp_route('leadhub.contacts.index'))
             ->with('success', __('leadhub::contacts.flashes.deleted'));
+    }
+
+    /**
+     * Link an existing company to this contact.
+     *
+     * `syncWithoutDetaching` and not `attach`: the pivot carries a unique key
+     * on (contact_id, company_id), so a second attach of the same pair throws
+     * instead of being the no-op a user would expect from clicking twice.
+     */
+    public function attachCompany(Request $request, int|string $contactId)
+    {
+        $this->authorizeOrFail($request, 'manage leadhub companies');
+        abort_unless(config('leadhub.features.companies', false), 404);
+
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
+
+        $data = $request->validate([
+            'company_id' => ['required', 'integer'],
+            'relationship_label' => ['nullable', 'string', 'max:255'],
+            'is_primary' => ['nullable', 'boolean'],
+        ]);
+
+        // Through the brand-scoped relation, not Company::find(): a company of
+        // another brand must come back as "no such company", not as a link.
+        $company = Company::query()->whereKey($data['company_id'])->first();
+        abort_unless($company, 404);
+
+        $isPrimary = (bool) ($data['is_primary'] ?? false);
+
+        // One primary per contact. Demote the others first, or the panel shows
+        // two "Primary" badges and neither is wrong.
+        if ($isPrimary) {
+            $contact->companies()->newPivotQuery()
+                ->where('contact_id', $contact->id)
+                ->update(['is_primary' => false]);
+        }
+
+        $contact->companies()->syncWithoutDetaching([
+            $company->id => [
+                'relationship_label' => $data['relationship_label'] ?? null,
+                'is_primary' => $isPrimary,
+            ],
+        ]);
+
+        return back()->with('success', __('leadhub::companies.linked'));
+    }
+
+    public function detachCompany(Request $request, int|string $contactId, int|string $companyId)
+    {
+        $this->authorizeOrFail($request, 'manage leadhub companies');
+        abort_unless(config('leadhub.features.companies', false), 404);
+
+        $contact = $this->contacts->find($contactId);
+        abort_unless($contact, 404);
+
+        $detached = $contact->companies()->detach($companyId);
+
+        // A detach that matched nothing is not a success. Saying so beats a
+        // green toast over an unchanged panel.
+        abort_unless($detached > 0, 404);
+
+        return back()->with('success', __('leadhub::companies.unlinked'));
     }
 
     public function archive(Request $request, int|string $contactId)

@@ -23,6 +23,9 @@ class TagController extends Controller
             'slug' => $tag->slug,
             'color' => $tag->color,
             'contacts_count' => (int) ($tag->contacts_count ?? 0),
+            // The PATCH route has existed since v1.0; nothing in the CP ever
+            // handed the screen its URL, so a mistyped tag name was permanent.
+            'update_url' => cp_route('leadhub.tags.update', $tag->uuid),
             'delete_url' => cp_route('leadhub.tags.destroy', $tag->uuid),
         ])->all();
 

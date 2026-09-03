@@ -30,8 +30,13 @@ return [
     'score_changed' => 'Engagement-Score :from → :to (:delta)',
     'assigned' => 'Zugewiesen an :owner',
     'unassigned' => 'Zuweisung entfernt',
-    'actor_system' => 'System',
-    'actor_user' => 'Benutzer',
+    'actor_system' => 'Automatisch',
+    'actor_user' => 'Von Hand',
+    'technical_details' => 'Technische Details',
+    // Rückfall für ein Ereignis ohne gespeicherte Zusammenfassung. Lieber ein
+    // ehrliches „etwas hat sich geändert" als der rohe Schlüssel im Gesicht.
+    'unlabelled' => 'Kontakt aktualisiert',
+    'user.updated' => 'Kontakt aktualisiert',
     'access_granted' => 'Zugang zu „:product“ freigeschaltet',
 
     // Einträge aus den Nachbar-Addons (Support\Timeline)

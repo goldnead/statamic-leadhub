@@ -37,12 +37,12 @@ function destroy() {
     <Head :title="[__('Segments'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="__('Segments')" icon="tags">
+        <Header :title="__('Segments')" icon="filter">
             <CommandPaletteItem
                 v-if="canManage"
                 category="Actions"
                 :text="__('Create segment')"
-                icon="tags"
+                icon="filter"
                 :url="createUrl"
                 v-slot="{ text, url }"
             >

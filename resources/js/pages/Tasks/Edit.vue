@@ -68,7 +68,7 @@ function submit() {
     <Head :title="[__('Edit task'), task.title, __('LeadHub')]" />
 
     <div class="max-w-2xl mx-auto">
-        <Header :title="__('Edit task')" icon="tasks" />
+        <Header :title="__('Edit task')" icon="clipboard-check" />
 
         <ErrorSummary :errors="errors" :fields="['title', 'description', 'contact_id', 'priority', 'assignee_id', 'opportunity_id', 'due_at']" />
 

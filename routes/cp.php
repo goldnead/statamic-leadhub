@@ -40,6 +40,15 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::post('/{contact}/archive', [ContactController::class, 'archive'])->name('archive');
         Route::post('/{contact}/restore', [ContactController::class, 'restore'])->name('restore');
 
+        // Linking a company to this contact. The pivot has existed since
+        // v1.0; until now nothing in the CP could write to it, so the
+        // "Linked companies" panel could only ever show what an import or a
+        // sibling addon had put there.
+        Route::post('/{contact}/companies', [ContactController::class, 'attachCompany'])
+            ->whereNumber('contact')->name('companies.attach');
+        Route::delete('/{contact}/companies/{company}', [ContactController::class, 'detachCompany'])
+            ->whereNumber('contact')->whereNumber('company')->name('companies.detach');
+
         Route::post('/{contact}/notes', [NoteController::class, 'store'])->name('notes.store');
         Route::post('/{contact}/followup', [FollowupController::class, 'store'])->name('followup.store');
         // "Grant access" from the contact screen. Writes through the
@@ -127,6 +136,9 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::get('/', [CompanyController::class, 'index'])->name('index');
         // `create` before the `/{company}` wildcard, or it is read as an id.
         Route::get('/create', [CompanyController::class, 'create'])->name('create');
+        // Option feed for the company picker on the contact screen. Before
+        // the `/{company}` wildcard, same reason as `create`.
+        Route::get('/options', [CompanyController::class, 'options'])->name('options');
         Route::post('/', [CompanyController::class, 'store'])->name('store');
         Route::get('/{company}/edit', [CompanyController::class, 'edit'])->whereNumber('company')->name('edit');
         Route::get('/{company}', [CompanyController::class, 'show'])->whereNumber('company')->name('show');

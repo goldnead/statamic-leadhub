@@ -136,7 +136,7 @@ function submit() {
     <Head :title="[isEdit ? __('Edit segment') : __('New segment'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="isEdit ? __('Edit segment') : __('New segment')" icon="tags">
+        <Header :title="isEdit ? __('Edit segment') : __('New segment')" icon="filter">
             <Button :href="indexUrl" :text="__('Back')" variant="ghost" />
             <Button :text="__('Save')" variant="primary" :disabled="!form.name.trim()" @click="submit" />
         </Header>
@@ -260,17 +260,17 @@ function submit() {
                     </div>
 
                     <div class="flex flex-wrap gap-2 pt-1">
-                        <Button :text="__('Add field condition')" icon="add" size="sm" variant="default" @click="addFieldCondition" />
+                        <Button :text="__('Add field condition')" icon="plus" size="sm" variant="default" @click="addFieldCondition" />
                         <Button
                             v-if="vocabulary.custom_fields.length"
                             :text="__('Add custom field condition')"
-                            icon="add"
+                            icon="plus"
                             size="sm"
                             variant="default"
                             @click="addCustomCondition"
                         />
-                        <Button :text="__('Add tag condition')" icon="add" size="sm" variant="default" @click="addTagCondition" />
-                        <Button :text="__('Add event condition')" icon="add" size="sm" variant="default" @click="addEventCondition" />
+                        <Button :text="__('Add tag condition')" icon="plus" size="sm" variant="default" @click="addTagCondition" />
+                        <Button :text="__('Add event condition')" icon="plus" size="sm" variant="default" @click="addEventCondition" />
                     </div>
                 </div>
             </Card>

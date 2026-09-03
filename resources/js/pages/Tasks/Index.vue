@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
-import { Header, Listing, Badge, Button, Select, DropdownItem, ConfirmationModal, CommandPaletteItem } from '@statamic/cms/ui';
+import { Header, Listing, Badge, Button, Checkbox, Select, DropdownItem, ConfirmationModal, CommandPaletteItem } from '@statamic/cms/ui';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 
 const props = defineProps([
@@ -96,18 +96,18 @@ function destroy() {
     <Head :title="[__('Tasks'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="__('Tasks')" icon="tasks">
+        <Header :title="__('Tasks')" icon="clipboard-check">
             <CommandPaletteItem
                 v-if="createUrl"
                 category="Actions"
                 :text="__('New task')"
-                icon="tasks"
+                icon="clipboard-check"
                 :url="createUrl"
                 v-slot="{ text, url }"
             >
                 <Button
                     :text="text"
-                    icon="add"
+                    icon="plus"
                     variant="primary"
                     data-leadhub-new-task
                     @click="router.visit(url)"
@@ -153,8 +153,38 @@ function destroy() {
             preferences-prefix="leadhub.tasks"
             @refreshing="reloadPage"
         >
+            <!--
+                The title opens the task, the way every other listing in the CP
+                opens its record. It was plain text before, so the only way in
+                was the "…" menu.
+
+                The checkbox in front of it does what a task list is for: tick
+                it off where you are looking at it. Hiding "mark complete"
+                behind the row menu made the commonest action the hardest one.
+            -->
             <template #cell-title="{ row }">
-                <span class="font-medium">{{ row.title }}</span>
+                <div class="flex items-center gap-2.5">
+                    <!-- `solo` is the prop for exactly this: a checkbox in a
+                         table cell, where the label sits beside it. Without
+                         it the component prints its own value ("false") where
+                         the label would go. -->
+                    <Checkbox
+                        v-if="canComplete"
+                        solo
+                        :model-value="row.status === 'done'"
+                        :disabled="row.status === 'done'"
+                        :aria-label="__('Mark complete')"
+                        data-leadhub-task-done
+                        @update:model-value="(checked) => checked && complete(row)"
+                    />
+                    <a
+                        v-if="row.edit_url"
+                        :href="row.edit_url"
+                        class="font-medium hover:underline"
+                        :class="row.status === 'done' ? 'line-through text-gray-500' : ''"
+                    >{{ row.title }}</a>
+                    <span v-else class="font-medium">{{ row.title }}</span>
+                </div>
             </template>
 
             <template #cell-contact_name="{ row }">
@@ -186,7 +216,7 @@ function destroy() {
                 <DropdownItem
                     v-if="canComplete && row.status !== 'done'"
                     :text="__('Mark complete')"
-                    icon="check"
+                    icon="checkmark"
                     @click="complete(row)"
                 />
                 <DropdownItem

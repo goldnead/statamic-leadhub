@@ -203,16 +203,39 @@ class ContactTimeline
                 source: 'leadhub',
                 kind: 'leadhub.'.$type,
                 at: $at instanceof DateTimeInterface ? $at : null,
-                summary: (string) ($event->getAttribute('summary') ?? $type),
+                summary: $this->summaryFor($event->getAttribute('summary'), $type),
+                // Only a person is worth naming. Stamping "System" under every
+                // automatic row said nothing and made the history read like a
+                // log; the absence of a name already means nobody typed it.
                 actor: $event->getAttribute('actor_type') === 'user'
                     ? __('leadhub::timeline.actor_user')
-                    : __('leadhub::timeline.actor_system'),
+                    : null,
                 detail: $detail,
                 payload: $payload,
             );
         }
 
         return $out;
+    }
+
+    /**
+     * What the timeline row says.
+     *
+     * The summary is composed and stored when the event is recorded. Events
+     * written by an older version, or by a sibling addon that only set a
+     * type, arrive without one — and the old fallback printed the raw key
+     * ("user.updated") at whoever opened the contact. Try the translation
+     * table first, then a generic line. Never the key.
+     */
+    protected function summaryFor(mixed $stored, string $type): string
+    {
+        if (filled($stored)) {
+            return (string) $stored;
+        }
+
+        $key = 'leadhub::timeline.'.$type;
+
+        return trans()->has($key) ? (string) __($key) : (string) __('leadhub::timeline.unlabelled');
     }
 
     /**

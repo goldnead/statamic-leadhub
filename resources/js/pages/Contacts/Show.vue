@@ -2,9 +2,10 @@
 import { ref, computed } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
-    Header, Panel, Card, Button, Badge, Text, Field, Label, Select, Textarea, Input,
-    DatePicker, Checkbox, ConfirmationModal, Modal,
+    Header, Panel, Card, Button, Badge, Text, Field, Select, Textarea,
+    DatePicker, Checkbox, ConfirmationModal, Modal, Dropdown, DropdownMenu, DropdownItem,
 } from '@statamic/cms/ui';
+import CompanyPicker from '../../support/CompanyPicker.vue';
 import { toDateTimeString } from '../../support/datetime.js';
 import { money } from '../../support/money.js';
 
@@ -27,6 +28,9 @@ const props = defineProps([
     'tasks',            // [{ id, title, status, priority, due_at, is_overdue, is_completed, ... }]
     'opportunities',    // [{ id, title, status, outcome, value_estimate, stage_name, ... }]
     'crmCreateUrls',    // { task, opportunity, company } — null hides the button
+    // Linking an existing company: { url, search_url, options } or null when
+    // the reader may not manage companies.
+    'companyLink',
     // What sibling addons know about this person, each as a panel they filled
     // in themselves: [{ key, heading, description, empty, rows: [{ label, url,
     // meta, badge }], action }]. Rendered generically on purpose — see
@@ -186,6 +190,42 @@ function completeTask(task) {
     router.post(task.complete_url, {}, { preserveScroll: true });
 }
 
+// ── Panels contributed by sibling addons ────────────────────────────────────
+
+/** The option picked in each panel's select-shaped action, keyed by panel. */
+const panelChoice = ref({});
+
+function runPanelAction(panel) {
+    const chosen = panelChoice.value[panel.key];
+    const option = (panel.action?.select?.options || []).find((o) => String(o.value) === String(chosen));
+    if (! option?.url) return;
+
+    router.post(option.url, option.payload || {}, {
+        preserveScroll: true,
+        onSuccess: () => { panelChoice.value = { ...panelChoice.value, [panel.key]: null }; },
+    });
+}
+
+// ── Linked companies ────────────────────────────────────────────────────────
+
+const companyToLink = ref('');
+const linkingCompany = ref(false);
+
+function linkCompany() {
+    if (! props.companyLink?.url || ! companyToLink.value || linkingCompany.value) return;
+    linkingCompany.value = true;
+    router.post(props.companyLink.url, { company_id: Number(companyToLink.value) }, {
+        preserveScroll: true,
+        onSuccess: () => { companyToLink.value = ''; },
+        onFinish: () => { linkingCompany.value = false; },
+    });
+}
+
+function detachCompany(company) {
+    if (! company.detach_url) return;
+    router.delete(company.detach_url, { preserveScroll: true });
+}
+
 const features = computed(() => props.crmFeatures || {});
 const companies = computed(() => props.linkedCompanies || []);
 const contactTasks = computed(() => props.tasks || []);
@@ -202,8 +242,47 @@ const showCrm = computed(() =>
     <Head :title="[contact.display_name, __('Contacts'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto" data-max-width-wrapper>
-        <Header :title="contact.display_name" icon="user">
-            <Select v-model="status" :options="statusOptions()" @update:model-value="changeStatus" />
+        <!--
+            Header actions follow the CP's own shape: one primary button, the
+            rest behind the "…" dropdown. The status lives in the sidebar with
+            the other fields — it is a value on the record, not an action.
+        -->
+        <Header :title="contact.display_name" icon="users">
+            <!--
+                Core's order: the "…" menu first, the primary action last
+                (pages/user-groups/Show.vue). Dropdown already renders the
+                dots trigger itself — passing one is duplicating core.
+            -->
+            <Dropdown v-if="canArchive || canDelete">
+                <DropdownMenu>
+                    <DropdownItem
+                        v-if="canArchive && !contact.archived_at"
+                        :text="__('Archive contact')"
+                        icon="package-box-crate"
+                        @click="archive"
+                    />
+                    <DropdownItem
+                        v-if="canArchive && contact.archived_at"
+                        :text="__('Restore')"
+                        icon="history"
+                        @click="restore"
+                    />
+                    <DropdownItem
+                        v-if="canDelete"
+                        :text="__('Delete')"
+                        icon="trash"
+                        variant="destructive"
+                        @click="showDeleteConfirm = true"
+                    />
+                </DropdownMenu>
+            </Dropdown>
+            <Button
+                v-if="accessGrant"
+                :text="__('Grant access')"
+                variant="primary"
+                data-leadhub-grant-access
+                @click="openGrant"
+            />
         </Header>
 
         <div class="grid gap-6 lg:grid-cols-3">
@@ -297,9 +376,49 @@ const showCrm = computed(() =>
                                             <span v-if="company.relationship_label"> · {{ company.relationship_label }}</span>
                                         </div>
                                     </div>
-                                    <Badge v-if="company.is_primary" color="blue" size="sm" :text="__('Primary')" />
+                                    <div class="flex shrink-0 items-center gap-2">
+                                        <Badge v-if="company.is_primary" color="blue" pill :text="__('Primary')" />
+                                        <Button
+                                            v-if="companyLink"
+                                            icon="x"
+                                            size="xs"
+                                            variant="ghost"
+                                            :aria-label="__('leadhub::companies.unlink')"
+                                            @click="detachCompany(company)"
+                                        />
+                                    </div>
                                 </li>
                             </ul>
+
+                            <!--
+                                Link + create sit BELOW the list, the way the
+                                relationship fieldtype does it
+                                (components/inputs/relationship/RelationshipInput.vue):
+                                `size="sm"`, no variant, `icon="link"`.
+                            -->
+                            <div v-if="companyLink" class="pt-3 mt-3 border-t border-content-border space-y-2" data-leadhub-company-link>
+                                <CompanyPicker
+                                    v-model="companyToLink"
+                                    :options="companyLink.options"
+                                    :search-url="companyLink.search_url"
+                                />
+                                <div class="flex flex-wrap gap-2">
+                                    <Button
+                                        :text="__('leadhub::companies.link')"
+                                        icon="link"
+                                        size="sm"
+                                        :disabled="!companyToLink || linkingCompany"
+                                        @click="linkCompany"
+                                    />
+                                    <Button
+                                        v-if="crmCreateUrls && crmCreateUrls.company"
+                                        :text="__('leadhub::companies.new')"
+                                        icon="plus"
+                                        size="sm"
+                                        @click="router.visit(crmCreateUrls.company)"
+                                    />
+                                </div>
+                            </div>
                         </Card>
                     </Panel>
 
@@ -321,9 +440,9 @@ const showCrm = computed(() =>
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 shrink-0">
-                                        <Badge v-if="task.is_overdue" color="red" size="sm" :text="__('Overdue')" />
-                                        <Badge v-else-if="task.is_completed" color="green" size="sm" :text="__('Completed')" />
-                                        <Badge v-else color="default" size="sm" :text="task.priority_label || task.priority" />
+                                        <Badge v-if="task.is_overdue" color="red" pill :text="__('Overdue')" />
+                                        <Badge v-else-if="task.is_completed" color="green" pill :text="__('Completed')" />
+                                        <Badge v-else color="default" pill :text="task.priority_label || task.priority" />
                                         <Button
                                             v-if="!task.is_completed"
                                             :text="__('Mark as done')"
@@ -337,9 +456,8 @@ const showCrm = computed(() =>
                             <div v-if="crmCreateUrls && crmCreateUrls.task" class="pt-3 mt-3 border-t border-content-border">
                                 <Button
                                     :text="__('New task')"
-                                    icon="add"
-                                    size="xs"
-                                    variant="ghost"
+                                    icon="plus"
+                                    size="sm"
                                     data-leadhub-contact-new-task
                                     @click="router.visit(crmCreateUrls.task)"
                                 />
@@ -372,19 +490,18 @@ const showCrm = computed(() =>
                                         <Badge
                                             v-if="opp.outcome"
                                             :color="opp.outcome === 'won' ? 'green' : 'red'"
-                                            size="sm"
-                                            :text="opp.outcome"
+                                            pill
+                                            :text="opp.outcome_label || opp.outcome"
                                         />
-                                        <Badge v-else color="default" size="sm" :text="opp.status" />
+                                        <Badge v-else color="blue" pill :text="opp.status_label || opp.status" />
                                     </div>
                                 </li>
                             </ul>
                             <div v-if="crmCreateUrls && crmCreateUrls.opportunity" class="pt-3 mt-3 border-t border-content-border">
                                 <Button
                                     :text="__('New opportunity')"
-                                    icon="add"
-                                    size="xs"
-                                    variant="ghost"
+                                    icon="plus"
+                                    size="sm"
                                     data-leadhub-contact-new-opportunity
                                     @click="router.visit(crmCreateUrls.opportunity)"
                                 />
@@ -431,18 +548,43 @@ const showCrm = computed(() =>
                                 <Badge
                                     v-if="row.badge"
                                     :color="row.badge.color"
-                                    size="sm"
+                                    pill
                                     :text="row.badge.text"
                                     class="shrink-0"
                                 />
                             </li>
                         </ul>
 
-                        <div v-if="panel.action" class="pt-3 mt-3 border-t border-content-border">
+                        <!--
+                            Two shapes of action, both data. A plain one is a
+                            link. One carrying `select` renders a picker plus a
+                            button, and each option says where it posts and
+                            what it sends — so a contributor can offer "put
+                            this person on a list" without LeadHub knowing what
+                            a list is.
+                        -->
+                        <div v-if="panel.action" class="pt-3 mt-3 border-t border-content-border space-y-2">
+                            <template v-if="panel.action.select">
+                                <Select
+                                    v-model="panelChoice[panel.key]"
+                                    :options="panel.action.select.options"
+                                    :placeholder="panel.action.select.placeholder"
+                                    class="w-full"
+                                    adaptive-width
+                                />
+                                <Button
+                                    :text="panel.action.text"
+                                    :icon="panel.action.icon || 'plus'"
+                                    size="sm"
+                                    :disabled="!panelChoice[panel.key]"
+                                    @click="runPanelAction(panel)"
+                                />
+                            </template>
                             <Button
+                                v-else
                                 :text="panel.action.text"
-                                size="xs"
-                                variant="ghost"
+                                :icon="panel.action.icon || 'plus'"
+                                size="sm"
                                 @click="router.visit(panel.action.url)"
                             />
                         </div>
@@ -517,7 +659,7 @@ const showCrm = computed(() =>
                                     <div class="flex shrink-0 items-center gap-2">
                                         <Badge
                                             v-if="entry.badge"
-                                            size="sm"
+                                            pill
                                             :color="entry.badge.color"
                                             :text="entry.badge.text"
                                         />
@@ -525,9 +667,17 @@ const showCrm = computed(() =>
                                     </div>
                                 </div>
                                 <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500 dark:text-gray-400">
+                                    <!--
+                                        The raw event key used to sit here as
+                                        `<code>leadhub.score_changed</code>`,
+                                        next to the word "System". Together
+                                        they made a person's history read like
+                                        an application log. The key is still
+                                        reachable, one fold down, for whoever
+                                        actually needs it.
+                                    -->
                                     <Badge v-if="entry.source !== 'leadhub'" size="sm" :color="sourceColor(entry.source)" :text="sourceLabel(entry.source)" />
                                     <span v-if="entry.actor">{{ entry.actor }}</span>
-                                    <code>{{ entry.kind }}</code>
                                 </div>
 
                                 <!-- Readable lines when the source supplied them.
@@ -550,7 +700,10 @@ const showCrm = computed(() =>
                                 </dl>
 
                                 <details v-if="entry.payload && Object.keys(entry.payload).length > 0" class="mt-2">
-                                    <summary class="text-xs text-gray-500 cursor-pointer">{{ __('Payload') }}</summary>
+                                    <summary class="text-xs text-gray-500 cursor-pointer">{{ __('leadhub::timeline.technical_details') }}</summary>
+                                    <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <code>{{ entry.kind }}</code>
+                                    </div>
                                     <pre class="text-xs mt-1 p-2 rounded bg-gray-50 dark:bg-gray-800 overflow-x-auto">{{ JSON.stringify(entry.payload, null, 2) }}</pre>
                                 </details>
                             </li>
@@ -569,6 +722,27 @@ const showCrm = computed(() =>
 
             <!-- Sidebar -->
             <aside class="space-y-4">
+                <!-- Status and owner: the two fields somebody changes most
+                     often, so they sit at the top of the sidebar the way the
+                     publish panel does on an entry. -->
+                <Panel :heading="__('Status')">
+                    <Card>
+                        <!--
+                            `adaptive-width`: without it the popover is only
+                            `min-w-[--reka-combobox-trigger-width]` wide and the
+                            option labels get truncated to "Qualif…" inside a
+                            narrow sidebar.
+                        -->
+                        <Select
+                            v-model="status"
+                            :options="statusOptions()"
+                            class="w-full"
+                            adaptive-width
+                            @update:model-value="changeStatus"
+                        />
+                    </Card>
+                </Panel>
+
                 <!-- Owner -->
                 <Panel :heading="__('Owner')">
                     <Card>
@@ -577,6 +751,7 @@ const showCrm = computed(() =>
                             :options="ownerOptions"
                             :placeholder="__('Unassigned')"
                             class="w-full"
+                            adaptive-width
                             @update:model-value="changeOwner"
                         />
                     </Card>
@@ -666,42 +841,6 @@ const showCrm = computed(() =>
                     </Card>
                 </Panel>
 
-                <!-- Danger zone -->
-                <Panel :heading="__('Actions')">
-                    <Card>
-                        <div class="space-y-2">
-                            <Button
-                                v-if="accessGrant"
-                                :text="__('Grant access')"
-                                variant="primary"
-                                class="w-full"
-                                data-leadhub-grant-access
-                                @click="openGrant"
-                            />
-                            <Button
-                                v-if="canArchive && !contact.archived_at"
-                                :text="__('Archive contact')"
-                                variant="default"
-                                class="w-full"
-                                @click="archive"
-                            />
-                            <Button
-                                v-if="canArchive && contact.archived_at"
-                                :text="__('Restore')"
-                                variant="default"
-                                class="w-full"
-                                @click="restore"
-                            />
-                            <Button
-                                v-if="canDelete"
-                                :text="__('Delete')"
-                                variant="danger"
-                                class="w-full"
-                                @click="showDeleteConfirm = true"
-                            />
-                        </div>
-                    </Card>
-                </Panel>
             </aside>
         </div>
 

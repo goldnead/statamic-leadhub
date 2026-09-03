@@ -66,7 +66,7 @@ function cancel() {
     <Head :title="[__('New contact'), __('Contacts'), __('LeadHub')]" />
 
     <div class="max-w-2xl mx-auto">
-        <Header :title="__('New contact')" icon="user" />
+        <Header :title="__('New contact')" icon="users" />
 
         <form @submit.prevent="submit">
             <Panel>

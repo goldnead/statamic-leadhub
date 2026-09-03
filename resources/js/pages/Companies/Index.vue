@@ -36,18 +36,18 @@ function destroy() {
     <Head :title="[__('Companies'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="__('Companies')" icon="office-building">
+        <Header :title="__('Companies')" icon="building-generic">
             <CommandPaletteItem
                 v-if="createUrl"
                 category="Actions"
                 :text="__('New company')"
-                icon="office-building"
+                icon="building-generic"
                 :url="createUrl"
                 v-slot="{ text, url }"
             >
                 <Button
                     :text="text"
-                    icon="add"
+                    icon="plus"
                     variant="primary"
                     data-leadhub-new-company
                     @click="router.visit(url)"

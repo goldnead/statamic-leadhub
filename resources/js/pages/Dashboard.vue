@@ -60,7 +60,7 @@ function statusColor(key) {
     <Head :title="[__('LeadHub'), __('Dashboard')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="__('LeadHub')" icon="list">
+        <Header :title="__('LeadHub')" icon="dashboard">
             <Button
                 v-if="hasFormConnected"
                 :href="configureFormsUrl"

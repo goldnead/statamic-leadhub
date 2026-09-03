@@ -23,6 +23,11 @@ const form = ref({
 const errors = ref({});
 const processing = ref(false);
 
+// No dirty-state guard here yet, deliberately. See the note in
+// resources/js/support/useDirtyGuard.js: registering with `Statamic.$dirty`
+// from a hand-built form makes the save itself trip the guard, and a save that
+// silently does not happen is worse than a form that loses unsaved work.
+
 const ownerOptions = computed(() => [
     { value: '', label: __('Unassigned') },
     ...(props.assignableUsers || []),
@@ -47,7 +52,7 @@ function submit() {
     <Head :title="[__('Edit company'), company.name, __('LeadHub')]" />
 
     <div class="max-w-2xl mx-auto">
-        <Header :title="__('Edit company')" icon="office-building" />
+        <Header :title="__('Edit company')" icon="building-generic" />
 
         <ErrorSummary :errors="errors" :fields="['name', 'website', 'industry', 'employee_range', 'description', 'owner_id']" />
 

@@ -11,6 +11,7 @@ use Goldnead\Leadhub\Support\DateValueNormalizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
+use Statamic\CP\Column;
 
 class FollowupController extends Controller
 {
@@ -25,20 +26,45 @@ class FollowupController extends Controller
     {
         $this->authorizeOrFail($request, 'view leadhub contacts');
 
-        $shape = fn ($f) => [
+        // One flat list with a `bucket` per row, not three arrays.
+        //
+        // The screen used to be three panels of cards, which the CP does
+        // nowhere: a list of records is a table, and a table is what somebody
+        // can sort, search and scan. The grouping survives as a column.
+        $shape = fn ($f, string $bucket) => [
             'id' => (string) ($f->uuid),
             'contact_name' => $f->contact?->displayName() ?? '—',
             'contact_url' => $f->contact ? cp_route('leadhub.contacts.show', $f->contact->id) : null,
             'due_at' => $f->due_at?->format('Y-m-d H:i'),
             'note' => $f->note,
+            'bucket' => $bucket,
+            'bucket_label' => __('leadhub::followups.sections.'.$bucket),
             'complete_url' => cp_route('leadhub.followups.complete', $f->uuid),
             'delete_url' => cp_route('leadhub.followups.destroy', $f->uuid),
         ];
 
+        $rows = collect()
+            ->concat($this->service->overdue()->map(fn ($f) => $shape($f, 'overdue')))
+            ->concat($this->service->dueToday()->map(fn ($f) => $shape($f, 'today')))
+            ->concat($this->service->upcoming(50)->map(fn ($f) => $shape($f, 'upcoming')))
+            ->values()
+            ->all();
+
+        $columns = collect([
+            Column::make('contact_name')->label(__('Contact')),
+            Column::make('due_at')->label(__('leadhub::followups.fields.due_at')),
+            Column::make('bucket_label')->label(__('Status')),
+            Column::make('note')->label(__('leadhub::followups.fields.note')),
+        ])->map(fn ($c) => $c->toArray())->all();
+
         return Inertia::render('leadhub::Followups/Index', [
-            'overdue' => $this->service->overdue()->map($shape)->all(),
-            'today' => $this->service->dueToday()->map($shape)->all(),
-            'upcoming' => $this->service->upcoming(50)->map($shape)->all(),
+            'followups' => $rows,
+            'columns' => $columns,
+            'counts' => [
+                'overdue' => collect($rows)->where('bucket', 'overdue')->count(),
+                'today' => collect($rows)->where('bucket', 'today')->count(),
+                'upcoming' => collect($rows)->where('bucket', 'upcoming')->count(),
+            ],
             'configureFormsUrl' => cp_route('leadhub.forms.index'),
             'hasFormConnected' => $this->mappings->anyEnabled(),
         ]);

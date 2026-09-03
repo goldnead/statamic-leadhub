@@ -12,6 +12,13 @@ return [
     'updated' => 'Company updated.',
     'deleted' => 'Company deleted.',
 
+    // Linking a company to a contact, from the contact screen.
+    'linked' => 'Company linked.',
+    'unlinked' => 'Company unlinked.',
+    'link' => 'Link company',
+    'link_placeholder' => 'Search companies…',
+    'unlink' => 'Unlink',
+
     // Deletion is refused while records still hang on the company — the same
     // rule the pipeline stages follow. The message has to say what is in the
     // way, otherwise a refused delete reads as a broken button.

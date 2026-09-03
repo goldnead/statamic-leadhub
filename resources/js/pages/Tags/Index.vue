@@ -2,7 +2,8 @@
 import { ref, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
 import {
-    Header, Listing, Badge, Button, Field, Input, Panel, DropdownItem, ConfirmationModal,
+    Header, Listing, Badge, Button, Field, Input, Panel, PanelHeader, Card, Heading, Stack,
+    DropdownItem, ConfirmationModal,
 } from '@statamic/cms/ui';
 
 const props = defineProps([
@@ -12,20 +13,49 @@ const props = defineProps([
     'canManage',    // bool
 ]);
 
-const newName = ref('');
-const newColor = ref('#e5e7eb');
+// Create and edit share one Stack. The screen had an inline create form and
+// no way at all to rename a tag, even though the PATCH route has existed since
+// v1.0 — a typo in a tag name was permanent.
+const open = ref(false);
+const editing = ref(null);
+const form = ref({ name: '', color: '#e5e7eb' });
+const errors = ref({});
+const saving = ref(false);
 const tagToDelete = ref(null);
 
 function reloadPage() {
     router.reload({ preserveScroll: true });
 }
 
-function create() {
-    if (! newName.value.trim()) return;
-    router.post(props.storeUrl, { name: newName.value, color: newColor.value }, {
+function startCreate() {
+    editing.value = null;
+    form.value = { name: '', color: '#e5e7eb' };
+    errors.value = {};
+    open.value = true;
+}
+
+function startEdit(tag) {
+    editing.value = tag;
+    form.value = { name: tag.name, color: tag.color || '#e5e7eb' };
+    errors.value = {};
+    open.value = true;
+}
+
+function save() {
+    if (saving.value || ! form.value.name.trim()) return;
+    saving.value = true;
+    errors.value = {};
+
+    const done = {
         preserveScroll: true,
-        onSuccess: () => { newName.value = ''; },
-    });
+        onSuccess: () => { open.value = false; reloadPage(); },
+        onError: (e) => { errors.value = e || {}; },
+        onFinish: () => { saving.value = false; },
+    };
+
+    editing.value
+        ? router.patch(editing.value.update_url, form.value, done)
+        : router.post(props.storeUrl, form.value, done);
 }
 
 function confirmDelete(tag) {
@@ -45,23 +75,20 @@ function destroy() {
     <Head :title="[__('Tags'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="__('Tags')" icon="hashtag" />
+        <Header :title="__('Tags')" icon="fieldtype-taggable">
+            <Button
+                v-if="canManage"
+                :text="__('New tag')"
+                icon="plus"
+                variant="primary"
+                data-leadhub-new-tag
+                @click="startCreate"
+            />
+        </Header>
 
         <p class="text-sm text-gray-500 dark:text-gray-400 -mt-4 mb-4">
             {{ __('Tags help segment contacts. They can be applied manually or automatically via form mappings.') }}
         </p>
-
-        <Panel v-if="canManage" class="mb-4">
-            <div class="p-4 flex flex-col sm:flex-row gap-2 items-start sm:items-end">
-                <Field :label="__('New tag name')" class="flex-1">
-                    <Input v-model="newName" :placeholder="__('e.g. VIP')" />
-                </Field>
-                <Field :label="__('Color')">
-                    <input type="color" v-model="newColor" class="h-10 w-12 rounded border border-content-border" />
-                </Field>
-                <Button :text="__('Create tag')" variant="primary" :disabled="!newName.trim()" @click="create" />
-            </div>
-        </Panel>
 
         <Listing
             :items="tags"
@@ -99,12 +126,55 @@ function destroy() {
             <template #prepended-row-actions="{ row }">
                 <DropdownItem
                     v-if="canManage"
+                    :text="__('Edit')"
+                    icon="edit"
+                    @click="startEdit(row)"
+                />
+                <DropdownItem
+                    v-if="canManage"
                     :text="__('Delete')"
                     icon="trash"
+                    variant="destructive"
                     @click="confirmDelete(row)"
                 />
             </template>
         </Listing>
+
+        <Stack
+            v-model:open="open"
+            size="narrow"
+            :title="editing ? __('Edit') : __('New tag')"
+            icon="fieldtype-taggable"
+        >
+            <Panel>
+                <PanelHeader>
+                    <Heading :text="editing ? editing.name : __('New tag')" />
+                </PanelHeader>
+                <Card class="space-y-4">
+                    <Field :label="__('New tag name')" :error="errors.name" required>
+                        <Input v-model="form.name" :placeholder="__('e.g. VIP')" />
+                    </Field>
+                    <Field :label="__('Color')" :error="errors.color">
+                        <input
+                            type="color"
+                            v-model="form.color"
+                            class="h-10 w-16 rounded border border-content-border"
+                        />
+                    </Field>
+                </Card>
+            </Panel>
+
+            <div class="flex gap-2">
+                <Button
+                    variant="primary"
+                    :text="__('Save')"
+                    :loading="saving"
+                    :disabled="!form.name.trim()"
+                    @click="save"
+                />
+                <Button variant="ghost" :text="__('Cancel')" @click="open = false" />
+            </div>
+        </Stack>
 
         <ConfirmationModal
             :open="tagToDelete !== null"

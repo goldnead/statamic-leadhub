@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, watch } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
-import { Header, Panel, Badge, Button, Field, Input, Select, Switch, Text, Icon, ConfirmationModal } from '@statamic/cms/ui';
+import { Header, Panel, Card, Badge, Button, Field, Input, Select, Switch, Text, Icon, ConfirmationModal } from '@statamic/cms/ui';
 
 const props = defineProps(['pipelines', 'storeUrl', 'canManage']);
 
@@ -131,14 +131,20 @@ function appendStage(pipeline) {
     <Head :title="[__('Manage pipelines'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="__('Manage pipelines')" icon="chart-pie" />
+        <Header :title="__('Manage pipelines')" icon="charts-donut-graph" />
 
-        <div v-if="errors.stage" class="mb-4 rounded-lg bg-red-50 dark:bg-red-950/40 px-4 py-3 text-sm text-red-700 dark:text-red-300" data-leadhub-stage-error>
-            {{ errors.stage }}
-        </div>
+        <!-- An error banner is an `Alert`. Hand-rolled it also carried stock
+             red-50/red-700, which does not follow the user's theme. -->
+        <Alert
+            v-if="errors.stage"
+            variant="error"
+            :text="errors.stage"
+            class="mb-4"
+            data-leadhub-stage-error
+        />
 
         <Panel v-if="canManage" class="mb-4" :heading="__('New pipeline')">
-            <div class="p-4 space-y-4">
+            <Card class="space-y-4">
                 <Field :label="__('Pipeline name')">
                     <Input v-model="name" :placeholder="__('e.g. Sales')" />
                 </Field>
@@ -162,35 +168,39 @@ function appendStage(pipeline) {
                         </Field>
                         <Button icon="trash" size="sm" variant="ghost" @click="removeStage(index)" />
                     </div>
-                    <Button :text="__('Add stage')" icon="add" size="sm" variant="ghost" @click="addStage" />
+                    <Button :text="__('Add stage')" icon="plus" size="sm" variant="ghost" @click="addStage" />
                 </div>
 
                 <Button :text="__('Create pipeline')" variant="primary" :disabled="!name.trim()" @click="create" />
-            </div>
+            </Card>
         </Panel>
 
         <div class="space-y-3">
-            <Panel v-for="pipeline in pipelines" :key="pipeline.id" :data-leadhub-pipeline="pipeline.id">
-                <div class="px-4 py-3 flex items-center justify-between border-b border-content-border">
-                    <div class="flex items-center gap-2">
-                        <span class="font-medium">{{ pipeline.name }}</span>
-                        <Badge color="default" :text="pipeline.slug" />
-                        <Badge v-if="!pipeline.is_active" color="red" :text="__('Inactive')" />
-                    </div>
+            <Panel
+                v-for="pipeline in pipelines"
+                :key="pipeline.id"
+                :heading="pipeline.name"
+                :subheading="pipeline.slug"
+                :data-leadhub-pipeline="pipeline.id"
+            >
+                <template #header-actions>
+                    <Badge v-if="!pipeline.is_active" color="red" pill :text="__('Inactive')" />
                     <Link :href="pipeline.board_url" class="text-sm text-primary hover:underline">{{ __('Open board') }}</Link>
-                </div>
+                </template>
 
-                <!-- Read-only overview: the stage order as the board renders it. -->
-                <div class="px-4 pt-3 flex flex-wrap gap-2" data-leadhub-stage-order>
-                    <Badge
-                        v-for="stage in draft[pipeline.id] || []"
-                        :key="stage.id"
-                        :color="stage.is_terminal ? (stage.terminal_outcome === 'won' ? 'green' : 'red') : 'blue'"
-                        :text="stage.name"
-                    />
-                </div>
+                <Card class="space-y-3">
+                    <!-- Read-only overview: the stage order as the board renders it. -->
+                    <div class="flex flex-wrap gap-2" data-leadhub-stage-order>
+                        <Badge
+                            v-for="stage in draft[pipeline.id] || []"
+                            :key="stage.id"
+                            pill
+                            :color="stage.is_terminal ? (stage.terminal_outcome === 'won' ? 'green' : 'red') : 'blue'"
+                            :text="stage.name"
+                        />
+                    </div>
 
-                <div v-if="canManage" class="p-4 space-y-3">
+                    <div v-if="canManage" class="space-y-3">
                     <div
                         v-for="(stage, index) in draft[pipeline.id] || []"
                         :key="stage.id"
@@ -271,14 +281,15 @@ function appendStage(pipeline) {
                         </Field>
                         <Button
                             :text="__('Add')"
-                            icon="add"
+                            icon="plus"
                             size="sm"
                             variant="default"
                             :disabled="!newStage[pipeline.id].name.trim()"
                             @click="appendStage(pipeline)"
                         />
                     </div>
-                </div>
+                    </div>
+                </Card>
             </Panel>
         </div>
 

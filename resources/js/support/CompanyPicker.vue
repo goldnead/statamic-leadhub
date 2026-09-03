@@ -1,11 +1,11 @@
 <script setup>
 /**
- * Contact picker for the task and opportunity forms.
+ * Company picker for the "Linked companies" panel on the contact screen.
  *
- * The addon has no contact-picker component and a plain `<Select>` over every
- * contact stops working somewhere in the low thousands. So: the CP
- * `<Combobox>` over a first page handed down by the controller, with typing
- * hitting the brand-scoped `leadhub.contacts.options` endpoint.
+ * Same shape as ContactPicker: the CP `<Combobox>` over a first page handed
+ * down by the controller, with typing hitting the brand-scoped
+ * `leadhub.companies.options` endpoint. A plain `<Select>` over every company
+ * stops working on an install that imported a CRM.
  *
  * `ignore-filter` is on because the server does the filtering; leaving the
  * client filter on as well would hide freshly fetched results that do not
@@ -55,7 +55,7 @@ function onSearch(query) {
                 : fetched;
         } catch (e) {
             // A failed lookup leaves the current list standing. Clearing it
-            // would look like "no such contact", which is a different claim.
+            // would look like "no such company", which is a different claim.
         }
     }, 250);
 }
@@ -70,11 +70,12 @@ function onSelect(value) {
     <Combobox
         :model-value="selected"
         :options="items"
-        :placeholder="placeholder || __('Search contacts…')"
+        :placeholder="placeholder || __('leadhub::companies.link_placeholder')"
         searchable
         clearable
         ignore-filter
-        data-leadhub-contact-picker
+        adaptive-width
+        data-leadhub-company-picker
         @search="onSearch"
         @update:model-value="onSelect"
     />

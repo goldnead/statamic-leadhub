@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
     Header, Button, Listing, Badge, EmptyStateMenu, EmptyStateItem,
-    DropdownItem, Panel, Field, Input, CommandPaletteItem,
+    DropdownItem, Panel, PanelHeader, Card, Heading, Stack, Field, Input, CommandPaletteItem,
 } from '@statamic/cms/ui';
 
 const props = defineProps([
@@ -30,6 +30,55 @@ const props = defineProps([
 // hottest leads" is exactly the question that must not stop at page one.
 const scoreMin = ref(props.filters?.score_min ?? '');
 const scoreMax = ref(props.filters?.score_max ?? '');
+const showScoreFilter = ref(false);
+
+const scoreFilterActive = computed(() =>
+    !!(props.scoreSort || props.filters?.score_min !== undefined || props.filters?.score_max !== undefined)
+);
+
+/** What the chip beside the filter button says, or null when nothing is set. */
+const scoreFilterSummary = computed(() => {
+    const from = props.filters?.score_min;
+    const to = props.filters?.score_max;
+    if (from === undefined && to === undefined) return null;
+    if (from !== undefined && to !== undefined) return `${from} – ${to}`;
+    return from !== undefined ? `≥ ${from}` : `≤ ${to}`;
+});
+
+// ── Active filters ──────────────────────────────────────────────────────────
+//
+// The dashboard links here with a filter in the query string ("new leads this
+// week" is `?from=…`). Nothing on the screen said so: the table simply showed
+// three of nineteen contacts and looked broken. The CP's own answer is a chip
+// per active filter beside the filter control, each with an "x" that clears
+// it (ui/Listing/Filters.vue).
+
+const labelFor = (options, value) =>
+    (options || []).find((o) => String(o.value) === String(value))?.label ?? value;
+
+const activeFilters = computed(() => {
+    const f = props.filters || {};
+    const chips = [];
+
+    if (f.search) chips.push({ key: 'search', label: __('Search'), value: f.search });
+    if (f.status) chips.push({ key: 'status', label: __('Status'), value: props.statuses?.[f.status] ?? f.status });
+    if (f.tag_id) chips.push({ key: 'tag_id', label: __('Tag'), value: labelFor(props.tagOptions, f.tag_id) });
+    if (f.source_form) chips.push({ key: 'source_form', label: __('Source'), value: labelFor(props.sourceOptions, f.source_form) });
+    if (f.has_followup) chips.push({ key: 'has_followup', label: __('Follow-up'), value: __('Yes') });
+    if (f.archived) chips.push({ key: 'archived', label: __('Archived'), value: __('Yes') });
+    if (f.from) chips.push({ key: 'from', label: __('From'), value: f.from });
+    if (f.to) chips.push({ key: 'to', label: __('To'), value: f.to });
+
+    return chips;
+});
+
+function clearFilter(key) {
+    router.get(window.location.pathname, currentQuery({ [key]: null, page: null }), { preserveScroll: true });
+}
+
+function clearAllFilters() {
+    router.get(window.location.pathname, {}, { preserveScroll: true });
+}
 
 function currentQuery(overrides) {
     const params = {};
@@ -157,30 +206,97 @@ function restore(row) {
             </CommandPaletteItem>
         </Header>
 
-        <Panel v-if="scoringEnabled" class="mb-4">
-            <div class="p-4 flex flex-wrap gap-2 items-end">
-                <Field :label="__('leadhub::contacts.index.filter_score')">
-                    <div class="flex gap-2 items-center">
-                        <Input v-model="scoreMin" type="number" class="w-24" :placeholder="__('leadhub::contacts.index.filter_score_min')" />
-                        <span class="text-gray-400">–</span>
-                        <Input v-model="scoreMax" type="number" class="w-24" :placeholder="__('leadhub::contacts.index.filter_score_max')" />
-                    </div>
-                </Field>
-                <Button :text="__('leadhub::contacts.index.filter_score_apply')" variant="default" @click="applyScoreFilter" />
+        <!--
+            The score filter used to sit in a bare Panel above the listing —
+            form controls straight onto the grey, which the CP never does.
+            It now uses the CP's own filter vocabulary: a
+            `sliders-horizontal` button that opens a `Stack` holding
+            Panel > Card, with a "Done" primary button at the foot
+            (ui/Listing/Filters.vue). It is a separate button rather than an
+            entry in the listing's own Filters popover because this filter has
+            to run on the server: filtering the 25 rows of the current page
+            would answer "who are my hottest leads on page one".
+        -->
+        <div class="mb-4 flex flex-wrap items-center gap-2">
+            <Button
+                v-if="scoringEnabled"
+                icon="sliders-horizontal"
+                class="[&_svg]:size-3.5"
+                :text="__('leadhub::contacts.index.filter_score')"
+                data-leadhub-score-filter
+                @click="showScoreFilter = true"
+            />
+            <Badge v-if="scoreFilterSummary" pill color="blue" :text="scoreFilterSummary" />
+
+            <!-- One chip per active filter, each clearing itself. Same shape
+                 the CP's own listing filters use. -->
+            <Button
+                v-for="chip in activeFilters"
+                :key="chip.key"
+                as="div"
+                variant="filled"
+                size="sm"
+                :data-leadhub-active-filter="chip.key"
+            >
+                <span class="text-gray-500">{{ chip.label }}:</span>
+                <span class="font-medium">{{ chip.value }}</span>
                 <Button
-                    :text="__('leadhub::contacts.index.sort_by_score')"
-                    :icon="scoreSort === 'asc' ? 'arrow-up' : 'arrow-down'"
-                    :variant="scoreSort ? 'primary' : 'default'"
-                    @click="sortByScore"
-                />
-                <Button
-                    v-if="scoreSort || filters.score_min !== undefined || filters.score_max !== undefined"
-                    :text="__('leadhub::contacts.index.filter_score_reset')"
                     variant="ghost"
-                    @click="resetScoreFilter"
+                    size="xs"
+                    icon="x"
+                    icon-only
+                    inset
+                    :aria-label="__('Remove')"
+                    @click="clearFilter(chip.key)"
                 />
-            </div>
-        </Panel>
+            </Button>
+
+            <Button
+                v-if="activeFilters.length > 1"
+                variant="ghost"
+                size="sm"
+                :text="__('Clear')"
+                @click="clearAllFilters"
+            />
+        </div>
+
+        <Stack
+            v-if="scoringEnabled"
+            v-model:open="showScoreFilter"
+            size="narrow"
+            :title="__('leadhub::contacts.index.filter_score')"
+            icon="sliders-horizontal"
+        >
+            <Panel>
+                <PanelHeader class="flex items-center justify-between">
+                    <Heading :text="__('leadhub::contacts.index.filter_score')" />
+                    <Button
+                        v-if="scoreFilterActive"
+                        size="sm"
+                        :text="__('leadhub::contacts.index.filter_score_reset')"
+                        @click="resetScoreFilter"
+                    />
+                </PanelHeader>
+                <Card class="space-y-3">
+                    <div class="flex items-end gap-2">
+                        <Field :label="__('leadhub::contacts.index.filter_score_min')" class="flex-1">
+                            <Input v-model="scoreMin" type="number" />
+                        </Field>
+                        <Field :label="__('leadhub::contacts.index.filter_score_max')" class="flex-1">
+                            <Input v-model="scoreMax" type="number" />
+                        </Field>
+                    </div>
+                    <Button
+                        :text="__('leadhub::contacts.index.sort_by_score')"
+                        :icon="scoreSort === 'asc' ? 'arrow-up' : 'arrow-down'"
+                        size="sm"
+                        @click="sortByScore"
+                    />
+                </Card>
+            </Panel>
+
+            <Button variant="primary" :text="__('Done')" @click="applyScoreFilter" />
+        </Stack>
 
         <Listing
             :items="contacts"
@@ -198,12 +314,14 @@ function restore(row) {
                 <span class="text-gray-900 dark:text-gray-300">{{ row.email }}</span>
             </template>
 
+            <!-- Status and score are states, so they are pills; tags are
+                 chips and stay square (pages/collections/Index.vue). -->
             <template #cell-status="{ row }">
-                <Badge :color="statusColor(row.status)" :text="row.status_label" />
+                <Badge pill :color="statusColor(row.status)" :text="row.status_label" />
             </template>
 
             <template #cell-engagement_score="{ row }">
-                <Badge :color="scoreColor(row.engagement_score)" :text="String(row.engagement_score)" />
+                <Badge pill :color="scoreColor(row.engagement_score)" :text="String(row.engagement_score)" />
             </template>
 
             <template #cell-tags="{ row }">
@@ -228,6 +346,7 @@ function restore(row) {
             <template #cell-active_followup="{ row }">
                 <Badge
                     v-if="row.active_followup"
+                    pill
                     :color="row.active_followup.is_overdue ? 'red' : 'default'"
                     :text="row.active_followup.due_at"
                 />
@@ -244,13 +363,13 @@ function restore(row) {
                 <DropdownItem
                     v-if="row.can_archive && !row.archived_at"
                     :text="__('Archive contact')"
-                    icon="archive"
+                    icon="package-box-crate"
                     @click="archive(row)"
                 />
                 <DropdownItem
                     v-if="row.can_archive && row.archived_at"
                     :text="__('Restore')"
-                    icon="rotate-counterclockwise"
+                    icon="history"
                     @click="restore(row)"
                 />
             </template>

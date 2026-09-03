@@ -161,3 +161,88 @@ it('is empty on an install with no sibling addons', function (): void {
     expect($this->panels->keys())->toBe([])
         ->and(($this->props)()['contactPanels'])->toBe([]);
 });
+
+// ── The select-shaped action ────────────────────────────────────────────────
+//
+// A contributor can offer "do the thing from here" — put this person on a
+// mailing list — without LeadHub learning what a list is: each option carries
+// the URL it posts to and the body it sends. Everything below is the contract
+// the registry promises them, so it has to be pinned.
+
+it('keeps a select-shaped action, option payload and all', function (): void {
+    LeadHub::registerContactPanel('test.select', fn () => [
+        'heading' => 'Lists',
+        'empty' => 'On no list.',
+        'rows' => [],
+        'action' => [
+            'text' => 'Add to list',
+            'icon' => 'plus',
+            'select' => [
+                'placeholder' => 'Pick a list…',
+                'options' => [[
+                    'value' => 'chorbrief',
+                    'label' => 'Der Chorbrief',
+                    'url' => '/cp/marketing/lists/chorbrief/subscribers',
+                    'payload' => ['email' => 'someone@example.com'],
+                ]],
+            ],
+        ],
+    ]);
+
+    $action = ($this->props)()['contactPanels'][0]['action'];
+
+    expect($action['text'])->toBe('Add to list')
+        ->and($action['icon'])->toBe('plus')
+        ->and($action['select']['placeholder'])->toBe('Pick a list…')
+        ->and($action['select']['options'])->toHaveCount(1)
+        ->and($action['select']['options'][0]['url'])->toBe('/cp/marketing/lists/chorbrief/subscribers')
+        ->and($action['select']['options'][0]['payload'])->toBe(['email' => 'someone@example.com']);
+});
+
+it('drops a select option that cannot be posted to', function (): void {
+    // A half-filled option renders a button that does nothing. Better to leave
+    // it out of the list than to draw it.
+    LeadHub::registerContactPanel('test.partial', fn () => [
+        'heading' => 'Lists',
+        'empty' => 'On no list.',
+        'rows' => [],
+        'action' => [
+            'text' => 'Add to list',
+            'select' => ['options' => [
+                ['value' => 'ok', 'label' => 'Fine', 'url' => '/cp/x'],
+                ['value' => 'no-url', 'label' => 'Missing its URL'],
+                ['label' => 'Missing its value', 'url' => '/cp/y'],
+                'not even an array',
+            ]],
+        ],
+    ]);
+
+    $options = ($this->props)()['contactPanels'][0]['action']['select']['options'];
+
+    expect($options)->toHaveCount(1)
+        ->and($options[0]['value'])->toBe('ok')
+        // An option that named no payload still gets one, so the view never guards.
+        ->and($options[0]['payload'])->toBe([]);
+});
+
+it('drops the whole action when no option survives', function (): void {
+    LeadHub::registerContactPanel('test.no-options', fn () => [
+        'heading' => 'Lists',
+        'empty' => 'On no list.',
+        'rows' => [],
+        'action' => ['text' => 'Add to list', 'select' => ['options' => []]],
+    ]);
+
+    expect(($this->props)()['contactPanels'][0]['action'])->toBeNull();
+});
+
+it('drops a plain action that names no url', function (): void {
+    LeadHub::registerContactPanel('test.linkless', fn () => [
+        'heading' => 'Lists',
+        'empty' => 'On no list.',
+        'rows' => [],
+        'action' => ['text' => 'Goes nowhere'],
+    ]);
+
+    expect(($this->props)()['contactPanels'][0]['action'])->toBeNull();
+});

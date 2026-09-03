@@ -8,6 +8,17 @@ return [
     'created' => 'Pipeline created.',
     'empty' => 'No open opportunities in this stage.',
 
+    // Status badges on a deal. The raw column values are `open`/`closed` and
+    // `won`/`lost`; nothing in the CP should show those unlabelled.
+    'opportunity_status' => [
+        'open' => 'Open',
+        'closed' => 'Closed',
+    ],
+    'opportunity_outcome' => [
+        'won' => 'Won',
+        'lost' => 'Lost',
+    ],
+
     // Closed opportunities on the board
     'closed_filter' => 'Closed deals',
     'closed_none' => 'Open only',

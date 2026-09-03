@@ -1,7 +1,10 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
-import { Header, Panel, Card, Button, Badge, Text, Field, Select, Textarea, Description, ConfirmationModal } from '@statamic/cms/ui';
+import {
+    Header, Panel, Card, Button, Badge, Text, Field, Select, Textarea, Description,
+    Dropdown, DropdownMenu, DropdownItem, ConfirmationModal,
+} from '@statamic/cms/ui';
 import ErrorSummary from '../../support/ErrorSummary.vue';
 import { money } from '../../support/money.js';
 
@@ -86,7 +89,7 @@ function destroy() {
     <Head :title="[opportunity.title, __('Opportunities'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto" data-leadhub-opportunity-show>
-        <Header :title="opportunity.title" icon="chart-pie">
+        <Header :title="opportunity.title" icon="charts-donut-graph">
             <div class="flex items-center gap-2">
                 <Button
                     :text="__('leadhub::pipelines.back_to_board')"
@@ -102,14 +105,19 @@ function destroy() {
                     data-leadhub-edit-opportunity
                     @click="router.visit(editUrl)"
                 />
-                <Button
-                    v-if="deleteUrl"
-                    :text="__('Delete')"
-                    icon="trash"
-                    variant="danger"
-                    data-leadhub-delete-opportunity
-                    @click="confirmingDelete = true"
-                />
+                <!-- `danger` is core's confirm button inside a modal; a
+                     destructive page action goes in the "…" menu. -->
+                <Dropdown v-if="deleteUrl">
+                    <DropdownMenu>
+                        <DropdownItem
+                            :text="__('Delete')"
+                            icon="trash"
+                            variant="destructive"
+                            data-leadhub-delete-opportunity
+                            @click="confirmingDelete = true"
+                        />
+                    </DropdownMenu>
+                </Dropdown>
             </div>
         </Header>
 
@@ -323,7 +331,7 @@ function destroy() {
                                         <Badge
                                             v-if="row.is_running"
                                             color="default"
-                                            size="sm"
+                                            pill
                                             :text="__('leadhub::pipelines.duration_running')"
                                         />
                                         <span v-if="row.actor_label">· {{ row.actor_label }}</span>

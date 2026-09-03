@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
 import {
-    Header, Panel, Card, Listing, Badge, Button, Field, Input, Switch,
-    DropdownItem, ConfirmationModal, Text,
+    Header, Panel, PanelHeader, Card, Heading, Stack, Listing, Badge, Button,
+    Field, Input, Switch, DropdownItem, ConfirmationModal, Text,
 } from '@statamic/cms/ui';
 
 const props = defineProps([
@@ -19,17 +19,19 @@ const props = defineProps([
     'knownEventTypes',    // [string]
 ]);
 
-// Create form. `errors` + onError + `Field :error` is the pattern this addon
-// has used since v1.5.0: a rejected input must say what was wrong at the field
-// that was wrong, not look like a dead button.
-const newRule = ref({ event_type: '', points: 1, label: '' });
+// Create and edit share one Stack, the way tags and custom fields do. Both
+// used to be inline forms — one above the table, one inside the row — which
+// the CP does nowhere, and the edit form was reachable only through the "…"
+// menu.
+//
+// `errors` + onError + `Field :error` is the pattern this addon has used since
+// v1.5.0: a rejected input must say what was wrong at the field that was
+// wrong, not look like a dead button.
+const open = ref(false);
+const editing = ref(null);
+const form = ref({ event_type: '', points: 1, label: '' });
 const errors = ref({});
-
-// Inline edit. One row at a time, because the edited value is the whole record —
-// a separate screen for three fields would be more navigation than content.
-const editingId = ref(null);
-const editRule = ref({ event_type: '', points: 0, label: '' });
-const editErrors = ref({});
+const saving = ref(false);
 
 const ruleToDelete = ref(null);
 const isLastRule = computed(() => props.rules.length === 1);
@@ -38,43 +40,48 @@ function reloadPage() {
     router.reload({ preserveScroll: true });
 }
 
-function create() {
+function startCreate(eventType = '') {
+    editing.value = null;
+    form.value = { event_type: eventType, points: 1, label: '' };
     errors.value = {};
-    router.post(props.storeUrl, {
-        event_type: newRule.value.event_type,
-        points: newRule.value.points,
-        label: newRule.value.label,
-        enabled: true,
-    }, {
-        preserveScroll: true,
-        onSuccess: () => { newRule.value = { event_type: '', points: 1, label: '' }; },
-        onError: (e) => { errors.value = e; },
-    });
+    open.value = true;
 }
 
 function startEdit(row) {
-    editingId.value = row.id;
-    editErrors.value = {};
-    editRule.value = { event_type: row.event_type, points: row.points, label: row.label ?? '' };
+    editing.value = row;
+    form.value = { event_type: row.event_type, points: row.points, label: row.label ?? '' };
+    errors.value = {};
+    open.value = true;
 }
 
-function cancelEdit() {
-    editingId.value = null;
-    editErrors.value = {};
-}
+function save() {
+    if (saving.value) return;
+    saving.value = true;
+    errors.value = {};
 
-function saveEdit(row) {
-    editErrors.value = {};
-    router.patch(row.update_url, {
-        event_type: editRule.value.event_type,
-        points: editRule.value.points,
-        label: editRule.value.label,
-    }, {
+    const payload = {
+        event_type: form.value.event_type,
+        points: form.value.points,
+        label: form.value.label,
+    };
+
+    const done = {
         preserveScroll: true,
-        onSuccess: () => { editingId.value = null; },
-        onError: (e) => { editErrors.value = e; },
-    });
+        onSuccess: () => { open.value = false; reloadPage(); },
+        onError: (e) => { errors.value = e || {}; },
+        onFinish: () => { saving.value = false; },
+    };
+
+    editing.value
+        ? router.patch(editing.value.update_url, payload, done)
+        : router.post(props.storeUrl, { ...payload, enabled: true }, done);
 }
+
+/** Which known activity types have no rule yet — those are worth offering. */
+const unusedEventTypes = computed(() => {
+    const taken = (props.rules || []).map((r) => r.event_type);
+    return (props.knownEventTypes || []).filter((t) => ! taken.includes(t));
+});
 
 function toggleEnabled(row, enabled) {
     router.patch(row.update_url, { enabled }, { preserveScroll: true });
@@ -97,7 +104,16 @@ function pointsLabel(points) {
     <Head :title="[__('leadhub::scoring.title'), __('LeadHub')]" />
 
     <div class="max-w-page mx-auto">
-        <Header :title="__('leadhub::scoring.title')" icon="chart-bar" />
+        <Header :title="__('leadhub::scoring.title')" icon="chart-monitoring-indicator">
+            <Button
+                v-if="canManage"
+                :text="__('leadhub::scoring.create')"
+                icon="plus"
+                variant="primary"
+                data-leadhub-new-scoring-rule
+                @click="startCreate()"
+            />
+        </Header>
 
         <p class="text-sm text-gray-500 dark:text-gray-400 -mt-4 mb-4">
             {{ __('leadhub::scoring.intro') }}
@@ -132,36 +148,28 @@ function pointsLabel(points) {
             </Card>
         </Panel>
 
-        <Panel v-if="canManage" class="mb-4">
-            <div class="p-4 flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-                <Field
-                    :label="__('leadhub::scoring.event_type')"
-                    :error="errors.event_type"
-                    class="flex-1 min-w-48"
-                >
-                    <Input
-                        v-model="newRule.event_type"
-                        :placeholder="__('leadhub::scoring.event_type_placeholder')"
-                        list="leadhub-known-event-types"
-                    />
-                </Field>
-                <Field :label="__('leadhub::scoring.label')" :error="errors.label" class="flex-1 min-w-48">
-                    <Input v-model="newRule.label" :placeholder="__('leadhub::scoring.label_placeholder')" />
-                </Field>
-                <Field :label="__('leadhub::scoring.points')" :error="errors.points">
-                    <Input v-model="newRule.points" type="number" class="w-24" />
-                </Field>
+        <!--
+            Which activity types exist at all. The list was already handed down
+            from the server and then hidden in a `<datalist>` — invisible until
+            somebody typed the first letters of a handle they had no way of
+            knowing. Clicking one starts a rule for it.
+        -->
+        <Panel
+            v-if="canManage && unusedEventTypes.length"
+            class="mb-4"
+            :heading="__('leadhub::scoring.known_types')"
+        >
+            <Card class="flex flex-wrap gap-1.5">
                 <Button
-                    :text="__('leadhub::scoring.create')"
-                    variant="primary"
-                    :disabled="!String(newRule.event_type).trim()"
-                    @click="create"
+                    v-for="type in unusedEventTypes"
+                    :key="type"
+                    size="xs"
+                    variant="filled"
+                    :text="type"
+                    data-leadhub-known-event-type
+                    @click="startCreate(type)"
                 />
-            </div>
-
-            <datalist id="leadhub-known-event-types">
-                <option v-for="type in knownEventTypes" :key="type" :value="type" />
-            </datalist>
+            </Card>
         </Panel>
 
         <Listing
@@ -170,46 +178,42 @@ function pointsLabel(points) {
             preferences-prefix="leadhub.scoring"
             @refreshing="reloadPage"
         >
+            <!-- Double-click anywhere on the type or the description opens the
+                 editor; the "…" menu was the only way in before. -->
             <template #cell-event_type="{ row }">
-                <div v-if="editingId === row.id">
-                    <Field :error="editErrors.event_type">
-                        <Input v-model="editRule.event_type" />
-                    </Field>
-                </div>
-                <div v-else>
-                    <Badge v-if="row.is_catch_all" color="purple" :text="__('leadhub::scoring.catch_all')" />
+                <div
+                    class="cursor-pointer"
+                    data-leadhub-scoring-rule
+                    @dblclick="canManage && startEdit(row)"
+                >
+                    <Badge v-if="row.is_catch_all" color="purple" pill :text="__('leadhub::scoring.catch_all')" />
                     <code v-else class="text-xs">{{ row.event_type }}</code>
                 </div>
             </template>
 
             <template #cell-label="{ row }">
-                <Field v-if="editingId === row.id" :error="editErrors.label">
-                    <Input v-model="editRule.label" />
-                </Field>
-                <span v-else class="text-sm text-gray-600 dark:text-gray-400">
+                <span
+                    class="text-sm text-gray-600 dark:text-gray-400 cursor-pointer"
+                    @dblclick="canManage && startEdit(row)"
+                >
                     {{ row.label || (row.is_catch_all ? __('leadhub::scoring.catch_all_hint') : '—') }}
                 </span>
             </template>
 
             <template #cell-points="{ row }">
-                <Field v-if="editingId === row.id" :error="editErrors.points">
-                    <Input v-model="editRule.points" type="number" class="w-24" />
-                </Field>
-                <Badge v-else :color="row.points > 0 ? 'green' : (row.points < 0 ? 'red' : 'default')" :text="pointsLabel(row.points)" />
+                <Badge
+                    pill
+                    :color="row.points > 0 ? 'green' : (row.points < 0 ? 'red' : 'default')"
+                    :text="pointsLabel(row.points)"
+                />
             </template>
 
             <template #cell-enabled="{ row }">
-                <div class="flex items-center gap-2">
-                    <Switch
-                        :model-value="row.enabled"
-                        :disabled="!canManage || editingId === row.id"
-                        @update:model-value="(value) => toggleEnabled(row, value)"
-                    />
-                    <span v-if="editingId === row.id" class="flex gap-1">
-                        <Button size="sm" variant="primary" :text="__('leadhub::scoring.save')" @click="saveEdit(row)" />
-                        <Button size="sm" variant="ghost" :text="__('leadhub::scoring.cancel')" @click="cancelEdit" />
-                    </span>
-                </div>
+                <Switch
+                    :model-value="row.enabled"
+                    :disabled="!canManage"
+                    @update:model-value="(value) => toggleEnabled(row, value)"
+                />
             </template>
 
             <template #prepended-row-actions="{ row }">
@@ -223,6 +227,7 @@ function pointsLabel(points) {
                     v-if="canManage"
                     :text="__('leadhub::scoring.delete')"
                     icon="trash"
+                    variant="destructive"
                     @click="ruleToDelete = row"
                 />
             </template>
@@ -231,6 +236,46 @@ function pointsLabel(points) {
         <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
             {{ __('leadhub::scoring.disabled_hint') }} {{ __('leadhub::scoring.no_recompute') }}
         </p>
+
+        <Stack
+            v-model:open="open"
+            size="narrow"
+            :title="editing ? __('leadhub::scoring.edit') : __('leadhub::scoring.create')"
+            icon="chart-monitoring-indicator"
+        >
+            <Panel>
+                <PanelHeader>
+                    <Heading :text="editing ? (editing.event_type || __('leadhub::scoring.catch_all')) : __('leadhub::scoring.new_rule')" />
+                </PanelHeader>
+                <Card class="space-y-4">
+                    <Field
+                        :label="__('leadhub::scoring.event_type')"
+                        :instructions="__('leadhub::scoring.event_type_placeholder')"
+                        :error="errors.event_type"
+                        required
+                    >
+                        <Input v-model="form.event_type" :disabled="editing && editing.is_catch_all" />
+                    </Field>
+                    <Field :label="__('leadhub::scoring.label')" :error="errors.label">
+                        <Input v-model="form.label" :placeholder="__('leadhub::scoring.label_placeholder')" />
+                    </Field>
+                    <Field :label="__('leadhub::scoring.points')" :error="errors.points">
+                        <Input v-model="form.points" type="number" class="w-32" />
+                    </Field>
+                </Card>
+            </Panel>
+
+            <div class="flex gap-2">
+                <Button
+                    variant="primary"
+                    :text="__('leadhub::scoring.save')"
+                    :loading="saving"
+                    :disabled="!String(form.event_type || '').trim()"
+                    @click="save"
+                />
+                <Button variant="ghost" :text="__('leadhub::scoring.cancel')" @click="open = false" />
+            </div>
+        </Stack>
 
         <ConfirmationModal
             :open="ruleToDelete !== null"
