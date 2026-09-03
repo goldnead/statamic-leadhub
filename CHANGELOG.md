@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.10.0 — 2026-09-03
+
+### Behoben: die Oberfläche sagt jetzt, wenn sie nichts tut
+
+Adrians Durchgang durch die Kontaktansicht und die Folgeseiten. Die Befunde waren fast alle
+dieselbe Sorte: etwas rendert, sieht fast richtig aus und sagt nicht, dass es nicht tut, was es
+soll.
+
+- **Die Bearbeiten-Aktion bei Custom Fields wurde nie gerendert.** Sie saß in einem
+  `#actions`-Slot, den `Listing` nicht hat, und Vue verwirft einen unbekannten Slot wortlos.
+- **Der Kontakt-Picker zeigte nie seinen Platzhalter.** Er band `''` statt `null`, und ein leerer
+  String gilt der CP-Combobox als getroffene Auswahl.
+- **13 Icon-Namen, die es in Statamic nicht gibt** (`user`, `add`, `check`, `tags`, `tasks`,
+  `archive`, `list`, `chart-pie` …). Ein unbekannter Name rendert einen leeren Kasten; neben einer
+  Überschrift liest sich das als falscher Einzug.
+- **Kopfaktionen in Coreform:** `…`-Menü zuerst, Primäraktion zuletzt, Löschen als
+  `DropdownItem variant="destructive"` statt rotem Knopf. `danger` gehört in den
+  Bestätigungsdialog, sonst nirgends.
+- **Status-Badges als Pille mit Farbe.** `color="default" size="sm"` ist optisch exakt ein kaputter
+  Knopf: dieselben Klassen wie `Button variant="default"`, nur mit 3px-Ecke.
+- **Rohe Spaltenwerte** (`open`, `won`, `note_added`) durch Beschriftungen ersetzt. Die Zeitleiste
+  fällt nie mehr auf den Ereignis-Schlüssel zurück.
+- Follow-ups und Firmenkontakte sind `Listing` statt Kartenlisten.
+
+### Neu: verknüpfen, filtern, von außen ansprechbar
+
+- **Firmen lassen sich vom Kontakt aus verknüpfen und trennen.** Der Pivot existiert seit 1.0, das
+  Control Panel konnte nie hineinschreiben.
+- **Tags, Custom Fields und Scoring werden in einem `Stack` bearbeitet** statt in Inline-Formularen
+  über der Tabelle — dieselbe Fläche, die die Filter des Listings benutzen.
+- **Aktive Filter sind sichtbar:** ein Chip je Filter mit `x` zum Löschen. Vorher zeigte ein
+  Dashboard-Link drei von neunzehn Kontakten und sah kaputt aus.
+- **Der Panel-Vertrag kennt eine Auswahl-Aktion**, damit ein Nachbar-Addon „auf eine Liste setzen"
+  anbieten kann, ohne dass LeadHub weiß, was eine Liste ist.
+
 ## 2.9.0 — 2026-09-02
 
 ### Neu: eine Seite je Mensch
