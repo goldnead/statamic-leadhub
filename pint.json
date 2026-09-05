@@ -1,5 +1,8 @@
 {
     "preset": "laravel",
+    "notName": [
+        "insights-table-metric.php"
+    ],
     "rules": {
         "class_attributes_separation": {
             "elements": {
