@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -30,8 +31,8 @@ use Illuminate\Support\Str;
  * @property int $revenue_refunded_cent
  * @property int $purchase_count
  * @property string|null $revenue_currency
- * @property \Illuminate\Support\Carbon|null $first_purchase_at
- * @property \Illuminate\Support\Carbon|null $last_purchase_at
+ * @property Carbon|null $first_purchase_at
+ * @property Carbon|null $last_purchase_at
  */
 class Contact extends Model
 {
