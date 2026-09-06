@@ -9,8 +9,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Inertia\ServiceProvider as InertiaServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
+use Statamic\Licensing\Outpost;
 use Statamic\Providers\StatamicServiceProvider;
 use Statamic\Statamic;
+use Statamic\Version as StatamicVersion;
 
 abstract class TestCase extends OrchestraTestCase
 {
@@ -126,6 +128,56 @@ abstract class TestCase extends OrchestraTestCase
     {
         // Required for any encrypted-cast model attributes; harmless otherwise.
         $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
+
+        // Statamic's CP middleware asks for its own version in two places (the
+        // licensing outpost and the Inertia props it shares with every CP page),
+        // and `Statamic\Version` reads it out of composer.lock — which
+        // orchestra/testbench's application skeleton does not have. Every CP
+        // route registered the normal way (Statamic::pushCpRoutes) therefore
+        // answers 500 in this suite. That never showed up before because this
+        // addon's own CP routes are mounted by hand in defineRoutes(), outside
+        // the middleware group; the suite-wide settings screen its settings now
+        // live on is registered the normal way and does go through it.
+        //
+        // Answered from this repository's own lock file rather than a made-up
+        // constant, so a Statamic upgrade cannot leave the tests asserting
+        // against a version nothing here runs.
+        $app->bind(StatamicVersion::class, fn () => new class extends StatamicVersion
+        {
+            public function get()
+            {
+                $lock = json_decode((string) file_get_contents(__DIR__.'/../composer.lock'), true);
+
+                foreach ($lock['packages'] ?? [] as $package) {
+                    if (($package['name'] ?? null) === 'statamic/cms') {
+                        return ltrim((string) $package['version'], 'v');
+                    }
+                }
+
+                return '6.0.0';
+            }
+        });
+
+        // The outpost itself is silenced rather than given a working version: a
+        // real HTTP request to statamic.com from a test run would be worse than
+        // none, and nothing here asserts anything about licensing.
+        $app->singleton(Outpost::class, fn () => new class extends Outpost
+        {
+            public function __construct() {}
+
+            public function radio() {}
+
+            public function response()
+            {
+                return [];
+            }
+        });
+
+        // Same reason, one middleware further along: CountUsers throws
+        // "Statamic Pro is required for multiple users" on the Solo edition, and
+        // several tests here create a second user to check a permission. Nothing
+        // in this addon behaves differently by edition.
+        $app['config']->set('statamic.editions.pro', true);
 
         $app['config']->set('database.default', 'sqlite');
         $app['config']->set('database.connections.sqlite', $this->databaseConnectionConfig());

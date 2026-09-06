@@ -11,19 +11,13 @@
 
 return [
 
-    'title' => 'Einstellungen',
-    'intro' => 'Diese Einstellungen gelten für die ganze Installation, nicht für eine Marke. Alles Unangetastete folgt weiterhin :path. Ein geänderter Wert wird als Abweichung gespeichert; wer ihn auf den ausgelieferten Wert zurücksetzt, löscht die Abweichung wieder.',
+    // Das Seitenbeiwerk, das hier stand — title, intro, save, saving, saved,
+    // unavailable, default_placeholder und die nur lesbare Statusliste —, ist
+    // mit dem Bildschirm entfallen, zu dem es gehörte. Das Formular ist der
+    // gemeinsame in goldnead/statamic-brand-context und bringt sein eigenes
+    // Beiwerk mit; die Status-Handles stehen jetzt auf dem LeadHub-Dashboard
+    // neben den Zahlen.
     'publish_command' => 'php artisan vendor:publish --tag=leadhub-config',
-    'save' => 'Speichern',
-    'saving' => 'Speichert…',
-    'saved' => 'Einstellungen gespeichert.',
-    'unavailable' => 'Diese Einstellungen lassen sich auf dieser Installation nicht ändern: die Tabelle leadhub_settings existiert nicht. Das ist der normale Zustand einer Flat-Installation, die nie migriert wurde; php artisan migrate legt sie an. Bis dahin steht unten, was config/leadhub.php sagt, und zwar nur lesbar.',
-    'default_placeholder' => 'Standard',
-
-    'statuses' => [
-        'heading' => 'Lead-Status',
-        'description' => 'Nur lesbar. Die Schlüssel stehen an jedem Kontakt, ein entfernter Status zieht die Kontakte darauf also nicht um: sie behalten einen Status, den das Control Panel nicht mehr benennen kann. Die Liste wird in config/leadhub.php gepflegt, der Startstatus oben ausgewählt.',
-    ],
 
     'groups' => [
         'behavior' => [
@@ -52,7 +46,7 @@ return [
         ],
         'notifications' => [
             'title' => 'Benachrichtigungen',
-            'description' => 'Welche internen E-Mails rausgehen. Zusätzlich hängen alle am Benachrichtigungs-Schalter der Umgebung, der weiter unten steht.',
+            'description' => 'Welche internen E-Mails rausgehen. Zusätzlich hängen alle am Benachrichtigungs-Schalter der Umgebung, der auf der LeadHub-Übersicht steht.',
         ],
     ],
 
@@ -60,7 +54,7 @@ return [
 
         'default_status' => [
             'label' => 'Standard-Lead-Status',
-            'description' => 'Der Status, mit dem ein neu erfasster Kontakt startet. Die Auswahl ist die Statusliste aus config/leadhub.php, die unten angezeigt wird.',
+            'description' => 'Der Status, mit dem ein neu erfasster Kontakt startet. Die Auswahl ist die Statusliste aus config/leadhub.php; die Handles stehen auf der LeadHub-Übersicht.',
         ],
         'overwrite_existing_fields_from_submissions' => [
             'label' => 'Bestehende Felder aus Submissions überschreiben',

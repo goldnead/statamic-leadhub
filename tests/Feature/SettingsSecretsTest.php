@@ -1,20 +1,29 @@
 <?php
 
 /**
- * The settings screen must never serialize a credential into the page.
+ * No Control Panel screen of this addon may serialize a credential into the page.
  *
- * `SettingsController` used to hand `config('leadhub')` to Inertia as a single
- * prop. `config/leadhub.php` carries `crm.destinations.*` entries whose
- * `token`, `api_key` and `secret` keys are env-backed, so on any install with a
- * CRM connector configured those credentials were serialized into the CP page's
- * JSON payload — visible in the DOM, in devtools and in the browser cache, to
- * every user who could open Settings.
+ * The original defect: `SettingsController` handed `config('leadhub')` to Inertia
+ * as a single prop. `config/leadhub.php` carries `crm.destinations.*` entries
+ * whose `token`, `api_key` and `secret` keys are env-backed, so on any install
+ * with a CRM connector configured those credentials were serialized into the CP
+ * page's JSON payload — visible in the DOM, in devtools and in the browser
+ * cache, to every user who could open Settings.
  *
- * The screen renders statuses, four behaviour flags, the redaction list and the
- * feature flags. Nothing else. These tests pin that allow-list from both sides:
- * the keys the screen needs are present, and the secrets are gone.
+ * That screen is gone: the editable settings are the suite's shared screen in
+ * brand-context, which is generated from `Support\Settings::settingsGroups()` and
+ * can therefore only ever ship the keys that list offers — pinned from the other
+ * side by SettingsEditorTest's "offers no credential field".
+ *
+ * The read-only environment panel moved with it, onto the dashboard, and that is
+ * the part that is still a hand-written allow-list of config values. So the leak
+ * this file exists to prevent is now possible in exactly one place, and that is
+ * where these tests point. The permission check moved too: the panel carries
+ * recipient addresses, and it sat behind `manage leadhub settings` on the screen
+ * it came from.
  */
 
+use Statamic\Facades\Role;
 use Statamic\Facades\User;
 
 beforeEach(function (): void {
@@ -42,17 +51,18 @@ beforeEach(function (): void {
     ]);
 });
 
-function settingsResponse($test)
+function leadhubDashboardResponse($test)
 {
-    return $test->withHeaders(['X-Inertia' => 'true'])->get(cp_route('leadhub.settings'));
+    return $test->withHeaders(['X-Inertia' => 'true'])->get(cp_route('leadhub.dashboard'));
+}
+
+function leadhubDashboardProps($test): array
+{
+    return json_decode(leadhubDashboardResponse($test)->getContent(), true)['props'] ?? [];
 }
 
 it('does not ship CRM credentials to the browser', function (): void {
-    $response = settingsResponse($this);
-
-    $response->assertStatus(200);
-
-    $body = $response->getContent();
+    $body = leadhubDashboardResponse($this)->assertStatus(200)->getContent();
 
     expect($body)->not->toContain('SUPERSECRET-TOKEN');
     expect($body)->not->toContain('SUPERSECRET-APIKEY');
@@ -60,45 +70,54 @@ it('does not ship CRM credentials to the browser', function (): void {
 });
 
 it('does not ship the crm config branch at all', function (): void {
-    $props = json_decode(settingsResponse($this)->getContent(), true)['props'] ?? [];
-
-    expect($props['config'] ?? [])->not->toHaveKey('crm');
+    // Not "no secret value found" — no branch. A driver added later with a
+    // differently named credential would slip past a value-by-value check.
+    expect(leadhubDashboardProps($this))->not->toHaveKey('config');
 });
 
-it('ships only the keys the settings screen renders', function (): void {
-    $props = json_decode(settingsResponse($this)->getContent(), true)['props'] ?? [];
+it('ships only the deployment values the environment panel renders', function (): void {
+    $environment = leadhubDashboardProps($this)['environment'] ?? [];
 
-    expect(array_keys($props['config'] ?? []))->toEqualCanonicalizing([
-        'statuses',
-        'default_status',
-        'overwrite_existing_fields_from_submissions',
-        'store_full_submission_payload',
-        'timeline_payload_redaction',
-        'features',
-        'exports',
+    expect(array_column($environment, 'env'))->toEqualCanonicalizing([
+        'LEADHUB_DRIVER',
+        'LEADHUB_FLAT_PATH',
+        'LEADHUB_NOTIFICATIONS',
+        'LEADHUB_NOTIFY_EMAILS',
+        'LEADHUB_DIGEST_TIME',
+        'LEADHUB_DIGEST_EMAILS',
     ]);
 
-    // `exports` is narrowed to the one key the screen shows, not the whole branch.
-    expect(array_keys($props['config']['exports'] ?? []))->toBe(['queue_threshold']);
+    // Every entry is a rendered string, never a config branch handed over whole:
+    // a nested array here is how a credential travels without being named.
+    foreach ($environment as $entry) {
+        expect($entry['value'])->toBeString();
+    }
 });
 
-it('still renders everything the screen needs', function (): void {
-    $props = json_decode(settingsResponse($this)->getContent(), true)['props'] ?? [];
+it('still renders what the panel needs', function (): void {
+    $environment = collect(leadhubDashboardProps($this)['environment'] ?? [])
+        ->keyBy('env');
 
-    expect($props['driver'])->toBe(config('leadhub.storage.driver', 'eloquent'));
-    expect($props['config']['statuses'])->toBe(config('leadhub.statuses'));
-    expect($props['config']['features'])->toBe(config('leadhub.features'));
-    expect($props['config']['timeline_payload_redaction'])
-        ->toBe(config('leadhub.timeline_payload_redaction'));
-    expect($props['config']['default_status'])->toBe(config('leadhub.default_status'));
-    expect($props['config']['exports']['queue_threshold'])
-        ->toBe(config('leadhub.exports.queue_threshold'));
+    expect($environment['LEADHUB_DRIVER']['value'])->toBe(config('leadhub.storage.driver', 'eloquent'))
+        ->and($environment['LEADHUB_FLAT_PATH']['value'])->toBe((string) config('leadhub.storage.flat.path', ''));
 });
 
-it('refuses the settings screen without the manage permission', function (): void {
-    $plain = User::make()->email('settings-nobody@example.com');
-    $plain->save();
-    $this->actingAs($plain);
+it('withholds the environment panel from a user who may see the dashboard but not the settings', function (): void {
+    // The panel carries the notification and digest recipient addresses. On the
+    // screen it came from, that sat behind `manage leadhub settings`; the
+    // dashboard is gated on `view leadhub`, which is a wider set of people. The
+    // move must not widen who sees it — so a reader gets the dashboard and an
+    // empty panel, not a 403 and not the addresses.
+    Role::make('lh-env-reader')->permissions(['access cp', 'view leadhub'])->save();
 
-    settingsResponse($this)->assertStatus(403);
+    $reader = User::make()->email('settings-env-reader@example.com');
+    $reader->save();
+    $reader->assignRole('lh-env-reader')->save();
+
+    $this->actingAs($reader);
+
+    $props = leadhubDashboardProps($this);
+
+    expect($props['environment'])->toBe([])
+        ->and($props['kpis'])->not->toBeEmpty();
 });

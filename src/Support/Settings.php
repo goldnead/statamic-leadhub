@@ -2,37 +2,45 @@
 
 namespace Goldnead\Leadhub\Support;
 
-use Goldnead\Leadhub\Models\Setting;
-use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
+use Goldnead\BrandContext\Contracts\ProvidesSettings;
 
 /**
  * The settings an operator may change from the Control Panel, and the one place
  * that knows what those are.
  *
- * Three readers share this definition — the boot-time override, the validation
- * on the way in, and the screen that draws the form — so a setting is added by
- * adding one entry to {@see groups()} and nothing else falls out of step. The
- * screen in particular is generated from here rather than from a hand-kept list
- * of labels in JavaScript, which is what the read-only version was: a second
- * description of `config/leadhub.php` that could disagree with it and never say
- * so.
+ * Since 1.x this class is **only** the field list. The store, the screen, the
+ * validation, the routes and the brand dimension all come from
+ * `goldnead/statamic-brand-context` — see {@see ProvidesSettings}, which this
+ * implements. What used to live here as well (a key/value model on
+ * `leadhub_settings`, a form request, a controller, a Vue page and a boot-time
+ * config override) was the third independent copy of one mechanism in this
+ * addon family, and the only part of it that legitimately belonged to LeadHub
+ * was {@see settingsGroups()}.
+ *
+ * Three readers share that definition — the config override, the validation on
+ * the way in, and the screen that draws the form — so a setting is added by
+ * adding one entry and nothing else falls out of step.
  *
  * **Overrides, not a copy.** Only keys somebody actually changed are stored.
  * Everything else keeps following `config/leadhub.php`, so upgrading the package
  * still moves the defaults, and a site that never opens this screen is
  * indistinguishable from one running a release before the screen existed.
  *
+ * **Per brand, not per installation.** That is the one behavioural change of
+ * the move. `leadhub_settings` had no brand column, so on a multi-brand install
+ * both brands read one row; `brand_settings` carries `brand_id` and the screen
+ * always writes the brand in the switcher. The migration puts every existing
+ * row on the default brand, which is the only reading of an un-branded row that
+ * cannot invent a value for a brand that never had one.
+ *
  * **What is not here, and why.**
  *
  * - `statuses`. It is a map of handle => label, not a value: editing it means
  *   adding, renaming and removing rows, and removing one strands every contact
  *   sitting on it (the config file says as much). A textarea that round-trips a
- *   map through some invented separator is a worse editor than none, so the
- *   screen keeps printing the statuses read-only and `default_status` is offered
- *   as a select over them.
+ *   map through some invented separator is a worse editor than none, so
+ *   `default_status` is offered as a select over them and the list itself is
+ *   printed read-only on the LeadHub dashboard.
  * - `attribution.fields` is the same shape for the same reason: a map from
  *   contact column to submission handle, where the left-hand side is a database
  *   column and a typo silently stops capturing UTM data.
@@ -47,8 +55,9 @@ use Illuminate\Support\Facades\Schema;
  *   are both read live and are here.
  * - `crm.destinations`. Credentials (`token`, `api_key`, `secret`), env-backed.
  *   A database row holding one would take it out of the secret store and into
- *   every backup, and this screen already refuses to serialize them to the
- *   browser at all — see SettingsController and tests/Feature/SettingsSecretsTest.
+ *   every backup, and no Control Panel screen of this addon serializes them to
+ *   the browser — see DashboardController::environmentPayload() and
+ *   tests/Feature/SettingsSecretsTest.
  * - Everything resolved from `env()`: `storage.driver`, `storage.flat.*`,
  *   `notifications.enabled`, `notifications.recipients`,
  *   `notifications.digest.time`, `notifications.digest.fallback_recipients`.
@@ -56,20 +65,47 @@ use Illuminate\Support\Facades\Schema;
  *   var is a setting that changes back on the next deploy with nobody touching
  *   the screen. `storage.driver` is worse still: it decides where contacts,
  *   events and notes live, and switching it under a running install has to move
- *   them first (`php artisan leadhub:storage:migrate`). They are shown on the
- *   screen, read-only, so an operator can check them.
+ *   them first (`php artisan leadhub:storage:migrate`). They are printed
+ *   read-only on the LeadHub dashboard, so an operator can check them.
  * - `email_normalization.*`. Not a preference but a data-consistency rule: the
  *   normalized address is written into `leadhub_contacts.email_normalized` and
  *   carries a unique index with `brand_id`. Changing the rule afterwards leaves
  *   every existing row normalized by the old one, so deduplication silently
  *   stops matching the contacts it used to match.
  */
-class Settings
+class Settings implements ProvidesSettings
 {
-    /** Cache key for the stored overrides. */
-    public const CACHE_KEY = 'leadhub.settings.overrides';
+    /**
+     * Stable forever: it is stored in `brand_settings.namespace` on every row,
+     * so renaming it orphans every override a site has made.
+     */
+    public static function settingsNamespace(): string
+    {
+        return 'leadhub';
+    }
 
-    public function __construct(protected Application $app) {}
+    /**
+     * The config root the unset values keep following — `config/leadhub.php`,
+     * which is what every `config('leadhub.…')` call in this addon reads.
+     */
+    public static function settingsConfigPath(): string
+    {
+        return 'leadhub';
+    }
+
+    /**
+     * The permission that gates this addon's section.
+     *
+     * The literal string the service provider registers, not a name derived
+     * from the namespace. It is already assigned to user groups on installed
+     * sites, and it also gates the custom fields and the pipeline configuration
+     * screens, so a derived name would take three screens away from everyone
+     * who has it without anything on screen saying why.
+     */
+    public static function settingsPermission(): string
+    {
+        return 'manage leadhub settings';
+    }
 
     /**
      * The editable settings, in the order and grouping the screen shows them.
@@ -81,7 +117,7 @@ class Settings
      *
      * @return array<int, array{title: string, description: string, fields: array<int, array<string, mixed>>}>
      */
-    public static function groups(): array
+    public static function settingsGroups(): array
     {
         return [
             [
@@ -234,230 +270,12 @@ class Settings
         return array_map(fn ($disk) => ['value' => (string) $disk, 'label' => (string) $disk], $disks);
     }
 
-    /**
-     * Every editable field, flattened.
-     *
-     * @return array<string, array<string, mixed>> key => field
-     */
-    public static function fields(): array
-    {
-        $fields = [];
+    // Everything that used to follow — `fields()`, `overrides()`,
+    // `isWritable()`, `read()`, `apply()`, `value()`, `save()`, `write()`,
+    // `forget()`, the baseline snapshot and `packagedDefault()` — is now
+    // Goldnead\BrandContext\Settings\{SettingsRegistry,SettingsManager,NamespaceSettings}.
+    // The registry answers `fields('leadhub')` from the definition above; the
+    // manager owns the cache, the baseline and the config override. Keeping a
+    // second reader here is exactly the duplication this move removed.
 
-        foreach (static::groups() as $group) {
-            foreach ($group['fields'] as $field) {
-                $fields[$field['key']] = $field;
-            }
-        }
-
-        return $fields;
-    }
-
-    /**
-     * The stored overrides, keyed by dotted path.
-     *
-     * Cached because this is read on every boot, including the boot of every
-     * queue worker that runs an export or a digest. A missing table (installed
-     * but not migrated, or running the flat driver where migrations are not
-     * required) or an unreachable cache is not fatal: no overrides means the
-     * config file, which is exactly the behaviour before this screen existed.
-     *
-     * @return array<string, mixed>
-     */
-    public function overrides(): array
-    {
-        try {
-            return Cache::rememberForever(self::CACHE_KEY, fn () => $this->read());
-        } catch (\Throwable) {
-            try {
-                return $this->read();
-            } catch (\Throwable) {
-                return [];
-            }
-        }
-    }
-
-    /**
-     * Whether this install can store an override at all.
-     *
-     * The flat driver keeps lead data in YAML and does not require migrations,
-     * so the one table this screen needs may genuinely not be there. Reading
-     * already survives that — {@see overrides()} answers "no overrides", which
-     * is the config file, which is right. Writing does not: without this the
-     * Save button would answer a SQL error. The screen asks first and says so.
-     */
-    public function isWritable(): bool
-    {
-        try {
-            return Schema::hasTable((new Setting)->getTable());
-        } catch (\Throwable) {
-            return false;
-        }
-    }
-
-    /** @return array<string, mixed> */
-    protected function read(): array
-    {
-        return Setting::query()
-            ->pluck('value', 'key')
-            ->all();
-    }
-
-    /**
-     * Push the stored overrides onto the live config.
-     *
-     * Overriding the config rather than teaching every reader about this class
-     * is the whole point: `config('leadhub.features.tasks')` is read from the
-     * navigation, the controllers, the listeners and the console commands, and a
-     * second source of truth next to it would be one missed call site away from
-     * a setting that looks changed and is not.
-     */
-    public function apply(): void
-    {
-        // `config:cache` boots the app fully and then dumps the whole resolved
-        // config to `bootstrap/cache/config.php`. Applying here during that
-        // build would bake the overrides into the cached file, and a baked
-        // override outlives the row it came from: deleting a setting would then
-        // have no effect at all until somebody ran `config:clear`.
-        //
-        // It would also poison the baseline below. On the next boot the config
-        // is cached, so `config('leadhub')` *is* the baked file — the snapshot
-        // would record the override as the packaged default, and a value reset
-        // to the file's default would be stored as a row instead of deleted,
-        // which is precisely the property this class promises.
-        //
-        // Skipping is safe: the cached config keeps the file values, and every
-        // process that reads it applies the overrides on its own boot.
-        if (method_exists($this->app, 'runningConsoleCommand') && $this->app->runningConsoleCommand('config:cache')) {
-            return;
-        }
-
-        // Snapshot what the config *files* say, before anything stored covers
-        // it. This is what "back to default" means on this install: the package
-        // config as the host published and edited it, not the copy inside the
-        // package — a site that changed a default in its own `config/leadhub.php`
-        // must be able to return to that value.
-        $this->baseline ??= (array) config('leadhub', []);
-
-        $overrides = $this->overrides();
-
-        // The common case is an install that never opened the screen, and this
-        // runs on every boot — including every queue worker's. Nothing stored,
-        // nothing to do, and in particular no reason to build the field
-        // definition, which translates every label in it.
-        if ($overrides === []) {
-            return;
-        }
-
-        $fields = static::fields();
-
-        foreach ($overrides as $key => $value) {
-            // Only keys this class offers. A row left behind by an older release
-            // must not be able to set an arbitrary config path — `storage.driver`
-            // and the CRM credentials are one string away otherwise.
-            if (! isset($fields[$key])) {
-                continue;
-            }
-
-            config()->set('leadhub.'.$key, $value);
-        }
-    }
-
-    /**
-     * The value on screen for one field: the override if there is one, else
-     * whatever the config file says.
-     */
-    public function value(string $key): mixed
-    {
-        return config('leadhub.'.$key);
-    }
-
-    /**
-     * Write the changed settings.
-     *
-     * A value equal to the packaged default is *deleted* rather than stored, so
-     * "back to default" is reachable from the form and the table does not
-     * accumulate rows that pin a value to what it already was.
-     *
-     * @param  array<string, mixed>  $values  key => value, keys from {@see fields()}
-     */
-    public function save(array $values): void
-    {
-        $fields = static::fields();
-
-        // All of it or none of it. A failure halfway through leaves a settings
-        // table matching no coherent state, and the screen is then re-rendered
-        // from that half-written state as though it were the truth.
-        DB::transaction(function () use ($values, $fields): void {
-            $this->write($values, $fields);
-        });
-
-        $this->forget();
-        $this->apply();
-    }
-
-    /**
-     * @param  array<string, mixed>  $values
-     * @param  array<string, mixed>  $fields
-     */
-    protected function write(array $values, array $fields): void
-    {
-        foreach ($values as $key => $value) {
-            if (! isset($fields[$key])) {
-                continue;
-            }
-
-            if ($value === $this->packagedDefault($key)) {
-                Setting::query()->where('key', $key)->delete();
-
-                // Put the file's value back on the live config by hand.
-                // `apply()` below only writes the overrides that exist, so a
-                // deleted one would leave the old value standing in this
-                // process — the row gone, the screen saying "default", and
-                // everything reading `config()` until the next boot still
-                // getting the value that was just taken away.
-                config()->set('leadhub.'.$key, $value);
-
-                continue;
-            }
-
-            Setting::query()->updateOrCreate(['key' => $key], ['value' => $value]);
-        }
-    }
-
-    /** Drop the cached overrides so the next read sees the table. */
-    public function forget(): void
-    {
-        try {
-            Cache::forget(self::CACHE_KEY);
-        } catch (\Throwable) {
-            // No cache store is a running-without-cache install, not a failure
-            // to save: `read()` then hits the table on every call anyway.
-        }
-    }
-
-    /**
-     * The config as the files have it, taken before any override was applied.
-     *
-     * @var array<string, mixed>|null
-     */
-    protected ?array $baseline = null;
-
-    /**
-     * What the config files say, ignoring any override already applied to the
-     * live config.
-     *
-     * Never `config()`: by the time anything asks, {@see apply()} has already
-     * overwritten the live value with the override, so comparing against it
-     * would report every stored value as equal to the default and delete the lot
-     * on the next save. The package file is the last resort, for a call that
-     * happens before `apply()` ever ran.
-     */
-    protected function packagedDefault(string $key): mixed
-    {
-        if ($this->baseline === null) {
-            $this->baseline = (array) require __DIR__.'/../../config/leadhub.php';
-        }
-
-        return data_get($this->baseline, $key);
-    }
 }

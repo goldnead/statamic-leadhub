@@ -11,11 +11,17 @@ const props = defineProps([
     'latestActivity',       // [{ id, contact_name, contact_url, summary, type, created_at }]
     'followupsToday',       // [{ id, contact_name, contact_url, due_at, note }]
     'followupsOverdue',     // [{ id, contact_name, contact_url, due_at, note }]
-    'leadsByStatus',        // [{ key, label, count, filter_url }]
+    'leadsByStatus',        // [{ key, label, count, filter_url, is_default }]
     'hasFormConnected',     // boolean
     'configureFormsUrl',    // string
     'contactsUrl',          // string
     'followupsUrl',         // string
+    // Deployment-owned, read-only. [{ label, value, env }], empty without the
+    // `manage leadhub settings` permission. Came from the settings screen when
+    // that moved to the suite's shared one in brand-context — env values are not
+    // settings, so they do not belong on a screen generated from a field list.
+    'environment',
+    'environmentTexts',     // { heading, description, publishCommand }
 ]);
 
 const isEmpty = computed(() => ! props.hasFormConnected);
@@ -173,10 +179,41 @@ function statusColor(key) {
                         <Card class="h-full transition group-hover:border-gray-300 dark:group-hover:border-gray-600">
                             <Badge :color="statusColor(bucket.key)" :text="bucket.label" />
                             <Heading size="lg" class="mt-2" :text="String(bucket.count)" />
+                            <!-- The handle, not the label: it is what is stored
+                                 on every contact, and an operator editing
+                                 leadhub.statuses needs to see which strings are
+                                 actually in use. -->
+                            <div class="mt-1 flex items-center gap-1.5">
+                                <code class="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-300">{{ bucket.key }}</code>
+                                <Badge v-if="bucket.is_default" pill color="blue" :text="__('Default')" />
+                            </div>
                         </Card>
                     </Link>
                 </div>
             </Panel>
         </template>
+
+        <!-- Owned by the deployment: shown, never offered. -->
+        <Panel v-if="environment && environment.length" :heading="environmentTexts.heading" class="mt-6">
+            <Card>
+                <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">
+                    {{ environmentTexts.description }}
+                    <code class="rounded bg-gray-100 px-1 text-xs dark:bg-gray-800">{{ environmentTexts.publishCommand }}</code>
+                </p>
+
+                <div
+                    v-for="entry in environment"
+                    :key="entry.env + entry.label"
+                    class="flex items-start justify-between gap-4 border-t border-gray-200 py-3 first:border-t-0 dark:border-gray-700"
+                    :data-leadhub-environment="entry.env"
+                >
+                    <div class="min-w-0">
+                        <span class="text-sm font-medium text-gray-900 dark:text-gray-100">{{ entry.label }}</span>
+                        <span class="block font-mono text-xs text-gray-500 dark:text-gray-400">{{ entry.env }}</span>
+                    </div>
+                    <span class="shrink-0 text-right text-sm text-gray-900 dark:text-gray-300">{{ entry.value }}</span>
+                </div>
+            </Card>
+        </Panel>
     </div>
 </template>

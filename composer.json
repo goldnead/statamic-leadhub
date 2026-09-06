@@ -27,7 +27,7 @@
         "statamic/cms": "^6.0",
         "inertiajs/inertia-laravel": "^1.0|^2.0",
         "symfony/yaml": "^6.0|^7.0|^8.0",
-        "goldnead/statamic-brand-context": "^1.8"
+        "goldnead/statamic-brand-context": "^1.12"
     },
     "require-dev": {
         "larastan/larastan": "^3.0",

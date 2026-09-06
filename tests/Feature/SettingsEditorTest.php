@@ -1,21 +1,26 @@
 <?php
 
 /**
- * The settings screen writes, and what it writes reaches the config.
+ * LeadHub's settings, now that the screen behind them is the suite's shared one.
  *
- * The screen was read-only until now: it printed `config/leadhub.php` and told
- * the operator to go and edit a file on the server. Everything here is about the
- * two properties that make the replacement trustworthy — a saved value is the
- * value the rest of the addon reads, and a value returned to its default stops
- * being stored at all.
+ * Nothing about the *properties* changed: a saved value is the value the rest of
+ * the addon reads, and a value returned to its default stops being stored at
+ * all. What changed is who owns them. `Support\Settings` is a field list
+ * implementing `ProvidesSettings`; the store is `brand_settings`, the form is
+ * `brand-context::Settings`, and the endpoint takes a namespace.
  *
- * What must NOT reach the browser is pinned separately and deliberately
- * untouched: tests/Feature/SettingsSecretsTest.php.
+ * These tests deliberately still go through HTTP rather than calling the manager
+ * directly. The thing worth pinning from this side is that LeadHub is actually
+ * *registered* — a contract implemented and never announced is a settings screen
+ * with no LeadHub section on it, and every assertion below would still pass
+ * against the manager.
+ *
+ * What must NOT reach the browser is pinned separately: SettingsSecretsTest.
  */
 
-use Goldnead\Leadhub\Models\Setting;
+use Goldnead\BrandContext\Models\BrandSetting;
+use Goldnead\BrandContext\Settings\SettingsRegistry;
 use Goldnead\Leadhub\Support\Settings;
-use Illuminate\Database\Eloquent\JsonEncodingException;
 use Illuminate\Support\Facades\Schema;
 use Statamic\Facades\User;
 
@@ -25,30 +30,73 @@ beforeEach(function (): void {
     $this->actingAs($this->user);
 });
 
+/** Every field LeadHub offers, as the registry sees it. */
+function leadhubSettingFields(): array
+{
+    return app(SettingsRegistry::class)->fields('leadhub');
+}
+
 /**
- * The form always submits every field, so the rules are `present` and a partial
- * payload is a 422 rather than a silent partial write. Tests that care about one
- * key say so, and this fills in the rest from the config.
+ * The form always submits every field of the section it saves, so the rules are
+ * `present` and a partial payload is a 422 rather than a silent partial write.
+ * Tests that care about one key say so, and this fills in the rest from config.
  */
 function patchLeadhubSettings($test, array $overrides)
 {
     $settings = [];
 
-    foreach (array_keys(Settings::fields()) as $key) {
+    foreach (array_keys(leadhubSettingFields()) as $key) {
         $settings[$key] = config('leadhub.'.$key);
     }
 
-    return $test->patchJson(
-        cp_route('leadhub.settings.update'),
-        ['settings' => array_replace($settings, $overrides)],
-    );
+    return $test->patchJson(cp_route('brand-context.settings.update'), [
+        'namespace' => 'leadhub',
+        'settings' => array_replace($settings, $overrides),
+    ]);
 }
+
+/** The stored override for one key, or null when there is none. */
+function leadhubStoredSetting(string $key): ?BrandSetting
+{
+    return BrandSetting::query()->where('namespace', 'leadhub')->where('key', $key)->first();
+}
+
+function leadhubStoredSettingCount(): int
+{
+    return BrandSetting::query()->where('namespace', 'leadhub')->count();
+}
+
+it('registers LeadHub with the suite settings registry', function (): void {
+    // The one thing no other assertion here would catch. Everything else works
+    // against the manager, which does not care who called register(); a contract
+    // implemented and never announced is a shared screen with no LeadHub on it.
+    $registry = app(SettingsRegistry::class);
+
+    expect($registry->has('leadhub'))->toBeTrue()
+        ->and($registry->provider('leadhub'))->toBe(Settings::class)
+        ->and($registry->configPath('leadhub'))->toBe('leadhub')
+        // Not derived from the namespace. `manage leadhub settings` is assigned
+        // to user groups on installed sites and also gates the custom fields and
+        // pipeline screens; a derived name would take all three away silently.
+        ->and($registry->permission('leadhub'))->toBe('manage leadhub settings');
+});
 
 it('stores a changed setting and applies it to the config', function (): void {
     patchLeadhubSettings($this, ['exports.queue_threshold' => 250])->assertRedirect();
 
-    expect(Setting::where('key', 'exports.queue_threshold')->first()?->value)->toBe(250)
+    expect(leadhubStoredSetting('exports.queue_threshold')?->value)->toBe(250)
         ->and(config('leadhub.exports.queue_threshold'))->toBe(250);
+});
+
+it('stamps the stored row with the namespace and the current brand', function (): void {
+    // The defect this whole move exists to fix: `leadhub_settings` had no brand
+    // column, so two brands on one install shared a row.
+    patchLeadhubSettings($this, ['exports.queue_threshold' => 250])->assertRedirect();
+
+    $row = leadhubStoredSetting('exports.queue_threshold');
+
+    expect($row->namespace)->toBe('leadhub')
+        ->and($row->brand_id)->toBe(app('brand-context')->currentId());
 });
 
 it('coerces a number typed into a text field to an integer', function (): void {
@@ -63,14 +111,14 @@ it('coerces a number typed into a text field to an integer', function (): void {
 
 it('deletes the override when a value goes back to the default', function (): void {
     patchLeadhubSettings($this, ['exports.queue_threshold' => 250])->assertRedirect();
-    expect(Setting::count())->toBe(1);
+    expect(leadhubStoredSettingCount())->toBe(1);
 
     // Not "stores 1000" — stores nothing. A row pinning a value to what it
     // already was would freeze that default across package upgrades.
     patchLeadhubSettings($this, ['exports.queue_threshold' => 1000])->assertRedirect();
 
-    expect(Setting::count())->toBe(0)
-        // And the running application has to agree in the same breath. `apply()`
+    expect(leadhubStoredSettingCount())->toBe(0)
+        // And the running application has to agree in the same breath. apply()
         // only writes the overrides that exist, so a deleted one would otherwise
         // leave the old value standing until the next boot: the row gone, the
         // screen saying "default", and every reader still getting 250.
@@ -86,7 +134,7 @@ it('deletes a boolean override that goes back to the default in the same process
 
     patchLeadhubSettings($this, ['store_full_submission_payload' => true])->assertRedirect();
 
-    expect(Setting::where('key', 'store_full_submission_payload')->exists())->toBeFalse()
+    expect(leadhubStoredSetting('store_full_submission_payload'))->toBeNull()
         ->and(config('leadhub.store_full_submission_payload'))->toBeTrue();
 });
 
@@ -131,7 +179,7 @@ it('ignores a key the settings definition does not offer', function (): void {
 
     patchLeadhubSettings($this, ['storage.driver' => 'invented'])->assertRedirect();
 
-    expect(Setting::where('key', 'storage.driver')->exists())->toBeFalse()
+    expect(leadhubStoredSetting('storage.driver'))->toBeNull()
         ->and(config('leadhub.storage.driver'))->toBe($driver);
 });
 
@@ -139,7 +187,7 @@ it('offers no credential field', function (): void {
     // The CRM destinations carry `token`, `api_key` and `secret`. A form field
     // for one would move it out of the secret store and into a database backup,
     // which is the same leak SettingsSecretsTest closed at the other end.
-    foreach (array_keys(Settings::fields()) as $key) {
+    foreach (array_keys(leadhubSettingFields()) as $key) {
         expect($key)->not->toStartWith('crm.');
 
         foreach (['token', 'secret', 'api_key', 'password'] as $needle) {
@@ -157,66 +205,87 @@ it('refuses the write without the manage permission', function (): void {
 
     patchLeadhubSettings($this, ['exports.queue_threshold' => 250])->assertStatus(403);
 
-    expect(Setting::count())->toBe(0)
+    expect(leadhubStoredSettingCount())->toBe(0)
         ->and(config('leadhub.exports.queue_threshold'))->toBe(1000);
 });
 
-it('hands the page the form definition and the current values', function (): void {
+it('hands the shared screen a LeadHub section with the form definition and the current values', function (): void {
     patchLeadhubSettings($this, ['exports.queue_threshold' => 250])->assertRedirect();
 
     $props = json_decode(
         $this->withHeaders(['X-Inertia' => 'true'])
-            ->get(cp_route('leadhub.settings'))
+            ->get(cp_route('brand-context.settings.index'))
             ->assertStatus(200)
             ->getContent(),
         true
     )['props'] ?? [];
 
-    expect($props['groups'])->not->toBeEmpty()
-        ->and($props['values']['exports.queue_threshold'])->toBe(250)
-        ->and($props['canEdit'])->toBeTrue();
+    $section = collect($props['sections'] ?? [])->firstWhere('namespace', 'leadhub');
+
+    expect($section)->not->toBeNull()
+        ->and($section['config_path'])->toBe('leadhub')
+        ->and($section['groups'])->not->toBeEmpty()
+        ->and($section['values']['exports.queue_threshold'])->toBe(250);
 
     // Every field the form draws has a value handed to it. A field without one
     // renders an empty control that saves an empty value over a good default the
     // first time somebody presses Save.
-    foreach ($props['groups'] as $group) {
+    foreach ($section['groups'] as $group) {
         foreach ($group['fields'] as $field) {
-            expect($props['values'])->toHaveKey($field['key']);
+            expect($section['values'])->toHaveKey($field['key']);
         }
     }
 });
 
-it('says so instead of erroring when there is no settings table', function (): void {
+it('redirects the old settings URL to the shared screen', function (): void {
+    // `/cp/leadhub/settings` has been the settings URL since 1.0 and is in
+    // bookmarks and in this addon's own documentation. A 404 there reads as
+    // "the settings are gone", which is the wrong thing to tell an operator
+    // whose settings were just migrated.
+    $this->get(cp_route('leadhub.settings'))
+        ->assertRedirect(cp_route('brand-context.settings.index'));
+});
+
+it('still reads the config when the shared settings table is missing', function (): void {
     // The flat driver does not require migrations for lead data, so an install
-    // that never ran one is a supported state and not a broken one. The screen
-    // has to stay readable there: the values are the config file's, and the Save
-    // button is gone rather than answering a SQL error.
-    Schema::drop('leadhub_settings');
+    // that never ran one is a supported state and not a broken one. Reading has
+    // to survive it: no rows means the config file, which is exactly the
+    // behaviour before any settings screen existed.
+    Schema::drop('brand_settings');
+
+    app('brand-context.settings')->forget('leadhub');
 
     $props = json_decode(
         $this->withHeaders(['X-Inertia' => 'true'])
-            ->get(cp_route('leadhub.settings'))
+            ->get(cp_route('brand-context.settings.index'))
             ->assertStatus(200)
             ->getContent(),
         true
     )['props'] ?? [];
 
-    expect($props['canEdit'])->toBeFalse()
-        ->and($props['values']['exports.queue_threshold'])->toBe(1000);
+    $section = collect($props['sections'] ?? [])->firstWhere('namespace', 'leadhub');
 
-    patchLeadhubSettings($this, ['exports.queue_threshold' => 250])->assertRedirect();
+    expect($section['values']['exports.queue_threshold'])->toBe(1000);
 
-    expect(config('leadhub.exports.queue_threshold'))->toBe(1000);
+    // And the screen says so rather than offering a Save that cannot work.
+    // brand-context gained `writable` on 06.09.2026 for exactly this state.
+    expect($props['writable'])->toBeFalse();
 });
 
 it('applies stored settings on a fresh boot', function (): void {
-    Setting::create(['key' => 'features.tasks', 'value' => false]);
+    BrandSetting::query()->create([
+        'brand_id' => app('brand-context')->currentId(),
+        'namespace' => 'leadhub',
+        'key' => 'features.tasks',
+        'value' => false,
+    ]);
 
     // The overrides are read once and cached; a queue worker booting later must
-    // still see them, which is the whole reason apply() runs in bootAddon rather
-    // than in a Control-Panel middleware.
-    app(Settings::class)->forget();
-    app(Settings::class)->apply();
+    // still see them, which is why apply() runs from the provider's booted
+    // callback rather than from a Control-Panel middleware.
+    $settings = app('brand-context.settings');
+    $settings->forget('leadhub');
+    $settings->apply(force: true);
 
     expect(config('leadhub.features.tasks'))->toBeFalse();
 });
@@ -226,61 +295,27 @@ it('refuses to let a stale row set a config path the definition does not offer',
     // arbitrary config key — `storage.driver` and the CRM credentials are one
     // string away otherwise.
     $driver = config('leadhub.storage.driver');
+    $brandId = app('brand-context')->currentId();
 
-    Setting::create(['key' => 'crm.destinations', 'value' => ['hacked' => true]]);
-    Setting::create(['key' => 'storage.driver', 'value' => 'invented']);
+    BrandSetting::query()->create([
+        'brand_id' => $brandId,
+        'namespace' => 'leadhub',
+        'key' => 'crm.destinations',
+        'value' => ['hacked' => true],
+    ]);
+    BrandSetting::query()->create([
+        'brand_id' => $brandId,
+        'namespace' => 'leadhub',
+        'key' => 'storage.driver',
+        'value' => 'invented',
+    ]);
 
-    app(Settings::class)->forget();
-    app(Settings::class)->apply();
+    $settings = app('brand-context.settings');
+    $settings->forget('leadhub');
+    $settings->apply(force: true);
 
     expect(config('leadhub.storage.driver'))->toBe($driver)
         ->and(config('leadhub.crm.destinations'))->not->toHaveKey('hacked');
-});
-
-it('does not bake overrides into a cached config', function (): void {
-    // `config:cache` boots the app and dumps the resolved config to disk. An
-    // override written into that dump outlives the row it came from: deleting
-    // the setting afterwards has no effect at all until somebody runs
-    // `config:clear`. It also poisons the "back to default" rule — the next
-    // boot reads the baked file as the packaged default, so a value reset to
-    // the file's own default is stored as a row instead of being deleted, and
-    // that key is then stuck for good.
-    Setting::create(['key' => 'exports.queue_threshold', 'value' => 9999]);
-
-    $packaged = config('leadhub.exports.queue_threshold');
-
-    $settings = app(Settings::class);
-    $settings->forget();
-
-    // What the config-cache build looks like from in here.
-    $argv = $_SERVER['argv'] ?? [];
-    $_SERVER['argv'] = ['artisan', 'config:cache'];
-
-    try {
-        $settings->apply();
-    } finally {
-        $_SERVER['argv'] = $argv;
-    }
-
-    expect(config('leadhub.exports.queue_threshold'))->toBe($packaged);
-});
-
-it('writes the whole form or none of it', function (): void {
-    // A failure halfway through leaves a table matching no coherent state, and
-    // the screen is then re-rendered from that half-written state as though it
-    // were the truth.
-    $before = Setting::count();
-
-    expect(fn () => app(Settings::class)->save([
-        'exports.queue_threshold' => 2500,
-        // A resource has no JSON representation, so the cast throws on the way
-        // in. Any mid-write failure would do; this one needs no fixture and no
-        // mock, and it happens on the second key, after the first was written.
-        // (A closure does not work here — it encodes to `{}` without an error.)
-        'exports.directory' => fopen('php://memory', 'r'),
-    ]))->toThrow(JsonEncodingException::class);
-
-    expect(Setting::count())->toBe($before);
 });
 
 it('translates every group, field and option in both languages', function (): void {
@@ -296,7 +331,7 @@ it('translates every group, field and option in both languages', function (): vo
     foreach (['en', 'de'] as $locale) {
         app()->setLocale($locale);
 
-        foreach (Settings::groups() as $group) {
+        foreach (Settings::settingsGroups() as $group) {
             $slots = [$group['title'] ?? null, $group['description'] ?? null];
 
             foreach ($group['fields'] as $field) {

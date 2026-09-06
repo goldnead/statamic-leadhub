@@ -29,7 +29,6 @@ import CustomFieldsIndex from './pages/CustomFields/Index.vue';
 import SegmentsIndex from './pages/Segments/Index.vue';
 import SegmentsEdit from './pages/Segments/Edit.vue';
 import ScoringIndex from './pages/Scoring/Index.vue';
-import Settings from './pages/Settings.vue';
 import SyncLog from './pages/SyncLog.vue';
 
 Statamic.booting(() => {
@@ -57,6 +56,7 @@ Statamic.booting(() => {
     Statamic.$inertia.register('leadhub::Segments/Index', SegmentsIndex);
     Statamic.$inertia.register('leadhub::Segments/Edit', SegmentsEdit);
     Statamic.$inertia.register('leadhub::Scoring/Index', ScoringIndex);
-    Statamic.$inertia.register('leadhub::Settings', Settings);
+    // No 'leadhub::Settings' — the settings screen is the suite's shared one,
+    // registered by goldnead/statamic-brand-context as 'brand-context::Settings'.
     Statamic.$inertia.register('leadhub::SyncLog', SyncLog);
 });

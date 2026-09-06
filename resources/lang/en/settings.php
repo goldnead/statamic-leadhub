@@ -13,19 +13,12 @@
 
 return [
 
-    'title' => 'Settings',
-    'intro' => 'These settings apply to the whole installation, not to one brand. Anything left untouched follows :path. Changing a value here stores the difference, and setting it back to the shipped value removes it again.',
+    // The page chrome that used to be here — title, intro, save, saving, saved,
+    // unavailable, default_placeholder and the read-only statuses panel — is
+    // gone with the screen it belonged to. The form is the suite's shared one in
+    // goldnead/statamic-brand-context, which brings its own chrome; the status
+    // handles moved onto the LeadHub dashboard next to the counts.
     'publish_command' => 'php artisan vendor:publish --tag=leadhub-config',
-    'save' => 'Save',
-    'saving' => 'Saving…',
-    'saved' => 'Settings saved.',
-    'unavailable' => 'These settings cannot be changed on this install: the leadhub_settings table does not exist. That is the normal state of a flat-driver install that never ran a migration; run php artisan migrate to create it. Until then the values below are what config/leadhub.php says, and they are read-only.',
-    'default_placeholder' => 'Default',
-
-    'statuses' => [
-        'heading' => 'Lead statuses',
-        'description' => 'Read-only. The keys are stored on every contact, so removing one does not migrate the contacts sitting on it: they keep a status the Control Panel can no longer name. Edit the list in config/leadhub.php, and pick the starting status above.',
-    ],
 
     'groups' => [
         'behavior' => [
@@ -54,7 +47,7 @@ return [
         ],
         'notifications' => [
             'title' => 'Notifications',
-            'description' => 'Which internal e-mails go out. All of them are additionally gated by the deployment-owned notifications switch shown further down.',
+            'description' => 'Which internal e-mails go out. All of them are additionally gated by the deployment-owned notifications switch, which is shown on the LeadHub dashboard.',
         ],
     ],
 
@@ -62,7 +55,7 @@ return [
 
         'default_status' => [
             'label' => 'Default lead status',
-            'description' => 'The status a newly captured contact starts on. The list is the one from config/leadhub.php shown below.',
+            'description' => 'The status a newly captured contact starts on. The list is the one from config/leadhub.php; the handles are printed on the LeadHub dashboard.',
         ],
         'overwrite_existing_fields_from_submissions' => [
             'label' => 'Overwrite existing fields from submissions',

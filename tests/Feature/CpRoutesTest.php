@@ -131,12 +131,12 @@ it('renders the tags index', function (): void {
     expect(inertiaComponent($response))->toBe('leadhub::Tags/Index');
 });
 
-it('renders the settings page', function (): void {
-    $response = $this->withHeaders(['X-Inertia' => 'true'])
-        ->get(cp_route('leadhub.settings'));
-
-    $response->assertStatus(200);
-    expect(inertiaComponent($response))->toBe('leadhub::Settings');
+it('sends the old settings URL to the suite settings screen', function (): void {
+    // There is no `leadhub::Settings` component any more — the editable settings
+    // are the shared screen in brand-context. The URL stays as a redirect because
+    // it is in bookmarks and in this addon's documentation.
+    $this->get(cp_route('leadhub.settings'))
+        ->assertRedirect(cp_route('brand-context.settings.index'));
 });
 
 it('redirects unauthenticated users away from the dashboard', function (): void {

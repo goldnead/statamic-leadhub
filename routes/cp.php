@@ -13,7 +13,6 @@ use Goldnead\Leadhub\Http\Controllers\Cp\OpportunityController;
 use Goldnead\Leadhub\Http\Controllers\Cp\PipelineController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ScoringController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SegmentController;
-use Goldnead\Leadhub\Http\Controllers\Cp\SettingsController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SyncLogController;
 use Goldnead\Leadhub\Http\Controllers\Cp\TagController;
 use Goldnead\Leadhub\Http\Controllers\Cp\TaskController;
@@ -232,9 +231,19 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
             ->whereNumber('scoringRule')->name('destroy');
     });
 
-    // Settings
-    Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
-    Route::patch('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    // Settings — moved to the suite's shared screen in brand-context.
+    //
+    // The route stays as a redirect rather than being deleted. `/cp/leadhub/settings`
+    // has been the settings URL since 1.0 and is in bookmarks, in the addon's
+    // own documentation and in every link `cp_route('leadhub.settings')` ever
+    // produced; a 404 there reads as "the settings are gone", which is exactly
+    // the wrong thing to tell an operator whose settings were just migrated.
+    //
+    // `PATCH /settings` is not kept. It took a payload shape the shared
+    // endpoint does not accept, so a redirect would answer a validation error
+    // instead of a write — a 405 says what actually happened.
+    Route::get('/settings', fn () => redirect(cp_route('brand-context.settings.index')))
+        ->name('settings');
 
     // CRM sync log
     Route::get('/sync-log', [SyncLogController::class, 'index'])->name('sync-log');

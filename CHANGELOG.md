@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.11.0 — 2026-09-06
+
+### Geändert: die Einstellungen ziehen auf den gemeinsamen Suite-Bildschirm
+
+Die Seite **LeadHub → Einstellungen** entfällt. Dieselben 28 Felder stehen jetzt unter
+**Einstellungen → Addon-Einstellungen**, zusammen mit denen der anderen Suite-Addons. Die alte
+Adresse leitet weiter, das Recht `manage leadhub settings` bleibt unverändert, und eine
+Migration trägt gespeicherte Werte in die neue Tabelle. Zu tun ist nichts außer
+`php artisan migrate`.
+
+- **Voraussetzung: `goldnead/statamic-brand-context` ≥ 1.12.** Das Paket ist MIT und stellt
+  jetzt Bildschirm, Validierung, Speicher und die Markendimension. Dieses Addon schreibt nur
+  noch die Feldliste (`Support\Settings::settingsGroups()`) und meldet sich an.
+- **Die Werte sind ab jetzt markenbezogen.** `leadhub_settings` hatte keine `brand_id`, auf
+  einer Mehrmarken-Installation teilten sich also zwei Marken eine Einstellung. Im
+  Einmarken-Betrieb ändert sich dadurch nichts.
+- **`leadhub_settings` bleibt eine Minor-Version stehen**, damit ein Rollback die Werte nicht
+  verliert.
+- **Die Anzeige der Deployment-Werte und die Status-Handles sind aufs Dashboard gewandert.**
+  Beides war nie eine Einstellung.
+- **Behoben, nebenbei:** `mergeConfigFrom()` lief in `bootAddon()` statt in `register()`. Das
+  fiel erst mit der gemeinsamen Schicht auf, die ihre Paket-Vorgaben beim ersten Anwenden
+  festhält — bis dahin las jede Vorgabe als `null`, und keine gespeicherte Einstellung war je
+  gleich ihrem Default.
+
 ## 2.10.0 — 2026-09-03
 
 ### Behoben: die Oberfläche sagt jetzt, wenn sie nichts tut

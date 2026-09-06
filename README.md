@@ -201,18 +201,28 @@ fallback exists for the roles that already carry the old permission.
 
 ### Settings in the Control Panel
 
-The config file is the default, not the last word. Since v2.3.0, 28 of the keys above can also
-be changed under **LeadHub → Settings** (permission: `manage leadhub settings`): the behaviour
-on a new submission, the payload redaction list, all thirteen feature flags, the export target
-and queue threshold, the scoring fallback values, the click-tracking dedupe window, and the
-notification switches.
+The config file is the default, not the last word. 28 of the keys above can also be changed in
+the Control Panel (permission: `manage leadhub settings`): the behaviour on a new submission,
+the payload redaction list, all thirteen feature flags, the export target and queue threshold,
+the scoring fallback values, the click-tracking dedupe window, and the notification switches.
+
+The screen is the **suite's shared settings screen** in `goldnead/statamic-brand-context`, one
+section per addon that offers settings; LeadHub → Settings links to it, and the old URL
+`/cp/leadhub/settings` redirects there. LeadHub declares nothing but the field list
+(`Support\Settings`, implementing `ProvidesSettings`) — the store, the form, the validation and
+the config override belong to that package.
 
 Only the **difference** to the config file is stored, one row per changed key in
-`leadhub_settings`. A value set back to what the file says deletes its row again, so
-`config/leadhub.php` stays the default and a later release can still move it. An install that
-never opens the screen behaves exactly as it did before the screen existed — including its
-queue workers, since the overrides are applied in the service provider rather than in a CP
-middleware.
+`brand_settings`, under the namespace `leadhub`. A value set back to what the file says deletes
+its row again, so `config/leadhub.php` stays the default and a later release can still move it.
+An install that never opens the screen behaves exactly as it did before the screen existed —
+including its queue workers, since the overrides are applied when the application boots rather
+than in a CP middleware.
+
+**Settings are per brand.** They used to be per installation, in an un-branded
+`leadhub_settings` table, which meant two brands on one install shared a row. The upgrade
+migration puts every existing row on the default brand and leaves the old table in place for
+one minor version, so a rollback does not lose them.
 
 If you edit the file on a server, check the screen: a stored override outranks the file, and a
 key changed in both places will not do what the file says.
@@ -225,12 +235,12 @@ Not editable there, on purpose:
 - **Anything resolved from `env()`** — the storage driver and flat path, the notification
   switch, the recipient lists and the digest time. The deployment owns them, and a database row
   that silently outranks an env var is a setting that changes back on the next deploy with
-  nobody touching the screen. They are shown on the screen read-only, so you can still check
-  what is active.
+  nobody touching the screen. They are printed read-only on the **LeadHub dashboard**, behind
+  the same `manage leadhub settings` permission, so you can still check what is active.
 - **`statuses` and `attribution.fields`.** A map of key to value is not a field: editing one
   means adding, renaming and removing rows, and removing a status strands every contact sitting
-  on it. The statuses are printed read-only and `default_status` is offered as a select over
-  them.
+  on it. `default_status` is offered as a choice over the statuses, and the status handles are
+  printed next to the counts on the LeadHub dashboard.
 - **`scoring.events`.** Since v1.8.0 it is only the fallback for a brand with no rows in
   `leadhub_scoring_rules` — a number changed here would look effective and do nothing on every
   brand that has rules. `scoring.default` and `scoring.timeline` are read live and are offered.
@@ -238,14 +248,9 @@ Not editable there, on purpose:
   address carries a unique index, and changing the rule afterwards leaves existing rows
   normalised by the old one, so deduplication quietly stops matching what it used to match.
 
-The settings apply to the whole installation, not to one brand — unlike the scoring rules and
-the segments, which are per brand.
-
-On a **flat-driver** install, where migrations are not required, the `leadhub_settings` table
-may genuinely not exist. Reading survives that (no overrides means the config file, which is
-correct); writing does not, so the screen goes read-only and says why, instead of offering a
-Save button that answers a SQL error. `php artisan migrate` creates the one table if you want
-the screen.
+On a **flat-driver** install, where migrations are not required, the `brand_settings` table may
+genuinely not exist. Reading survives that: no overrides means the config file, which is
+correct. Writing does not — run `php artisan migrate` if you want the screen to save.
 
 ---
 
@@ -539,7 +544,9 @@ LeadHub ships with **two storage drivers**. Choose the one that fits your projec
 
 Dedicated database tables. The core: `leadhub_contacts`, `leadhub_events`, `leadhub_notes`,
 `leadhub_tags`, `leadhub_contact_tag`, `leadhub_followups`, `leadhub_form_mappings`,
-`leadhub_sync_logs`, `leadhub_settings`. The opt-in modules add
+`leadhub_sync_logs`. Control Panel settings live in `brand_settings` (owned by
+`goldnead/statamic-brand-context`); `leadhub_settings` still exists but is no longer read, and
+is dropped in a later release. The opt-in modules add
 `leadhub_companies`, `leadhub_contact_company`, `leadhub_tasks`, `leadhub_pipelines`,
 `leadhub_stages`, `leadhub_opportunities`, `leadhub_stage_transitions`,
 `leadhub_scoring_rules`, `leadhub_segments` and `leadhub_segment_contact`.

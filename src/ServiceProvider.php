@@ -2,6 +2,7 @@
 
 namespace Goldnead\Leadhub;
 
+use Goldnead\BrandContext\Settings\SettingsRegistry;
 use Goldnead\Leadhub\Console\BrandIntegrityCommand;
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
 use Goldnead\Leadhub\Console\ImportScoringRulesCommand;
@@ -185,6 +186,8 @@ class ServiceProvider extends AddonServiceProvider
     {
         parent::register();
 
+        $this->mergeAddonConfig();
+
         // Two layers, and they are not the same mechanism.
         //
         // `addNamespace` serves __('leadhub::nav.dashboard') — the PHP layer,
@@ -217,13 +220,6 @@ class ServiceProvider extends AddonServiceProvider
             $this->app['translator']->addNamespace('leadhub', $langPath);
             $this->app['translator']->addJsonPath($langPath);
         }
-
-        // Singleton because it holds the pre-override snapshot of the config
-        // files. A second instance created after `apply()` would take the
-        // already-overridden config for its baseline, and would then read every
-        // stored value as "equal to the default" and delete the lot on the next
-        // save.
-        $this->app->singleton(Settings::class);
 
         $this->bindRepositories();
 
@@ -284,6 +280,18 @@ class ServiceProvider extends AddonServiceProvider
     public function boot(): void
     {
         parent::boot();
+
+        // Announce this addon's settings to the suite's shared screen.
+        //
+        // In boot(), not bootAddon(), and that is not a style choice.
+        // brand-context applies the stored overrides from an `app->booted()`
+        // callback, deliberately, so that every provider's boot() has had its
+        // turn to register first. bootAddon() runs from an `app->booted()`
+        // callback of its own (Statamic's AppServiceProvider), and which of
+        // the two fires first depends on package load order — registering
+        // there would mean LeadHub's settings reach the live config on some
+        // installs and not on others, with nothing on screen to say which.
+        app(SettingsRegistry::class)->register(Settings::class);
 
         // Must be queued from the provider's boot() — NOT from bootAddon().
         // Statamic runs bootAddon() inside an app->booted() callback, where
@@ -409,34 +417,20 @@ class ServiceProvider extends AddonServiceProvider
             ->registerPolicies()
             ->registerSchedule()
             ->bootCommands()
-            ->registerPublishables()
-            ->applySettingOverrides();
-    }
+            ->registerPublishables();
 
-    /**
-     * Put the settings changed in the Control Panel onto the live config.
-     *
-     * Last in the chain, and it has to be: `registerPublishables()` is where
-     * `config/leadhub.php` is merged, and an override written before the file it
-     * overrides would be flattened by the merge. Everything above that reads
-     * config lazily — the navigation from inside `Nav::extend()`, the schedule
-     * from inside `callAfterResolving(Schedule::class)` — so they all see the
-     * operator's values by the time they actually run.
-     *
-     * In `bootAddon()` rather than in a Control-Panel middleware, because a
-     * queue worker running an export or the follow-up digest boots this addon
-     * and nothing else: a setting that held only for web requests would be a
-     * setting that appears to work and silently does not where the work happens.
-     *
-     * The one thing that cannot be reached from here is `registerMigrations()`,
-     * which reads `storage.driver` a few lines earlier — and that is deliberately
-     * not an editable setting.
-     */
-    protected function applySettingOverrides(): self
-    {
-        $this->app->make(Settings::class)->apply();
-
-        return $this;
+        // No `applySettingOverrides()` any more. brand-context pushes the
+        // stored values onto the live config from its own `app->booted()`
+        // callback, once, for every registered addon — which is after
+        // `registerPublishables()` has merged `config/leadhub.php`, and so
+        // still before anything reads a setting: the navigation reads config
+        // from inside `Nav::extend()`, the schedule from inside
+        // `callAfterResolving(Schedule::class)`, and a queue worker boots the
+        // whole application before it takes a job.
+        //
+        // `registerMigrations()` is the one reader that runs too early to see
+        // an override. It reads `storage.driver`, which is deliberately not an
+        // editable setting.
     }
 
     /**
@@ -683,14 +677,21 @@ class ServiceProvider extends AddonServiceProvider
         }
 
         // Except this one. The flat driver keeps *lead data* in YAML, which is
-        // what "migrations are not required" is about — the settings an operator
-        // changes in the Control Panel are not lead data, they are properties of
-        // the installation, and without their table the Settings screen would be
-        // read-only on a driver where everything else works. Registered as a
-        // single file rather than the directory, so `php artisan migrate` on a
-        // flat install creates this table and nothing else.
+        // what "migrations are not required" is about. A flat install running an
+        // earlier release does have a `leadhub_settings` table — it was the one
+        // migration registered here — and the rows in it have to reach
+        // `brand_settings`, or every setting the operator changed silently
+        // reverts to the config file on upgrade. Registered as a single file
+        // rather than the directory, so `php artisan migrate` on a flat install
+        // moves those rows and touches nothing else.
+        //
+        // The table's own create migration is deliberately no longer registered
+        // here: brand-context owns the settings store now, and creating an empty
+        // `leadhub_settings` on a fresh flat install would build a table nothing
+        // reads. On an install that already ran it the migration stays recorded,
+        // so nothing tries to create it twice.
         $this->loadMigrationsFrom(
-            __DIR__.'/../database/migrations/2026_08_14_000001_create_leadhub_settings_table.php'
+            __DIR__.'/../database/migrations/2026_09_06_000001_move_leadhub_settings_to_brand_settings.php'
         );
 
         return $this;
@@ -745,8 +746,17 @@ class ServiceProvider extends AddonServiceProvider
                 $nav->item(__('leadhub::nav.segments'))
                     ->route('leadhub.segments.index')
                     ->can('view leadhub segments'),
+                // Points at the suite's shared settings screen, not at a
+                // LeadHub route: the screen lives in brand-context now and
+                // shows one section per addon. The entry stays under LeadHub
+                // because that is where an operator looks for LeadHub's
+                // settings, and it carries the permission the section is gated
+                // on — the shared page hides sections the user may not manage,
+                // so without the check this would be a link to a page with no
+                // LeadHub on it.
                 $nav->item(__('leadhub::nav.settings'))
-                    ->route('leadhub.settings'),
+                    ->route('brand-context.settings.index')
+                    ->can('manage leadhub settings'),
                 $nav->item(__('leadhub::nav.sync_log'))
                     ->route('leadhub.sync-log'),
             ]);
@@ -838,8 +848,30 @@ class ServiceProvider extends AddonServiceProvider
             __DIR__.'/../config/leadhub.php' => config_path('leadhub.php'),
         ], 'leadhub-config');
 
-        $this->mergeConfigFrom(__DIR__.'/../config/leadhub.php', 'leadhub');
+        // The merge itself is in register(), not here. See mergeAddonConfig().
 
         return $this;
+    }
+
+    /**
+     * Merge `config/leadhub.php` into the live config.
+     *
+     * In `register()`, where Laravel puts config merging, and not in
+     * `bootAddon()` where it used to sit. brand-context takes its snapshot of
+     * "what the config files say" the first time it applies stored settings,
+     * from an `app->booted()` callback — and `bootAddon()` runs from an
+     * `app->booted()` callback too, registered by Statamic's own provider.
+     * Which of the two fires first depends on package order in
+     * `vendor/composer/installed.json`. Lose that race and the snapshot is
+     * taken before this file is merged: every packaged default reads as null,
+     * so no saved value ever equals its default, and the store fills up with
+     * rows pinning every field to the value it already had.
+     *
+     * The register phase is over before any booted callback runs, so there is
+     * no race to lose.
+     */
+    protected function mergeAddonConfig(): void
+    {
+        $this->mergeConfigFrom(__DIR__.'/../config/leadhub.php', 'leadhub');
     }
 }
