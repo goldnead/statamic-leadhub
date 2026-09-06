@@ -27,6 +27,13 @@ use Illuminate\Support\Str;
  *
  * @property int $brand_id
  * @property array<string, mixed>|null $custom_fields
+ * Was eine Abmeldung setzt. Die Spalte gibt es seit 2026-07-01, den Cast und
+ * den `wontContact`-Scope auch — nur diese Zeile fehlte, und damit sah die
+ * statische Analyse einen Zugriff auf eine Eigenschaft, die es angeblich nicht
+ * gibt. Gefunden 2026-09-06 als roter Larastan-Lauf in `statamic-marketing`,
+ * das `$contact->do_not_contact` liest, um niemanden anzuschreiben, der sich
+ * abgemeldet hat. Der Fehler stand dort, gehoerte aber hierher.
+ * @property bool $do_not_contact
  * @property int $revenue_cent
  * @property int $revenue_refunded_cent
  * @property int $purchase_count
