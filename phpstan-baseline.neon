@@ -691,12 +691,6 @@ parameters:
 			path: src/Http/Controllers/Web/TrackingController.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$do_not_contact\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Http/Controllers/Web/TrackingController.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
 			identifier: property.notFound
 			count: 1
@@ -776,12 +770,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/LeadHubManager.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$do_not_contact\.$#'
 			identifier: property.notFound
 			count: 1
 			path: src/LeadHubManager.php
@@ -1397,12 +1385,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: src/Services/ContactResolver.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$do_not_contact\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Services/CrmSyncService.php
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'

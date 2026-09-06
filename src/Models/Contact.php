@@ -25,14 +25,19 @@ use Illuminate\Support\Str;
  * Declaring exactly the post-baseline columns keeps the frozen entries
  * matching while new code stays analysable.
  *
+ * `do_not_contact` ist das, was eine Abmeldung setzt. Die Spalte gibt es seit
+ * 2026-07-01, den Cast und den `contactable`-Scope auch — nur die Deklaration
+ * fehlte, und damit sah die Analyse einen Zugriff auf eine Eigenschaft, die es
+ * angeblich nicht gibt. Aufgefallen 2026-09-06 als roter Larastan-Lauf in
+ * `statamic-marketing`, das `$contact->do_not_contact` liest, um niemanden
+ * anzuschreiben, der sich abgemeldet hat. Der Fehler erschien dort, gehoerte
+ * aber hierher: dieses Paket besitzt das Modell.
+ *
+ * Mit der Deklaration schrumpft die Baseline um drei Eintraege — die Ratsche in
+ * die richtige Richtung.
+ *
  * @property int $brand_id
  * @property array<string, mixed>|null $custom_fields
- * Was eine Abmeldung setzt. Die Spalte gibt es seit 2026-07-01, den Cast und
- * den `wontContact`-Scope auch — nur diese Zeile fehlte, und damit sah die
- * statische Analyse einen Zugriff auf eine Eigenschaft, die es angeblich nicht
- * gibt. Gefunden 2026-09-06 als roter Larastan-Lauf in `statamic-marketing`,
- * das `$contact->do_not_contact` liest, um niemanden anzuschreiben, der sich
- * abgemeldet hat. Der Fehler stand dort, gehoerte aber hierher.
  * @property bool $do_not_contact
  * @property int $revenue_cent
  * @property int $revenue_refunded_cent
