@@ -194,8 +194,17 @@ it('refuses to start when there is no brand to stamp the rows with', function ()
 
     // brand-context not migrated: the 1.4.0 file read this table at step 2,
     // after all seventeen tables had already been altered.
-    Schema::connection(MigrationPathTestCase::CONNECTION)->drop('brand_user');
-    Schema::connection(MigrationPathTestCase::CONNECTION)->drop('brands');
+    //
+    // Alle Tabellen des Pakets, Kinder zuerst. `brand_settings` kam mit
+    // brand-context 1.12 dazu und traegt einen Fremdschluessel auf `brands`;
+    // solange es steht, weigert sich InnoDB, `brands` fallen zu lassen
+    // (Fehler 3730). SQLite kennt die Weigerung nicht, deshalb blieb die
+    // Luecke im SQLite-Lauf unsichtbar und nur der MySQL-Job fiel.
+    // `dropIfExists`, weil eine aeltere brand-context-Fassung die dritte
+    // Tabelle nicht hat.
+    foreach (['brand_settings', 'brand_user', 'brands'] as $table) {
+        Schema::connection(MigrationPathTestCase::CONNECTION)->dropIfExists($table);
+    }
 
     expect(fn () => $this->migratePath($this->currentMigrations()))
         ->toThrow(RuntimeException::class, 'brand-context');
