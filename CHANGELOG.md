@@ -2,277 +2,272 @@
 
 ## 2.11.1 — 2026-09-07
 
-### Geändert: `goldnead/statamic-brand-context` ab 1.13
+### Changed: `goldnead/statamic-brand-context` 1.13 or later
 
-Die 28 Felder, die mit 2.11.0 auf den gemeinsamen Einstellungs-Bildschirm gezogen sind, gelten
-unter älteren Fassungen nicht verlässlich. Auf einer Installation mit einer einzigen Marke
-wurden die Werte der zuletzt angemeldeten Addons überhaupt nicht auf die Config gelegt: der
-Bildschirm zeigte nach dem Neuladen den gespeicherten Wert, `config()` antwortete für den Rest
-des Prozesses mit der Paketvorgabe, und der Markenwechsel, der es nachgeholt hätte, findet im
-Einmarken-Betrieb nie statt. Dazu löschte bis 1.12 ein zweites Speichern desselben Abschnitts
-die Überschreibung des ersten, ohne Meldung, und zwei Speichervorgänge hintereinander sind der
-Normalfall.
+The 28 fields that moved onto the shared settings screen in 2.11.0 do not apply reliably under
+older versions. On an installation with a single brand, the values of the addons that registered
+last were not laid over the config at all: after a reload the screen showed the saved value,
+`config()` answered with the package default for the rest of the process, and the brand switch
+that would have caught this up never happens in single-brand operation. On top of that, up to
+1.12 saving the same section a second time deleted the first save's override, without a message,
+and two saves in a row are the normal case.
 
-Am Bildschirm und am Recht `manage leadhub settings` ändert sich nichts. Wer zwischen dem 06.09.
-und diesem Update Einstellungen gesetzt hat, sieht nach dem Aktualisieren nach, ob sie noch
-dastehen; verlorene Werte kommen nicht von selbst zurück.
+Nothing changes about the screen or the `manage leadhub settings` permission. If you set values
+between 06.09. and this update, check after updating whether they are still there; lost values do
+not come back on their own.
 
-### Behoben: die Migrations-Tests räumten brand-context nur halb ab
+### Fixed: the migration tests only half cleared brand-context
 
-Nur für Mitwirkende, ohne Wirkung auf eine Installation. Der Testfall „brand-context ist nicht
-migriert" ließ `brand_user` und `brands` fallen. Seit brand-context 1.12 gibt es eine dritte
-Tabelle, `brand_settings`, mit einem Fremdschlüssel auf `brands`; InnoDB weigert sich dann,
-`brands` fallen zu lassen (Fehler 3730), und beide MySQL-Jobs fielen an dieser Stelle. SQLite
-kennt die Weigerung nicht, deshalb war die Lücke im SQLite-Lauf nicht zu sehen. Jetzt fallen
-alle Tabellen des Pakets, Kinder zuerst, per `dropIfExists`, damit eine ältere
-brand-context-Fassung ohne die dritte Tabelle weiter funktioniert.
+For contributors only, with no effect on an installation. The test case "brand-context is not
+migrated" dropped `brand_user` and `brands`. Since brand-context 1.12 there is a third table,
+`brand_settings`, with a foreign key on `brands`; InnoDB then refuses to drop `brands` (error
+3730), and both MySQL jobs failed at this point. SQLite does not know the refusal, which is why
+the gap was invisible in the SQLite run. All of the package's tables are now dropped, children
+first, with `dropIfExists`, so that an older brand-context version without the third table keeps
+working.
 
 ## 2.11.0 — 2026-09-06
 
-### Geändert: die Einstellungen ziehen auf den gemeinsamen Suite-Bildschirm
+### Changed: the settings move to the shared suite screen
 
-Die Seite **LeadHub → Einstellungen** entfällt. Dieselben 28 Felder stehen jetzt unter
-**Einstellungen → Addon-Einstellungen**, zusammen mit denen der anderen Suite-Addons. Die alte
-Adresse leitet weiter, das Recht `manage leadhub settings` bleibt unverändert, und eine
-Migration trägt gespeicherte Werte in die neue Tabelle. Zu tun ist nichts außer
-`php artisan migrate`.
+The **LeadHub → Settings** page is gone. The same 28 fields now sit under **Settings → Addon
+Settings**, together with those of the other suite addons. The old address redirects, the
+`manage leadhub settings` permission is unchanged, and a migration carries saved values into the
+new table. There is nothing to do beyond `php artisan migrate`.
 
-- **Voraussetzung: `goldnead/statamic-brand-context` ≥ 1.12.** Das Paket ist MIT und stellt
-  jetzt Bildschirm, Validierung, Speicher und die Markendimension. Dieses Addon schreibt nur
-  noch die Feldliste (`Support\Settings::settingsGroups()`) und meldet sich an.
-- **Die Werte sind ab jetzt markenbezogen.** `leadhub_settings` hatte keine `brand_id`, auf
-  einer Mehrmarken-Installation teilten sich also zwei Marken eine Einstellung. Im
-  Einmarken-Betrieb ändert sich dadurch nichts.
-- **`leadhub_settings` bleibt eine Minor-Version stehen**, damit ein Rollback die Werte nicht
-  verliert.
-- **Die Anzeige der Deployment-Werte und die Status-Handles sind aufs Dashboard gewandert.**
-  Beides war nie eine Einstellung.
-- **Behoben, nebenbei:** `mergeConfigFrom()` lief in `bootAddon()` statt in `register()`. Das
-  fiel erst mit der gemeinsamen Schicht auf, die ihre Paket-Vorgaben beim ersten Anwenden
-  festhält — bis dahin las jede Vorgabe als `null`, und keine gespeicherte Einstellung war je
-  gleich ihrem Default.
+- **Requires `goldnead/statamic-brand-context` ≥ 1.12.** The package is MIT and now provides the
+  screen, the validation, the store and the brand dimension. This addon only writes the field
+  list (`Support\Settings::settingsGroups()`) and registers itself.
+- **The values are brand-scoped from now on.** `leadhub_settings` had no `brand_id`, so on a
+  multi-brand installation two brands shared one setting. In single-brand operation nothing
+  changes.
+- **`leadhub_settings` stays for one minor version**, so a rollback does not lose the values.
+- **The display of the deployment values and the status handles have moved to the dashboard.**
+  Neither was ever a setting.
+- **Fixed along the way:** `mergeConfigFrom()` ran in `bootAddon()` instead of in `register()`.
+  That only showed up with the shared layer, which captures its package defaults the first time
+  it applies them — until then every default read as `null`, and no saved setting was ever equal
+  to its default.
 
 ## 2.10.0 — 2026-09-03
 
-### Behoben: die Oberfläche sagt jetzt, wenn sie nichts tut
+### Fixed: the interface now says when it is doing nothing
 
-Adrians Durchgang durch die Kontaktansicht und die Folgeseiten. Die Befunde waren fast alle
-dieselbe Sorte: etwas rendert, sieht fast richtig aus und sagt nicht, dass es nicht tut, was es
-soll.
+Adrian's pass through the contact view and the pages that follow it. The findings were almost all
+of the same kind: something renders, looks nearly right, and does not say that it is not doing
+what it should.
 
-- **Die Bearbeiten-Aktion bei Custom Fields wurde nie gerendert.** Sie saß in einem
-  `#actions`-Slot, den `Listing` nicht hat, und Vue verwirft einen unbekannten Slot wortlos.
-- **Der Kontakt-Picker zeigte nie seinen Platzhalter.** Er band `''` statt `null`, und ein leerer
-  String gilt der CP-Combobox als getroffene Auswahl.
-- **13 Icon-Namen, die es in Statamic nicht gibt** (`user`, `add`, `check`, `tags`, `tasks`,
-  `archive`, `list`, `chart-pie` …). Ein unbekannter Name rendert einen leeren Kasten; neben einer
-  Überschrift liest sich das als falscher Einzug.
-- **Kopfaktionen in Coreform:** `…`-Menü zuerst, Primäraktion zuletzt, Löschen als
-  `DropdownItem variant="destructive"` statt rotem Knopf. `danger` gehört in den
-  Bestätigungsdialog, sonst nirgends.
-- **Status-Badges als Pille mit Farbe.** `color="default" size="sm"` ist optisch exakt ein kaputter
-  Knopf: dieselben Klassen wie `Button variant="default"`, nur mit 3px-Ecke.
-- **Rohe Spaltenwerte** (`open`, `won`, `note_added`) durch Beschriftungen ersetzt. Die Zeitleiste
-  fällt nie mehr auf den Ereignis-Schlüssel zurück.
-- Follow-ups und Firmenkontakte sind `Listing` statt Kartenlisten.
+- **The edit action on custom fields was never rendered.** It sat in an `#actions` slot that
+  `Listing` does not have, and Vue discards an unknown slot without a word.
+- **The contact picker never showed its placeholder.** It bound `''` instead of `null`, and an
+  empty string counts as a made selection to the CP combobox.
+- **13 icon names that do not exist in Statamic** (`user`, `add`, `check`, `tags`, `tasks`,
+  `archive`, `list`, `chart-pie` …). An unknown name renders an empty box; next to a heading that
+  reads as a wrong indent.
+- **Header actions in core's form:** `…` menu first, primary action last, delete as
+  `DropdownItem variant="destructive"` instead of a red button. `danger` belongs in the
+  confirmation dialog and nowhere else.
+- **Status badges as a coloured pill.** `color="default" size="sm"` looks exactly like a broken
+  button: the same classes as `Button variant="default"`, only with a 3px corner.
+- **Raw column values** (`open`, `won`, `note_added`) replaced by labels. The timeline never falls
+  back to the event key again.
+- Follow-ups and company contacts are a `Listing` instead of card lists.
 
-### Neu: verknüpfen, filtern, von außen ansprechbar
+### New: linking, filtering, addressable from outside
 
-- **Firmen lassen sich vom Kontakt aus verknüpfen und trennen.** Der Pivot existiert seit 1.0, das
-  Control Panel konnte nie hineinschreiben.
-- **Tags, Custom Fields und Scoring werden in einem `Stack` bearbeitet** statt in Inline-Formularen
-  über der Tabelle — dieselbe Fläche, die die Filter des Listings benutzen.
-- **Aktive Filter sind sichtbar:** ein Chip je Filter mit `x` zum Löschen. Vorher zeigte ein
-  Dashboard-Link drei von neunzehn Kontakten und sah kaputt aus.
-- **Der Panel-Vertrag kennt eine Auswahl-Aktion**, damit ein Nachbar-Addon „auf eine Liste setzen"
-  anbieten kann, ohne dass LeadHub weiß, was eine Liste ist.
+- **Companies can be linked and unlinked from the contact.** The pivot has existed since 1.0, the
+  Control Panel could never write into it.
+- **Tags, custom fields and scoring are edited in a `Stack`** instead of in inline forms above the
+  table — the same surface the listing's filters use.
+- **Active filters are visible:** one chip per filter with an `x` to clear it. Before, a dashboard
+  link showed three of nineteen contacts and looked broken.
+- **The panel contract knows a selection action**, so that a neighbouring addon can offer "add to
+  a list" without LeadHub knowing what a list is.
 
 ## 2.9.0 — 2026-09-02
 
-### Neu: eine Seite je Mensch
+### New: one page per person
 
-Die Kontaktseite zeigt jetzt oben fünf Kopfzahlen (erster Kontakt, letzter Kontakt, Käufe,
-Lebenszeitwert je Währung, aktive Zugänge) und darunter **eine** Zeitleiste, in der LeadHubs
-eigene Ereignisse mit dem stehen, was die Nachbar-Addons über dieselbe Person wissen: Käufe,
-offene und fehlgeschlagene Zahlungen und Erstattungen aus `statamic-payments`, erteilte,
-abgelaufene und entzogene Zugänge aus `statamic-entitlements`, Termine aus `statamic-booking`,
-Einwilligungen aus `statamic-consent` (nur, wenn der Kontakt eine `consent_id` trägt; die
-Einwilligungsdatensätze kennen absichtlich keine Adresse). Jeder Eintrag hat Zeitpunkt, Art,
-einen Satz, ein Zustandsbadge und, wo das Nachbar-Addon eine Ansicht hat, einen Link dorthin.
+The contact page now shows five headline figures at the top (first contact, last contact,
+purchases, lifetime value per currency, active entitlements) and below them **one** timeline, in
+which LeadHub's own events sit alongside what the neighbouring addons know about the same person:
+purchases, open and failed payments and refunds from `statamic-payments`, granted, expired and
+revoked entitlements from `statamic-entitlements`, appointments from `statamic-booking`, consents
+from `statamic-consent` (only if the contact carries a `consent_id`; the consent records
+deliberately hold no address). Every entry has a timestamp, a type, one sentence, a state badge
+and, where the neighbouring addon has a view, a link to it.
 
-**Die Leser liegen in LeadHub, nicht in den Nachbarn.** Ein `TimelineSource`-Contract, je Nachbar
-eine Klasse unter `src/Integrations/Timeline/`, Nachbar per String-Klassenname und `class_exists`
-erkannt — LeadHub setzt weiterhin nichts voraus. Ein fehlender Nachbar heißt: seine Quelle
-fehlt, mehr nicht. Ein Leser, der wirft, wird protokolliert und ausgelassen, die Seite steht.
-Zuordnung über `LOWER(TRIM(email))`, weil die Demo-Daten `doppelt@` und `DOPPELT@` als zwei
-Zeilen führen und beide zur selben Person gehören (SQLite faltet dabei nur ASCII, siehe README).
-Zahlungen werden auf die Marke des Kontakts plus `brand_id = 0` eingegrenzt, wie es Payments'
-eigene Kennzahl hält. Läuft der Zahlungs-Leser, werden die `payments.*`-Ereignisse der
-Payments-Bridge in `leadhub_events` ausgeblendet, damit ein Kauf einmal erscheint; läuft er
-nicht, bleiben sie. Ein Leser, der beim Lesen wirft, steht auf der Seite als „Quelle X konnte
-nicht gelesen werden" statt als grüner Chip über einer Lücke.
+**The readers live in LeadHub, not in the neighbours.** A `TimelineSource` contract, one class
+per neighbour under `src/Integrations/Timeline/`, the neighbour detected by string class name and
+`class_exists` — LeadHub still requires nothing. A missing neighbour means its source is missing,
+nothing more. A reader that throws is logged and skipped, and the page stands. Matching runs over
+`LOWER(TRIM(email))`, because the demo data carries `doppelt@` and `DOPPELT@` as two rows and both
+belong to the same person (SQLite folds only ASCII while doing so, see the README). Payments are
+narrowed to the contact's brand plus `brand_id = 0`, the way Payments' own metric holds it. When
+the payment reader runs, the `payments.*` events of the Payments bridge in `leadhub_events` are
+hidden so that a purchase appears once; when it does not run, they stay. A reader that throws
+while reading appears on the page as "Source X could not be read" instead of as a green chip over
+a gap.
 
-Neu dazu die Handlung **„Zugang freischalten“** in den Aktionen, nur mit installiertem
-entitlements: Produkt wählen, Notiz, ein Schreibvorgang über die Entitlements-Fassade
-(Quelle `manual`, Referenz `leadhub:<uuid>`, Notiz und Nutzer in `meta`). Eigene Berechtigung
-`grant leadhub access`; ohne sie 403, mit ihr ohne entitlements 404. Der Klick steht als
-`access_granted` auf der LeadHub-Zeitleiste — nur, wenn wirklich etwas Neues geöffnet wurde:
-hatte die Person den Zugang schon, sagt die Meldung das und es entsteht kein Ereignis; ist der
-Zugang entzogen, wird der Klick abgelehnt und auf „Wiederherstellen" in Entitlements verwiesen,
-denn die Fassade lässt einen entzogenen Zugang absichtlich entzogen.
+New alongside it is the **"Grant access"** action, only with entitlements installed: choose a
+product, a note, one write through the entitlements facade (source `manual`, reference
+`leadhub:<uuid>`, note and user in `meta`). Its own permission `grant leadhub access`; without it
+a 403, with it but without entitlements a 404. The click appears as `access_granted` on the
+LeadHub timeline — only if something new was really opened: if the person already had the access,
+the message says so and no event is created; if the access is revoked, the click is rejected and
+points to "Restore" in Entitlements, because the facade deliberately leaves a revoked access
+revoked.
 
-Konfiguration: `leadhub.timeline.sources.*` schaltet einzelne Leser ab, `leadhub.timeline.limit`
-begrenzt die Liste. Fassade: `LeadHub::registerTimelineSource()` für eigene Quellen.
+Configuration: `leadhub.timeline.sources.*` switches individual readers off,
+`leadhub.timeline.limit` bounds the list. Facade: `LeadHub::registerTimelineSource()` for your own
+sources.
 
 ## 2.8.0 — 2026-08-29
 
-### Neu: die Zahlen dieses Addons erscheinen in Insights
+### New: this addon's figures appear in Insights
 
-`statamic-insights` ist ab 1.1.0 keine Umsatzauswertung mehr, sondern die Auswertungs-Schicht der
-Familie: jedes Addon meldet an, was es zählen kann, und bekommt dafür Zeitraum, Vergleich mit dem
-Vorzeitraum, Diagramm, Aufteilungen und zwei fertige Schirme.
+From 1.1.0 `statamic-insights` is no longer a revenue report but the family's reporting layer:
+every addon registers what it can count and gets the period, the comparison against the period
+before, the chart, the breakdowns and two finished screens in return.
 
-Die Kopplung ist in **beide** Richtungen freiwillig. Ohne Insights fehlt hier nichts; ohne dieses
-Addon fehlt dort nur seine Gruppe. `suggest`, nie `require`.
+The coupling is optional in **both** directions. Without Insights nothing is missing here;
+without this addon only its own group is missing over there. `suggest`, never `require`.
 
-Jede Zahl hält sich an die Hausregeln des Vertrags: **null ist nicht null** (eine Quote ohne Nenner
-hat keine Antwort und zeigt keine 0 %), `available()` entscheidet über die Existenz und nie über die
-Daten, Lücken im Verlauf füllt Insights und nicht die Kennzahl, und ein Filter, den eine Zahl nicht
-versteht, wird ignoriert statt zum Fehler.
+Every figure follows the contract's house rules: **null is not zero** (a rate with no denominator
+has no answer and does not print 0 %), `available()` decides existence and never the data, gaps
+in a series are filled by Insights rather than by the metric, and a filter a metric does not
+understand is ignored rather than fatal.
 
-Sechs Zahlen rund um Kontakte, Zuwachs und Lebensumsatz.
+Six figures around contacts, growth and lifetime revenue.
 
-### Behoben: sechs Kacheln verschwanden, statt 0 zu zeigen
+### Fixed: six tiles vanished instead of showing 0
 
-Bei mehreren Marken ohne aufgelöste Marke setzte dieses Addon `available()` auf `false`. Der Vertrag
-sagt, dass `available()` über die Existenz entscheidet — dass die Tabellen fehlen, ein Feature aus
-ist, ein Geschwister nicht installiert ist. Eine noch nicht gewählte Marke ist nichts davon. Die
-Kacheln lesen jetzt 0 und bleiben stehen.
+With several brands and no resolved brand, this addon set `available()` to `false`. The contract
+says that `available()` decides existence — that the tables are missing, that a feature is off,
+that a sibling is not installed. A brand not yet chosen is none of those. The tiles now read 0 and
+stay put.
 
-Zwei Bestandszahlen bauen eigene, nicht gefensterte Abfragen und laufen deshalb nicht durch den
-zentralen Weg. Die tragen die Marke jetzt ausdrücklich; vorher hätten sie still über alle Marken
-summiert.
+Two stock figures build their own, unwindowed queries and therefore do not run through the central
+path. Those now carry the brand explicitly; before, they would have summed silently across all
+brands.
 
-### Behoben: eine Zahl zählt nur noch die aktive Marke
+### Fixed: a figure now counts the active brand only
 
-Beim Bauen der Anbindung bekam diese Frage in der Familie vier verschiedene Antworten, und auf einem
-Schirm nebeneinander ist das schlimmer als gar keine: eine Kachel zeigte den Umsatz dreier fremder
-Marken, während die daneben korrekt filterte. Die Regel steht jetzt einmal in
-`TableMetric::brandScoped()`, als Abschrift von `BrandScope::apply()`; hier wird nur noch die Spalte
-genannt, und Zahl, Diagramm und jede Aufteilung verengen gemeinsam.
+While the integration was being built, this question got four different answers within the
+family, and side by side on one screen that is worse than none: one tile showed the revenue of
+three foreign brands while the one next to it filtered correctly. The rule now sits once in
+`TableMetric::brandScoped()`, as a transcription of `BrandScope::apply()`; here only the column is
+named, and figure, chart and every breakdown narrow together.
 
-Ist keine Marke gewählt, liest die Kachel **0 und bleibt stehen**. Ein Leser versteht eine Null;
-eine verschwundene Kachel bemerkt er nicht.
+With no brand selected, the tile reads **0 and stays put**. A reader understands a zero; a tile
+that has vanished goes unnoticed.
 
 ## 2.7.1 — 2026-08-28
 
-### Fixed — ein Navigationseintrag ohne Route legte das ganze Control Panel lahm
+### Fixed — a nav item without a route brought down the whole Control Panel
 
-2.7.0 hat die eigenen Felder halb verdrahtet ausgeliefert. Der `ServiceProvider` registriert auf
-dem Eloquent-Treiber einen Navigationseintrag auf `leadhub.custom-fields.index`, und `routes/cp.php`
-hat diese Route nie definiert.
+2.7.0 shipped custom fields half wired up. On the Eloquent driver the `ServiceProvider` registers
+a nav item pointing at `leadhub.custom-fields.index`, and `routes/cp.php` never defined that
+route.
 
-**Warum das nicht eine Seite trifft, sondern jede.** `NavItem->route()` löst den Namen sofort über
-`cp_route()` auf, also in dem Moment, in dem der Eintrag entsteht. Die Navigation wird auf jeder
-Control-Panel-Seite gebaut, weil Statamics `HandleAuthenticatedInertiaRequests` sie in den geteilten
-Props mitschickt. Ein Name, der nicht auflöst, versteckt darum keinen Screen, sondern wirft
-`RouteNotFoundException` während die Navigation zusammengesetzt wird. Kontakte, Einträge, Benutzer,
-Utilities: alles antwortet 500. Der Screen der eigenen Felder ist die einzige Seite, um die es
-dabei nicht geht.
+**Why this does not hit one page but every page.** `NavItem->route()` resolves the name through
+`cp_route()` right away, at the moment the item is created. The navigation is built on every
+Control Panel page, because Statamic's `HandleAuthenticatedInertiaRequests` sends it along in the
+shared props. A name that does not resolve therefore hides no screen; it throws
+`RouteNotFoundException` while the navigation is being assembled. Contacts, entries, users,
+utilities: everything answers 500. The custom fields screen is the one page this is not about.
 
-**Warum es niemandem auffiel.** Zwei Dinge haben gleichzeitig verdeckt.
+**Why nobody noticed.** Two things covered it at the same time.
 
-In der einzigen Installation, die 2.7.0 bekommen hat, lag im `vendor/` eine von Hand gepatchte Kopie
-des Addons, die die Route hatte. Der Fehler war also da, und sichtbar war er nirgends. Sichtbar
-wurde er erst, als diese Kopie ersetzt wurde: sieben Tests im Hostprojekt wurden allein durch das
-Update von 2.5.0 auf 2.7.0 rot, jeder mit derselben Ausnahme.
+On the only installation that got 2.7.0, `vendor/` held a hand-patched copy of the addon that had
+the route. So the error was there and visible nowhere. It only became visible when that copy was
+replaced: seven tests in the host project turned red from the update from 2.5.0 to 2.7.0 alone,
+each with the same exception.
 
-Der zweite Grund liegt in dieser Testsuite selbst. 580 Tests waren grün, und keiner davon hatte je
-eine Control-Panel-Seite gerendert, die keine LeadHub-Seite ist. Die Controller des Addons
-beantworten Inertia direkt und bauen die Navigation nie; im Testbett laufen die eigenen CP-Routen
-außerdem ohne Statamics CP-Middleware. Eine Suite, die nur die eigenen Screens abfragt, kann einen
-kaputten eigenen Screen sehen und ist blind für ein kaputtes Control Panel.
+The second reason lies in this test suite itself. 580 tests were green, and not one of them had
+ever rendered a Control Panel page that is not a LeadHub page. The addon's controllers answer
+Inertia directly and never build the navigation; in the test bed the addon's own CP routes also
+run without Statamic's CP middleware. A suite that only requests its own screens can see a broken
+screen of its own and is blind to a broken Control Panel.
 
-**Was jetzt dagegensteht.** `tests/Feature/NavigationTakesTheWholeCpWithItTest.php` prüft beides
-getrennt. Der erste Test ruft eine Kern-CP-Seite auf, die mit dem Addon nichts zu tun hat, rendert
-sie vollständig und erwartet 200, in drei Konfigurationen: Eloquent mit allen Modulen aus, Eloquent
-mit allen Modulen an, Flat. Ohne die Route sind die beiden Eloquent-Fälle rot, der Flat-Fall bleibt
-grün, was zugleich zeigt, dass die Bedingung des Navigationseintrags und die der Route nicht
-auseinanderlaufen. Der zweite Test liest jeden LeadHub-Routennamen, den das Addon in `src/` und
-`resources/` selbst nennt, und prüft, ob der Router ihn kennt. Von den 71 gefundenen Namen fehlte
-genau einer; die übrigen 70 sind damit gleich mit nachgewiesen. Eine künftige Lücke meldet er als
-Liste von Routennamen statt als weiße Seite bei einem Kunden.
+**What stands against it now.** `tests/Feature/NavigationTakesTheWholeCpWithItTest.php` checks
+both separately. The first test calls a core CP page that has nothing to do with the addon,
+renders it fully and expects 200, in three configurations: Eloquent with all modules off, Eloquent
+with all modules on, flat. Without the route the two Eloquent cases are red and the flat case
+stays green, which at the same time shows that the condition on the nav item and the one on the
+route do not drift apart. The second test reads every LeadHub route name the addon itself names in
+`src/` and `resources/` and checks whether the router knows it. Of the 71 names found exactly one
+was missing; the other 70 are thereby proved along with it. A future gap is reported as a list of
+route names instead of as a white page at a customer's.
 
-Die Route ist bewusst ohne Bedingung registriert. Der Treiber wird dort geprüft, wo dieses Addon ihn
-überall prüft, nämlich im Controller über `abortUnlessEloquent()`. Eine Route, die auflöst und 404
-antwortet, ist harmlos; ein Routenname, der nicht auflöst, ist es nicht. Dazu kommt `route:cache`:
-eine bedingte Route friert den Treiberzustand auf den Moment ein, in dem der Cache geschrieben
-wurde, während die Navigation pro Anfrage neu ausgewertet wird. Ein späterer Wechsel von flat auf
-eloquent brächte damit exakt diesen Ausfall zurück, auf einer Installation, die nichts geändert hat
-als einen Config-Wert.
+The route is deliberately registered without a condition. The driver is checked where this addon
+checks it everywhere, namely in the controller through `abortUnlessEloquent()`. A route that
+resolves and answers 404 is harmless; a route name that does not resolve is not. On top of that
+there is `route:cache`: a conditional route freezes the driver state at the moment the cache was
+written, while the navigation is evaluated afresh per request. A later switch from flat to
+eloquent would bring exactly this outage back, on an installation that changed nothing but a
+config value.
 
-### Fixed — der Flat-Lauf der Testsuite war rot, bevor irgendjemand hinsah
+### Fixed — the suite's flat run was red before anyone looked
 
-Vierzehn Fehler in zwei Dateien, unabhängig von allem oben, und schon vor 2.7.0 vorhanden.
-`ExportIsNotAFormulaTest` legte seine Kontakte über das Eloquent-Model an, während `ExportService`
-über das treiberabhängig gebundene Repository liest. Auf dem Flat-Treiber bestand jede erzeugte CSV
-nur aus der Kopfzeile, und der Schutz gegen Formeln in Zellen war dort schlicht ungeprüft: ein
-sicherheitsrelevanter Test, der auf einem von zwei Treibern nichts prüfte. Die Kontakte entstehen
-jetzt über das Repository, damit läuft der Pfad auf beiden Treibern echt durch.
+Fourteen failures in two files, independent of everything above, and present before 2.7.0
+already. `ExportIsNotAFormulaTest` created its contacts through the Eloquent model, while
+`ExportService` reads through the repository bound per driver. On the flat driver every CSV
+produced consisted of the header row alone, and the protection against formulas in cells was
+simply untested there: a security-relevant test that checked nothing on one of two drivers. The
+contacts are now created through the repository, so the path really runs through on both drivers.
 
-`BrandSenderIdentityTest` hatte eine andere Wurzel. `brand_id` wird von einem Eloquent-Hook
-gestempelt, und der Flat-Treiber schreibt bewusst keinen Brand-Schlüssel in die YAML, weil die
-Zugehörigkeit dort im Verzeichnispfad liegt. Fünf der sechs Fälle laufen jetzt innerhalb der Brand,
-so wie eine Formular-Einsendung in Produktion behandelt wird. Der sechste verlangt
-definitionsgemäß die Brand aus der Kontaktzeile, die es auf flat nicht gibt, und wird dort
-übersprungen statt mit einem erfundenen Zustand grün gemacht.
+`BrandSenderIdentityTest` had a different root. `brand_id` is stamped by an Eloquent hook, and the
+flat driver deliberately writes no brand key into the YAML, because membership sits in the
+directory path there. Five of the six cases now run inside the brand, the way a form submission is
+handled in production. The sixth requires, by definition, the brand from the contact row, which
+does not exist on flat, and is skipped there instead of being made green with an invented state.
 
-### Fixed — der Harness konnte diese Klasse von Fehler nicht sehen
+### Fixed — the harness could not see this class of error
 
-Damit ein Test überhaupt eine Kern-CP-Seite rendern kann, fehlten dem Testbett zwei Dinge, die jede
-echte Installation hat: der ServiceProvider von `inertiajs/inertia-laravel`, den Laravel in
-Produktion selbst findet und den testbench mit `ignorePackageDiscoveriesFrom('*')` ausschließt, und
-der Alias `Statamic` im Wurzelnamensraum. Ohne den ersten stirbt jede Kern-CP-Seite in
-`HandleAuthenticatedInertiaRequests` an einem fehlenden `$request->inertia()`, ohne den zweiten in
-`nav/updates.blade.php`. Beides sah aus wie ein kaputtes Control Panel und war keins, weshalb es
-den echten Defekt zusätzlich verdeckt hätte.
+For a test to render a core CP page at all, the test bed was missing two things every real
+installation has: the service provider of `inertiajs/inertia-laravel`, which Laravel finds by
+itself in production and which testbench excludes with `ignorePackageDiscoveriesFrom('*')`, and
+the `Statamic` alias in the root namespace. Without the first, every core CP page dies in
+`HandleAuthenticatedInertiaRequests` on a missing `$request->inertia()`; without the second, in
+`nav/updates.blade.php`. Both looked like a broken Control Panel and were not one, which is why
+they would have covered the real defect on top of everything else.
 
 ## 2.7.0 — 2026-08-26
 
-### Added — eigene Felder am Kontakt
+### Added — custom fields on the contact
 
-Bis jetzt war ein Tag der einzige Weg, etwas über einen Kontakt festzuhalten, das nicht Name,
-E-Mail oder Status ist — und ein Tag kann nur ja oder nein sagen. Stimmlage, Chorgröße, Bundesland
-sind Werte. In Tags gepresst werden daraus `chorgroesse-20-40`, `chorgroesse-40-60` und ein Segment,
-das niemand mehr pflegen kann.
+Until now a tag was the only way to hold something about a contact that is not a name, an email
+address or a status — and a tag can only say yes or no. Voice type, choir size, federal state are
+values. Pressed into tags they become `chorgroesse-20-40`, `chorgroesse-40-60` and a segment
+nobody can maintain any more.
 
-Fünf Typen (Text, Zahl, Auswahl, Datum, Ja/Nein), jeder mit den Vergleichen, die er beantworten
-kann. Ein Datum bietet kein „enthält", ein Ja/Nein kein „größer als" — sonst lässt sich im
-Regelbauer eine Bedingung schreiben, die nie wahr werden kann, und nichts sagt es.
+Five types (text, number, select, date, yes/no), each with the comparisons it can answer. A date
+offers no "contains", a yes/no no "greater than" — otherwise a condition can be written in the
+rule builder that can never become true, and nothing says so.
 
-**Definiert wird im Control Panel, nicht in einer Config-Datei.** Wer ein Feld braucht, ist die
-Person, die das CRM benutzt; ein Feld, das einen Deploy braucht, wird nie angelegt.
+**They are defined in the Control Panel, not in a config file.** Whoever needs a field is the
+person using the CRM; a field that needs a deploy never gets created.
 
-**Gecastet wird beim Schreiben, nicht beim Vergleichen.** Aus einem Formular kommt eine Zahl als
-Zeichenkette und ein Häkchen als „on". So gespeichert wird jeder spätere Vergleich zum Raten —
-`"20" > 40` ist eine andere Frage als `20 > 40`, und nur eine davon hat die Antwort, die jemand
-gemeint hat.
+**Casting happens on write, not on comparison.** A form delivers a number as a string and a
+checkbox as "on". Stored that way, every later comparison becomes guesswork — `"20" > 40` is a
+different question from `20 > 40`, and only one of them has the answer somebody meant.
 
-**Gelöscht wird nur die Definition, nie die Werte.** Unlesbar ist reparabel (Kürzel wieder anlegen),
-gelöscht wäre es nicht — und ein Knopf mit der Aufschrift „Feld löschen" darf keine
-unwiderrufliche Datenlöschung sein.
+**Only the definition is deleted, never the values.** Unreadable is repairable (create the handle
+again), deleted would not be — and a button labelled "Delete field" must not be an irreversible
+deletion of data.
 
-### Fixed — `is_false` traf auch das nie beantwortete Ja/Nein
+### Fixed — `is_false` also hit the yes/no that was never answered
 
-`(bool) null === false` ist wahr. „Nein gesagt" und „nichts gesagt" waren im Segment nicht zu
-unterscheiden, obwohl `is_set` danebensteht.
+`(bool) null === false` is true. "Said no" and "said nothing" could not be told apart in the
+segment, although `is_set` sits right next to it.
 
-### Added — eine Wache gegen weiße Seiten
+### Added — a guard against white pages
 
-`EveryInertiaPageIsRegisteredTest` vergleicht, was ein Controller ausliefern kann, mit dem, was
-`cp.js` registriert. Der neue Screen ging genau daran zuerst unter: Route 200, Inertia-Nutzlast
-nannte die Komponente, Browser weiß. Kein Test konnte das sehen — ein Routentest prüft den Status,
-ein Inertia-Test den **Namen** der Komponente, und keiner fragt, ob dieser Name irgendwo auflöst.
+`EveryInertiaPageIsRegisteredTest` compares what a controller can deliver with what `cp.js`
+registers. The new screen went down on exactly this first: route 200, the Inertia payload named
+the component, the browser white. No test could see that — a route test checks the status, an
+Inertia test the **name** of the component, and neither asks whether that name resolves anywhere.
 
 ## 2.6.2 — 2026-08-25
 
@@ -309,237 +304,229 @@ ein Inertia-Test den **Namen** der Komponente, und keiner fragt, ob dieser Name 
 
 ## 2.6.0 — 2026-08-24
 
-### Security — der Klick-Endpunkt war ein offener Redirect
+### Security — the click endpoint was an open redirect
 
-`/lh/track/click` prüfte am Ziel nur das Schema. Wer `http://` oder `https://`
-davorschrieb, durfte überall hin: **jeder** konnte
-`https://<deine-domain>/lh/track/click?url=https://phishing.example` verteilen,
-und der Link trug deine Domain bis zum Angreifer. Der Rufschaden trifft die
-Domain, nicht den Absender. Gefunden am 01.08.2026, seitdem offen.
+`/lh/track/click` checked only the scheme on the target. Anyone who put
+`http://` or `https://` in front could go anywhere: **anybody** could hand out
+`https://<your-domain>/lh/track/click?url=https://phishing.example`, and the
+link carried your domain all the way to the attacker. The reputational damage
+hits the domain, not the sender. Found on 01.08.2026, open since then.
 
-Der Fix ruht auf etwas, das schon galt: `url` ist ein **signierter** Parameter.
+The fix rests on something that was already true: `url` is a **signed**
+parameter.
 
-- **Gültige Signatur** → die URL stammt von uns, sie wird unverändert
-  weitergeleitet. Daran ändert sich nichts.
-- **Keine gültige Signatur** → die URL ist die Behauptung eines Fremden. Sie
-  wird nur zu einem Host weitergeleitet, den wir kennen; sonst auf die
-  Startseite.
+- **Valid signature** → the URL comes from us and is passed through unchanged.
+  Nothing changes about that.
+- **No valid signature** → the URL is a stranger's claim. It is only redirected
+  to a host we know; otherwise to the home page.
 
-Bekannt sind immer die eigene Domain und alles unter
-`click_tracking.allowed_redirect_hosts`. **Eine Installation, die dort nichts
-einträgt, ist damit sicher und funktioniert weiter** — ihre eigenen Links
-gehen ohnehin auf die eigene Domain.
+Known are always the site's own domain and everything under
+`click_tracking.allowed_redirect_hosts`. **An installation that enters nothing
+there is safe and keeps working** — its own links go to its own domain anyway.
 
-Die „golden rule" bleibt für den Fall, für den sie geschrieben wurde: ein
-Versanddienst hängt seinen Parameter an, die Signatur bricht, der Leser kommt
-trotzdem an. Sie gilt nicht mehr für Links, die wir nie ausgestellt haben —
-das war nie ihre Absicht.
+The "golden rule" remains for the case it was written for: a sending service
+appends its parameter, the signature breaks, the reader still arrives. It no
+longer applies to links we never issued — that was never its intent.
 
-**Was du prüfen solltest:** verlinken deine Mails auf fremde Domains
-(Ticketshop, Partner, Formularanbieter)? Dann gehören die in
-`allowed_redirect_hosts`. Der Abgleich ist **exakt**: `example.com` erlaubt
-nicht `mail.example.com`.
+**What you should check:** do your emails link to foreign domains (a ticket
+shop, a partner, a form provider)? Then those belong in
+`allowed_redirect_hosts`. The comparison is **exact**: `example.com` does not
+allow `mail.example.com`.
 
 
 ## 2.5.0 — 2026-08-22
 
-### Fixed — die Aufgaben-Benachrichtigung stand in jeder Selbstbedienungs-Seite
+### Fixed — the task notification stood in every self-service page
 
-`crm.task_assigned` ist eine **interne** Benachrichtigung: Aufgaben werden
-Menschen im Team zugewiesen, nicht Kontakten. Auf der Selbstbedienungs-Seite
-tauchte sie trotzdem bei jedem auf — auch bei einer Newsletter-Adresse, die
-nie eine Aufgabe bekommen kann. Aufgefallen an adriangoldner.com, wo ein
-frisch angemeldeter Abonnent fünf Benachrichtigungsarten mal drei Kanäle sah.
+`crm.task_assigned` is an **internal** notification: tasks are assigned to
+people on the team, not to contacts. On the self-service page it nevertheless
+appeared for everybody — including for a newsletter address that can never
+receive a task. Noticed on adriangoldner.com, where a freshly signed-up
+subscriber saw five notification types times three channels.
 
-Die Art gilt jetzt nur noch für Empfänger mit einem Konto in der Anwendung
-(`userId`), und der Digest-Kanal ist für sie zu: eine Aufgabenzuweisung wäre
-dort einen Tag alt, und wer sie erst dann liest, hat einen Tag verloren.
+The type now applies only to recipients with an account in the application
+(`userId`), and the digest channel is closed for it: a task assignment would be
+a day old there, and whoever reads it only then has lost a day.
 
-**Der Digest verliert dadurch nichts.** Die offenen Aufgaben kommen weiterhin
-über die eigene Quelle `leadhub-tasks` hinein — und das ist im Digest das
-Nützliche: der Stand, nicht das einzelne Ereignis.
+**The digest loses nothing by this.** The open tasks still come in through the
+`leadhub-tasks` source of its own — and in a digest that is the useful part:
+the state, not the single event.
 
-Braucht `goldnead/statamic-notifications` 1.7+. Mit einer älteren Fassung
-daneben bleibt alles wie zuvor: die beiden Angaben werden übersprungen, statt
-einen fatalen Fehler auszulösen.
+Needs `goldnead/statamic-notifications` 1.7+. With an older version alongside,
+everything stays as before: the two declarations are skipped instead of causing
+a fatal error.
 
 ## 2.4.0 — 2026-08-15
 
-### Added — ein Deal hat jetzt eine eigene Seite
+### Added — a deal now has a page of its own
 
-Bis hierher gab es im Control Panel keinen Ort, an dem ein einzelner Deal stand.
-Jeder Link, der auf einen zeigte, führte aufs Board: die Opportunity-Liste auf
-der Kontaktseite, die Karten selbst. Das Board beantwortet „was liegt in dieser
-Spalte", nicht „was ist mit diesem Deal passiert".
+Until now there was no place in the Control Panel where a single deal stood.
+Every link pointing at one led to the board: the opportunity list on the contact
+page, the cards themselves. The board answers "what is in this column", not
+"what happened to this deal".
 
-Neu: `GET /cp/leadhub/pipelines/opportunities/{opportunity}`. Die Seite zeigt
-Stammdaten (Titel, **verlinkter** Kontakt, Firma, Pipeline, Wert, Confidence,
-Owner, Zeitstempel), die aktuelle Stufe mit einem Wechsel direkt von dort, die
-Aufgaben an diesem Deal und den **Verlauf**.
+New: `GET /cp/leadhub/pipelines/opportunities/{opportunity}`. The page shows the
+core data (title, **linked** contact, company, pipeline, value, confidence,
+owner, timestamps), the current stage with a change straight from there, the
+tasks on this deal and the **history**.
 
-Der Verlauf ist der eigentliche Punkt. `leadhub_stage_transitions` wird seit dem
-ersten Release des Pipelines-Moduls geschrieben — eine Zeile pro Wechsel, mit
-der Notiz, die sagt *warum* — und wurde von nichts gelesen. Jetzt steht dort, von
-welcher Stufe in welche, wann, durch wen, mit Notiz, und **wie lange der Deal in
-der jeweiligen Stufe lag**. Ein Deal, der nie bewegt wurde, hat keine
-Transition-Zeile; sein Eintritt in die Anfangsstufe kommt aus
-`opportunities.created_at` und ist ein vollwertiger erster Eintrag, keine Lücke.
+The history is the actual point. `leadhub_stage_transitions` has been written
+since the first release of the pipelines module — one row per change, with the
+note that says *why* — and was read by nothing. It now shows from which stage
+into which, when, by whom, with the note, and **how long the deal sat in each
+stage**. A deal that was never moved has no transition row; its entry into the
+first stage comes from `opportunities.created_at` and is a full first entry, not
+a gap.
 
-Der Wechsel von der Detailseite läuft über denselben Endpunkt wie das Drag & Drop
-des Boards, weil das der einzige Weg ist, auf dem die Notiz überhaupt geschrieben
-wird. Die Stufennamen des Verlaufs werden einmal geladen und zugeordnet: die
-Abfragenzahl der Seite ist mit 30 Wechseln dieselbe wie mit 3 (gemessen: 6).
+The change from the detail page runs through the same endpoint as the board's
+drag and drop, because that is the only path on which the note gets written at
+all. The stage names of the history are loaded once and mapped: the page's query
+count with 30 changes is the same as with 3 (measured: 6).
 
-Das Board und die Kontaktseite verlinken jetzt dorthin statt aufs Board; das
-Bearbeiten-Formular kehrt nach dem Speichern und beim Abbrechen auf die Seite
-zurück.
+The board and the contact page now link there instead of to the board; the edit
+form returns to the page after saving and on cancel.
 
-### Fixed — `won_at` und `lost_at` widersprachen dem Status
+### Fixed — `won_at` and `lost_at` contradicted the status
 
-`StageTransitionService` setzte die beiden Zeitstempel und räumte sie nie wieder
-ab, während `status`, `outcome` und `closed_at` daneben sehr wohl zurückgesetzt
-wurden. Ein wieder eröffneter Deal trug also ein Gewinndatum und war offen; ein
-Deal, der von „Gewonnen" direkt nach „Verloren" ging, trug beide. Acht Releases
-lang hat das niemand gesehen, weil keine Ansicht diese Spalten zeigte — und
-`won_at` ist genau die Spalte, über die jemand „was haben wir dieses Quartal
-gewonnen" summiert.
+`StageTransitionService` set the two timestamps and never cleared them again,
+while `status`, `outcome` and `closed_at` next to them very much were reset. So a
+reopened deal carried a won date and was open; a deal that went from "won"
+straight to "lost" carried both. For eight releases nobody saw this, because no
+view showed these columns — and `won_at` is exactly the column somebody sums for
+"what did we win this quarter".
 
-Der Dienst setzt jetzt in beiden Zweigen beide Stempel, den zutreffenden auf
-`now()` und den anderen auf `null`. Die Migration
-`2026_08_15_000001_repair_leadhub_opportunity_outcome_stamps` räumt die bereits
-gespeicherten Zeilen auf: offene Deals verlieren beide Stempel, geschlossene
-behalten den, den ihr `outcome` benennt. **Es geht dabei nichts verloren** —
-wann ein Deal gewonnen wurde, ist eine Aussage über einen Stufenwechsel, und
-jeder Stufenwechsel hat seine eigene Zeile in `leadhub_stage_transitions`. `down()`
-ist deshalb bewusst leer.
+The service now sets both stamps in both branches, the applicable one to `now()`
+and the other to `null`. The migration
+`2026_08_15_000001_repair_leadhub_opportunity_outcome_stamps` cleans up the rows
+already stored: open deals lose both stamps, closed ones keep the one their
+`outcome` names. **Nothing is lost in the process** — when a deal was won is a
+statement about a stage change, and every stage change has its own row in
+`leadhub_stage_transitions`. `down()` is therefore deliberately empty.
 
-### Fixed — aus der Kritiker-Runde
+### Fixed — from the critic round
 
-- **Die Reparatur-Migration parkt, was sie löscht.** Sie behauptete, es gehe
-  nichts verloren, weil zu jedem Stempel eine Zeile in
-  `leadhub_stage_transitions` steht. Das stimmt nur, solange die dort benannte
-  Stufe existiert und ihr `terminal_outcome` unverändert ist — und eine leere
-  Stufe ist löschbar, gerade bei einem wiedereröffneten Deal. Die alten Werte
-  landen deshalb vorher in `metadata_json` unter `repaired_outcome_stamps`. Die
-  Behauptung im Docblock ist auf ihre tatsächliche Bedingung zurückgenommen.
-- **Bei einem abgeschlossenen Deal endet die letzte Dauer beim Abschluss**, nicht
-  heute. Vorher las die oberste Zeile eines im April gewonnenen Deals „115 Tage"
-  und wuchs täglich weiter — in derselben Spalte und Schrift wie die echten
-  Verweildauern darunter, aber auf eine andere Frage antwortend. Ausgerechnet
-  der „läuft"-Marker, der die beiden unterschieden hätte, war auf einem
-  geschlossenen Deal ausgeblendet. Die Fußnote sagt jetzt beides getrennt.
-- **Ein Wechsel auf die Stufe, auf der der Deal schon steht, schreibt nichts.**
-  Der Schirm verhindert es im Browser, ein zweiter Tab oder ein nackter POST
-  nicht — und ein Verlaufseintrag „Angebot → Angebot" ist genau das Rauschen,
-  das eine Historie unlesbar macht.
-- Die Notiz beim Stufenwechsel ist auf 2000 Zeichen begrenzt. Sie wird
-  ungekürzt im Verlauf gerendert.
-- Der Anfangs-Eintrag des Verlaufs fällt bei einem unbekannten `from_stage_id`
-  jetzt über `??` statt `?:` zurück: `null` heißt „unbekannt", nicht „null".
+- **The repair migration parks what it deletes.** It claimed nothing was lost
+  because there is a row in `leadhub_stage_transitions` for every stamp. That
+  only holds as long as the stage named there exists and its `terminal_outcome`
+  is unchanged — and an empty stage can be deleted, especially on a reopened
+  deal. The old values therefore land in `metadata_json` under
+  `repaired_outcome_stamps` beforehand. The claim in the docblock is pulled back
+  to its actual condition.
+- **On a closed deal the last duration ends at the close**, not today. Before,
+  the top row of a deal won in April read "115 days" and grew daily — in the
+  same column and typeface as the real dwell times below it, but answering a
+  different question. Of all things, the "running" marker that would have told
+  the two apart was hidden on a closed deal. The footnote now states both
+  separately.
+- **A change to the stage the deal already sits on writes nothing.** The screen
+  prevents it in the browser, a second tab or a bare POST does not — and a
+  history entry "Offer → Offer" is exactly the noise that makes a history
+  unreadable.
+- The note on a stage change is limited to 2000 characters. It is rendered in
+  full in the history.
+- On an unknown `from_stage_id`, the first entry of the history now falls back
+  through `??` instead of `?:`: `null` means "unknown", not "zero".
 
-### Changed — Stufe wechseln akzeptiert jetzt auch das Deal-Recht
+### Changed — changing a stage now accepts the deal permission as well
 
-`POST /pipelines/opportunities/{opportunity}/move` verlangte
-`edit leadhub contacts`, was zu keinem seiner Nachbarn passte: Board ansehen ist
-`view leadhub`, Deal anlegen/bearbeiten/löschen ist
-`manage leadhub opportunities`. Wer eine Rolle nur für die Pipeline hatte, konnte
-einen Deal löschen, aber nicht verschieben.
+`POST /pipelines/opportunities/{opportunity}/move` required
+`edit leadhub contacts`, which matched none of its neighbours: viewing the board
+is `view leadhub`, creating, editing and deleting a deal is
+`manage leadhub opportunities`. Anyone with a role for the pipeline only could
+delete a deal but not move it.
 
-Die Route akzeptiert jetzt **beide** Rechte, in derselben Form und aus demselben
-Grund wie `TaskController::complete()` seit v1.7.0: eine Verengung auf das
-richtige Recht allein hätte jeder Installation, deren Rollen nur das alte
-tragen, am Upgrade-Tag das Drag & Drop weggenommen. **Niemand verliert etwas**;
-eine Gruppe bekommt, was sie hätte haben sollen. Das Board zeigt den Ziehgriff
-entsprechend für beide Rechte.
+The route now accepts **both** permissions, in the same shape and for the same
+reason as `TaskController::complete()` since v1.7.0: narrowing it to the correct
+permission alone would have taken drag and drop away from every installation
+whose roles carry only the old one, on upgrade day. **Nobody loses anything**;
+one group gets what it should have had. The board shows the drag handle for both
+permissions accordingly.
 
-### Changed — Modelle sagen jetzt, welche Spalten sie haben
+### Changed — models now say which columns they have
 
-`Opportunity`, `Pipeline`, `Stage`, `StageTransition` und `Task` sind
-`$guarded = []` ohne `$fillable`; nichts in den Dateien sagte, was eine Zeile
-enthält, und die statische Analyse sah keine einzige Eigenschaft. Jedes
-`$opportunity->status` im Addon war ein „undefined property" in der
-PHPStan-Baseline, und ein Tippfehler in einem Spaltennamen sah aus wie ein
-korrekter. Die Spalten und Beziehungen stehen jetzt als `@property` in den
-Klassen-Docblocks. Die Baseline schrumpft dadurch um 150 Einträge.
+`Opportunity`, `Pipeline`, `Stage`, `StageTransition` and `Task` are
+`$guarded = []` without `$fillable`; nothing in the files said what a row
+contains, and static analysis saw not a single property. Every
+`$opportunity->status` in the addon was an "undefined property" in the PHPStan
+baseline, and a typo in a column name looked like a correct one. The columns and
+relations now sit as `@property` in the class docblocks. The baseline shrinks by
+150 entries as a result.
 
-### Intern
+### Internal
 
-- `money()` lag als byte-gleiche Kopie in `Board.vue` und `Contacts/Show.vue`;
-  eine dritte Kopie wäre daraus geworden. Jetzt `resources/js/support/money.js`.
-- Kein `OpportunityPanels`-Erweiterungspunkt. Die Spiegelung von
-  `ContactPanels` wäre naheliegend gewesen, hätte aber heute keinen Abnehmer:
-  `statamic-marketing` kennt Opportunities überhaupt nicht, und
-  `statamic-automations` kennt sie nur als Verben („lege an", „verschiebe"),
-  ohne einen einzigen Datensatz an einem Deal und ohne Listener auf
-  `LeadHubOpportunityWon/Lost/StageChanged`. Ein leerer Erweiterungspunkt ist
-  Ballast, den der nächste Umbau mitschleppt.
+- `money()` sat as a byte-identical copy in `Board.vue` and `Contacts/Show.vue`;
+  a third copy would have come of it. Now `resources/js/support/money.js`.
+- No `OpportunityPanels` extension point. Mirroring `ContactPanels` would have
+  been the obvious move but would have no consumer today: `statamic-marketing`
+  does not know opportunities at all, and `statamic-automations` knows them only
+  as verbs ("create", "move"), without a single record on a deal and without a
+  listener on `LeadHubOpportunityWon/Lost/StageChanged`. An empty extension point
+  is ballast the next rebuild carries along.
 
 ## 2.3.0 — 2026-08-15
 
-### Added — die Einstellungsseite lässt sich bedienen
+### Added — the settings page can actually be used
 
-Der Schirm unter LeadHub → Einstellungen hat bisher `config/leadhub.php`
-abgedruckt und dazu gesagt, man möge die Datei auf dem Server ändern. Jetzt ist
-er ein Formular: Verhalten bei neuen Submissions, Payload-Redaktion, alle
-Feature-Flags, Export-Ziel und Queue-Schwelle, die Scoring-Rückfallwerte, das
-Dedupe-Fenster des Klick-Trackings und die Benachrichtigungs-Schalter.
+The screen under LeadHub → Settings used to print `config/leadhub.php` and tell
+the reader to go and edit the file on the server. It is a form now: behaviour on
+new submissions, payload redaction, all feature flags, export target and queue
+threshold, the scoring fallback values, the dedupe window of the click tracking
+and the notification switches.
 
-Gespeichert wird nur, was von der Auslieferung abweicht, als Zeile in der neuen
-Tabelle `leadhub_settings`. Wer einen Wert auf den ausgelieferten zurücksetzt,
-löscht die Zeile wieder, und die laufende Anwendung folgt sofort wieder der
-Datei. Alles nie Angefasste folgt weiterhin `config/leadhub.php`, ein Upgrade
-verschiebt die Standards also nach wie vor.
+Only what differs from the shipped state is stored, as a row in the new
+`leadhub_settings` table. Setting a value back to the shipped one deletes the row
+again, and the running application follows the file again immediately. Everything
+never touched keeps following `config/leadhub.php`, so an upgrade still moves the
+defaults.
 
-Formular, Validierung und das Anwenden der Werte beim Boot kommen aus einer
-einzigen Definition (`src/Support/Settings.php`). Die Werte greifen im
-`ServiceProvider`, nicht in einer CP-Middleware: ein Queue-Worker, der später
-hochkommt, sieht sie.
+Form, validation and the application of the values at boot come from a single
+definition (`src/Support/Settings.php`). The values take effect in the
+`ServiceProvider`, not in a CP middleware: a queue worker that comes up later
+sees them.
 
-Nicht angeboten werden Zugangsdaten (`crm.destinations.*` mit `token`,
-`api_key`, `secret`), alles env-Gesteuerte (Storage-Treiber, Empfängerlisten,
-Digest-Uhrzeit) und die Status-Map, weil eine Map kein Feld ist. Das
-env-Gesteuerte wird angezeigt, damit man es prüfen kann.
+Not offered are credentials (`crm.destinations.*` with `token`, `api_key`,
+`secret`), everything driven by env (storage driver, recipient lists, digest
+time) and the status map, because a map is not a field. What env drives is
+displayed, so it can be checked.
 
-Auf einer Installation mit dem Flat-Treiber, wo Migrationen ausdrücklich nicht
-verlangt werden, schaltet der Schirm auf nur-lesbar mit Begründung, statt beim
-Speichern einen SQL-Fehler zu melden. `php artisan migrate` legt dort auf Wunsch
-nur diese eine Tabelle an.
+On an installation with the flat driver, where migrations are expressly not
+required, the screen switches to read-only with a reason instead of reporting an
+SQL error on save. `php artisan migrate` will create just this one table there if
+wanted.
 
-### Fixed — zwei Fallen, die im Schwester-Addon dieselben waren
+### Fixed — two traps that were the same ones in the sibling addon
 
-Beide gefunden, weil dieselbe Bauform im `webhook-manager` heute Nacht daran
-gescheitert ist. Beide sind hier mit einem Test festgenagelt, der ohne den Fix
-umfällt.
+Both found because the same construction in `webhook-manager` failed on them
+last night. Both are nailed down here with a test that falls over without the
+fix.
 
-- **`config:cache` fror die Overrides ein.** Der Befehl bootet die Anwendung
-  vollständig und schreibt danach den aufgelösten Config-Baum auf die Platte;
-  die Overrides landeten mit darin. Ein eingebackener Override überlebt die
-  Zeile, aus der er stammt: eine gelöschte Einstellung wirkte bis zum nächsten
-  `config:clear` weiter. Schlimmer noch, der nächste Boot las die eingebackene
-  Datei als „ausgelieferten Default", womit ein auf den Dateiwert
-  zurückgesetzter Wert als Abweichung galt und gespeichert statt gelöscht wurde
-  — genau die Regel, die diese Klasse verspricht, kippte dauerhaft. Während des
-  Cache-Baus wird jetzt nichts angewendet.
-- **Das Schreiben lief ohne Transaktion.** Ein Fehler auf halbem Weg hinterließ
-  eine Tabelle, die keinem zusammenhängenden Zustand entsprach, und der Schirm
-  wurde anschließend aus diesem halben Zustand neu gezeichnet, als wäre er die
-  Wahrheit.
+- **`config:cache` froze the overrides.** The command boots the application
+  fully and then writes the resolved config tree to disk; the overrides ended up
+  in there. A baked-in override outlives the row it came from: a deleted setting
+  kept taking effect until the next `config:clear`. Worse still, the next boot
+  read the baked-in file as the "shipped default", so a value reset to the file
+  value counted as a deviation and was stored instead of deleted — the very rule
+  this class promises was permanently inverted. Nothing is applied during the
+  cache build now.
+- **The write ran without a transaction.** An error halfway through left behind a
+  table that matched no coherent state, and the screen was then redrawn from that
+  half state as if it were the truth.
 
-Dazu ein dritter Wächter ohne zugehörigen Fehler: ein Test geht Gruppen, Felder
-und Auswahloptionen in beiden Sprachen durch und prüft, dass keine Beschriftung
-ihren eigenen Übersetzungsschlüssel zeigt. Im Schwester-Addon war genau das
-durch eine grüne Suite gelaufen, weil kein Test je ein Label angesehen hatte.
+Plus a third guard with no failure attached to it: a test walks groups, fields
+and select options in both languages and checks that no label shows its own
+translation key. In the sibling addon exactly that had run through a green suite,
+because no test had ever looked at a label.
 
 ## 2.2.1 — 2026-08-15
 
-### Fixed — die Zeitleiste zeigt, was in einem Ereignis steht
+### Fixed — the timeline shows what is in an event
 
-Nachbar-Addons legen seit 2.2.0 Ereignisse mit `payload.detail` an: Betreff,
-Kampagne, Liste, Hinweise. Auf dem Kontaktschirm war davon nichts zu sehen, nur
-die Überschrift — die Zeilen lagen in der Datenbank und wurden nie gerendert.
+Since 2.2.0 neighbouring addons create events with `payload.detail`: subject,
+campaign, list, notes. None of it was visible on the contact screen, only the
+heading — the rows sat in the database and were never rendered.
 
-Jetzt stehen sie als Beschriftung und Wert unter dem Eintrag. Ein Ereignis ohne
-Details bleibt so schmal wie vorher.
+They now sit as label and value below the entry. An event without details stays
+as narrow as before.
 
 ## 2.2.0 — 2026-08-14
 
