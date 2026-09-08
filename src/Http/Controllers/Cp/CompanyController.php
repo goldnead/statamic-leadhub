@@ -7,6 +7,7 @@ use Goldnead\Leadhub\Http\Requests\StoreCompanyRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateCompanyRequest;
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Opportunity;
+use Goldnead\Leadhub\Support\Setup;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -22,6 +23,12 @@ class CompanyController extends Controller
     {
         $this->authorizeOrFail($request, 'view leadhub');
         abort_unless(config('leadhub.features.companies', false), 404);
+
+        // Three tables: the companies themselves, and the contact pivot the
+        // `contacts_count` column below counts across.
+        if ($setup = Setup::guard(__('leadhub::nav.companies'), 'leadhub_companies', 'leadhub_contact_company', 'leadhub_contacts')) {
+            return $setup;
+        }
 
         $canManage = $this->userCan($request, 'manage leadhub companies');
 

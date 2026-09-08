@@ -5,6 +5,7 @@ namespace Goldnead\Leadhub\Http\Controllers\Cp;
 use Goldnead\BrandContext\Facades\BrandContext;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\CustomField;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -23,6 +24,12 @@ class CustomFieldController extends Controller
     {
         $this->authorizeOrFail($request, 'view leadhub');
         $this->abortUnlessEloquent();
+
+        // Contacts too, not just the definitions: the `in_use` column counts
+        // how many of them carry a value for each handle.
+        if ($setup = Setup::guard(__('leadhub::nav.custom_fields'), 'leadhub_custom_fields', 'leadhub_contacts')) {
+            return $setup;
+        }
 
         $canManage = $this->userCan($request, 'manage leadhub settings');
 

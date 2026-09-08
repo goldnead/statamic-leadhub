@@ -3,6 +3,7 @@
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Statamic\CP\Column;
@@ -14,6 +15,12 @@ class TagController extends Controller
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'manage leadhub tags');
+
+        // The pivot and the contacts with it: the listing's `contacts_count`
+        // column is a withCount() across both.
+        if ($setup = Setup::guard(__('leadhub::nav.tags'), 'leadhub_tags', 'leadhub_contact_tag', 'leadhub_contacts')) {
+            return $setup;
+        }
 
         $page = $this->tags->paginate(50, (int) $request->input('page', 1));
 

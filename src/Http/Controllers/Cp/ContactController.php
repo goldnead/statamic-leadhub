@@ -25,6 +25,7 @@ use Goldnead\Leadhub\Services\TagService;
 use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactPanels;
 use Goldnead\Leadhub\Support\ContactPicker;
+use Goldnead\Leadhub\Support\Setup;
 use Goldnead\Leadhub\Support\Timeline\ContactTimeline;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
@@ -51,6 +52,20 @@ class ContactController extends Controller
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'view leadhub contacts');
+
+        // The listing eager-loads tags and follow-ups per row, and the filter
+        // bar is built from the tag list and the enabled form handles — so the
+        // page reads five tables before it renders one.
+        if ($setup = Setup::guard(
+            __('leadhub::nav.contacts'),
+            'leadhub_contacts',
+            'leadhub_tags',
+            'leadhub_contact_tag',
+            'leadhub_followups',
+            'leadhub_form_mappings',
+        )) {
+            return $setup;
+        }
 
         $scoring = (bool) config('leadhub.features.scoring', false);
 

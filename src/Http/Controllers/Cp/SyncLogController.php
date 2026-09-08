@@ -3,6 +3,7 @@
 namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
 use Goldnead\Leadhub\Models\SyncLog;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
@@ -27,13 +28,26 @@ class SyncLogController extends Controller
     {
         $this->authorizeOrFail($request, 'view leadhub');
 
+        // This screen carried its own `Schema::hasTable()` long before the
+        // guard existed, and it was half right: no 500, but also no word to
+        // anybody about why the log was empty. An install whose migrations
+        // never ran looked exactly like one that had simply never synced, and
+        // "your CRM sync has recorded nothing" is the wrong thing to tell an
+        // operator whose table is missing. Same treatment as the nine listings
+        // now — the same screen, and the reason in the log.
+        if ($setup = Setup::guard(__('leadhub::nav.sync_log'), 'leadhub_sync_logs')) {
+            return $setup;
+        }
+
         return Inertia::render('leadhub::SyncLog', [
             'enabled' => (bool) config('leadhub.features.crm_destinations', false),
             'columns' => $this->columns(),
             'dataUrl' => cp_route('leadhub.sync-log.data'),
             // Whether anything has ever been logged. The screen needs it to
             // pick between the empty state and the listing before the listing
-            // has made its first request.
+            // has made its first request. The table check stays: the guard
+            // above stands down on the flat driver, which skips this table on
+            // purpose (README, "Sync log").
             'hasLogs' => Schema::hasTable('leadhub_sync_logs') && SyncLog::query()->exists(),
         ]);
     }

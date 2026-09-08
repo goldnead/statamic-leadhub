@@ -6,6 +6,7 @@ use Goldnead\Leadhub\Http\Requests\StoreScoringRuleRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateScoringRuleRequest;
 use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Models\ScoringRule;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Statamic\CP\Column;
@@ -24,6 +25,13 @@ class ScoringController extends Controller
     {
         $this->authorizeOrFail($request, 'view leadhub');
         $this->abortUnlessAvailable();
+
+        // Events as well as the rules: knownEventTypes() below reads the types
+        // this brand's timeline has actually recorded, so the event-type field
+        // can suggest something that exists.
+        if ($setup = Setup::guard(__('leadhub::nav.scoring'), 'leadhub_scoring_rules', 'leadhub_events')) {
+            return $setup;
+        }
 
         $canManage = $this->userCan($request, 'manage leadhub scoring');
 

@@ -8,6 +8,7 @@ use Goldnead\Leadhub\Models\Segment;
 use Goldnead\Leadhub\Services\CustomFieldService;
 use Goldnead\Leadhub\Services\SegmentService;
 use Goldnead\Leadhub\Support\SegmentEvaluator;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Statamic\CP\Column;
@@ -22,6 +23,20 @@ class SegmentController extends Controller
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'view leadhub segments');
+
+        // Beyond the segments and their membership pivot: `leadhub_custom_fields`,
+        // because vocabulary() hands the rule builder the site's own fields on
+        // every render — the table whose absence used to take the whole segment
+        // area down, not just that one list.
+        if ($setup = Setup::guard(
+            __('leadhub::nav.segments'),
+            'leadhub_segments',
+            'leadhub_segment_contact',
+            'leadhub_contacts',
+            'leadhub_custom_fields',
+        )) {
+            return $setup;
+        }
 
         $page = $this->segments->paginate(50, (int) $request->input('page', 1));
 

@@ -30,6 +30,7 @@ import SegmentsIndex from './pages/Segments/Index.vue';
 import SegmentsEdit from './pages/Segments/Edit.vue';
 import ScoringIndex from './pages/Scoring/Index.vue';
 import SyncLog from './pages/SyncLog.vue';
+import SetupRequired from './pages/SetupRequired.vue';
 
 Statamic.booting(() => {
     Statamic.$inertia.register('leadhub::Dashboard', Dashboard);
@@ -59,4 +60,7 @@ Statamic.booting(() => {
     // No 'leadhub::Settings' — the settings screen is the suite's shared one,
     // registered by goldnead/statamic-brand-context as 'brand-context::Settings'.
     Statamic.$inertia.register('leadhub::SyncLog', SyncLog);
+    // Not a screen of its own: what Support\Setup::guard() renders in place of
+    // any listing whose tables are missing. One registration for all nine.
+    Statamic.$inertia.register('leadhub::SetupRequired', SetupRequired);
 });

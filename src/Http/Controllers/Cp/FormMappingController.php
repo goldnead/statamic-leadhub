@@ -6,6 +6,7 @@ use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Http\Requests\UpdateFormMappingRequest;
 use Goldnead\Leadhub\Models\FormMapping;
 use Goldnead\Leadhub\Support\FormMappingBlueprint;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Statamic\CP\Column;
@@ -18,6 +19,12 @@ class FormMappingController extends Controller
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'manage leadhub form mappings');
+
+        // One table, but the first thing the screen does with it is a write:
+        // the bootstrap loop below inserts a mapping row per Statamic form.
+        if ($setup = Setup::guard(__('leadhub::nav.forms'), 'leadhub_form_mappings')) {
+            return $setup;
+        }
 
         // Make sure every Statamic form has a mapping row (auto-bootstrapped).
         $statamicForms = collect(Form::all());

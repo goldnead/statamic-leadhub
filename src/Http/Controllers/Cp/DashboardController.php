@@ -6,6 +6,7 @@ use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Services\FollowupService;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -21,6 +22,21 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'view leadhub');
+
+        // The widest guard of the nine, because the dashboard is six repository
+        // counters side by side: new/qualified/won leads and the status
+        // breakdown from contacts, due and overdue counts from follow-ups
+        // (joined back to contacts, to skip archived ones), the activity feed
+        // from events, and "is any form connected yet" from the mappings.
+        if ($setup = Setup::guard(
+            __('leadhub::nav.dashboard'),
+            'leadhub_contacts',
+            'leadhub_followups',
+            'leadhub_events',
+            'leadhub_form_mappings',
+        )) {
+            return $setup;
+        }
 
         $statuses = (array) config('leadhub.statuses', []);
 

@@ -12,6 +12,7 @@ use Goldnead\Leadhub\Services\TaskService;
 use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactPicker;
 use Goldnead\Leadhub\Support\OpportunityPicker;
+use Goldnead\Leadhub\Support\Setup;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -25,6 +26,12 @@ class TaskController extends Controller
     {
         $this->authorizeOrFail($request, 'view leadhub');
         abort_unless(config('leadhub.features.tasks', false), 404);
+
+        // Contacts too: every row is eager-loaded with the contact it belongs
+        // to, for the name and the link in the "Contact" column.
+        if ($setup = Setup::guard(__('leadhub::nav.tasks'), 'leadhub_tasks', 'leadhub_contacts')) {
+            return $setup;
+        }
 
         $filter = $request->string('filter')->toString() ?: 'open';
 
