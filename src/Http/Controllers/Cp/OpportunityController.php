@@ -551,6 +551,7 @@ class OpportunityController extends Controller
     {
         $this->authorizeOrFail($request, 'manage leadhub opportunities');
         abort_unless(config('leadhub.features.pipelines', false), 404);
+        $this->abortUnlessEloquent();
     }
 
     /**
@@ -562,6 +563,7 @@ class OpportunityController extends Controller
     {
         $this->authorizeOrFail($request, 'view leadhub');
         abort_unless(config('leadhub.features.pipelines', false), 404);
+        $this->abortUnlessEloquent();
     }
 
     protected function pipelinePayload($pipelines): array

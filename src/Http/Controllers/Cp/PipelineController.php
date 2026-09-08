@@ -7,6 +7,7 @@ use Goldnead\Leadhub\Models\Opportunity;
 use Goldnead\Leadhub\Models\Pipeline;
 use Goldnead\Leadhub\Models\Stage;
 use Goldnead\Leadhub\Services\StageTransitionService;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -38,7 +39,21 @@ class PipelineController extends Controller
     public function board(Request $request, int|string|null $pipeline = null)
     {
         $this->authorizeOrFail($request, 'view leadhub');
-        abort_unless(config('leadhub.features.pipelines', false), 404);
+        $this->abortUnlessAvailable();
+
+        // Four tables, because the board is a join of all four: the pipelines
+        // for the switcher, their stages for the columns, the opportunities
+        // for the cards (boardQuery()), and leadhub_contacts for the name and
+        // link on every card, eager-loaded with `with('contact')`.
+        if ($setup = Setup::guard(
+            __('leadhub::nav.pipelines'),
+            'leadhub_pipelines',
+            'leadhub_stages',
+            'leadhub_opportunities',
+            'leadhub_contacts',
+        )) {
+            return $setup;
+        }
 
         $pipelines = Pipeline::query()->active()->orderBy('sort_order')->get();
 
@@ -192,7 +207,19 @@ class PipelineController extends Controller
     public function manage(Request $request)
     {
         $this->authorizeOrFail($request, 'manage leadhub settings');
-        abort_unless(config('leadhub.features.pipelines', false), 404);
+        $this->abortUnlessAvailable();
+
+        // No contacts on this screen — it lists pipelines and their stages —
+        // but opportunities all the same: every stage row carries an
+        // `opportunities_count`, which is a count() against that table.
+        if ($setup = Setup::guard(
+            __('leadhub::nav.pipelines'),
+            'leadhub_pipelines',
+            'leadhub_stages',
+            'leadhub_opportunities',
+        )) {
+            return $setup;
+        }
 
         $pipelines = Pipeline::query()->with('stages')->orderBy('sort_order')->get()
             ->map(fn (Pipeline $p) => [
@@ -227,7 +254,7 @@ class PipelineController extends Controller
     public function store(Request $request)
     {
         $this->authorizeOrFail($request, 'manage leadhub settings');
-        abort_unless(config('leadhub.features.pipelines', false), 404);
+        $this->abortUnlessAvailable();
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -383,7 +410,7 @@ class PipelineController extends Controller
             $this->authorizeOrFail($request, 'edit leadhub contacts');
         }
 
-        abort_unless(config('leadhub.features.pipelines', false), 404);
+        $this->abortUnlessAvailable();
 
         $validated = $request->validate([
             'stage_id' => ['required'],
@@ -425,13 +452,30 @@ class PipelineController extends Controller
     }
 
     /**
+     * Pipelines are opt-in, and they are eloquent-only.
+     *
+     * The flat driver registers none of this addon's migrations, so on `flat`
+     * leadhub_pipelines does not exist and cannot be created — `php artisan
+     * migrate` would report nothing to run. A setup screen would therefore
+     * hand the reader an instruction that cannot work, which is why this
+     * combination 404s instead: the module genuinely is not there. Same answer
+     * ScoringController and CustomFieldController already give, and the reason
+     * the README calls the CRM-core modules eloquent-only.
+     */
+    protected function abortUnlessAvailable(): void
+    {
+        abort_unless(config('leadhub.features.pipelines', false), 404);
+        $this->abortUnlessEloquent();
+    }
+
+    /**
      * Shared guard for every stage-editing route: feature flag, permission, and
      * a pipeline resolved through the brand-scoped query.
      */
     protected function authorizeStageManagement(Request $request, int|string $pipeline): Pipeline
     {
         $this->authorizeOrFail($request, 'manage leadhub settings');
-        abort_unless(config('leadhub.features.pipelines', false), 404);
+        $this->abortUnlessAvailable();
 
         return Pipeline::query()->findOrFail($pipeline);
     }

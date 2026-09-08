@@ -25,7 +25,7 @@ class TaskController extends Controller
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'view leadhub');
-        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessAvailable();
 
         // Contacts too: every row is eager-loaded with the contact it belongs
         // to, for the name and the link in the "Contact" column.
@@ -116,7 +116,7 @@ class TaskController extends Controller
     public function create(Request $request)
     {
         $this->authorizeOrFail($request, 'manage leadhub tasks');
-        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessAvailable();
 
         return Inertia::render('leadhub::Tasks/Create', [
             'task' => [
@@ -148,7 +148,7 @@ class TaskController extends Controller
      */
     public function store(StoreTaskRequest $request)
     {
-        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessAvailable();
 
         $validated = $request->validated();
         $contact = filled($validated['contact_id'] ?? null)
@@ -184,7 +184,7 @@ class TaskController extends Controller
     public function edit(Request $request, int|string $task)
     {
         $this->authorizeOrFail($request, 'manage leadhub tasks');
-        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessAvailable();
 
         $model = Task::query()->with('contact')->findOrFail($task);
 
@@ -218,7 +218,7 @@ class TaskController extends Controller
 
     public function update(UpdateTaskRequest $request, int|string $task)
     {
-        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessAvailable();
 
         $model = Task::query()->findOrFail($task);
         $validated = $request->validated();
@@ -280,7 +280,7 @@ class TaskController extends Controller
     public function destroy(Request $request, int|string $task)
     {
         $this->authorizeOrFail($request, 'manage leadhub tasks');
-        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessAvailable();
 
         Task::query()->findOrFail($task)->delete();
 
@@ -300,7 +300,7 @@ class TaskController extends Controller
             $this->authorizeOrFail($request, 'edit leadhub contacts');
         }
 
-        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessAvailable();
 
         $model = Task::query()->findOrFail($task);
         app(TaskService::class)->complete($model, $this->userId($request) ?: null);
@@ -338,7 +338,7 @@ class TaskController extends Controller
     public function opportunityOptions(Request $request)
     {
         $this->authorizeOrFail($request, 'manage leadhub tasks');
-        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessAvailable();
         abort_unless(config('leadhub.features.pipelines', false), 404);
 
         return response()->json([
@@ -347,6 +347,21 @@ class TaskController extends Controller
                 $request->string('selected')->toString() ?: null,
             ),
         ]);
+    }
+
+    /**
+     * Tasks are opt-in, and they are eloquent-only.
+     *
+     * Same reasoning as CompanyController::abortUnlessAvailable(): the flat
+     * driver has no Task and registers no migration that would make one, so
+     * `LEADHUB_DRIVER=flat` plus `features.tasks=true` used to slip past
+     * Setup::guard() — which stands down on flat on purpose — and die in
+     * Task::query() with an empty log.
+     */
+    protected function abortUnlessAvailable(): void
+    {
+        abort_unless(config('leadhub.features.tasks', false), 404);
+        $this->abortUnlessEloquent();
     }
 
     protected function opportunityOptionsFor(mixed $contactId, ?string $selectedId = null): array

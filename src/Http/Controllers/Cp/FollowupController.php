@@ -8,6 +8,7 @@ use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Http\Requests\StoreFollowupRequest;
 use Goldnead\Leadhub\Services\FollowupService;
 use Goldnead\Leadhub\Support\DateValueNormalizer;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -25,6 +26,23 @@ class FollowupController extends Controller
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'view leadhub contacts');
+
+        // Three tables, not one. The buckets below come from the follow-up
+        // repository, which eager-loads every row's contact and additionally
+        // filters on it (`with('contact')` plus `whereHas('contact', …)` on
+        // archived_at), so leadhub_contacts is joined on the very first query
+        // and not merely on a name lookup afterwards. leadhub_form_mappings is
+        // the third: `hasFormConnected` below asks the mapping repository
+        // whether any form is enabled, and that is an exists() against its
+        // table while this same page renders.
+        if ($setup = Setup::guard(
+            __('leadhub::nav.followups'),
+            'leadhub_followups',
+            'leadhub_contacts',
+            'leadhub_form_mappings',
+        )) {
+            return $setup;
+        }
 
         // One flat list with a `bucket` per row, not three arrays.
         //

@@ -4,11 +4,19 @@
 
 ### Fixed: an unmigrated install no longer answers HTTP 500
 
-All ten Control Panel screens — dashboard, contacts, companies, tasks, tags, segments, custom
-fields, forms, scoring and the sync log — used to die with `no such table` when the addon was
+All thirteen Control Panel screens — dashboard, contacts, companies, tasks, tags, segments, custom
+fields, forms, scoring, the sync log, follow-ups, the pipeline board and pipeline management —
+used to die with `no such table` when the addon was
 installed but its migrations had never run. Each now shows an empty state naming the tables it
 is missing and saying to run `php artisan migrate`, and writes the reason to the log. Every
 screen lists only the tables it actually reads, so a half-migrated install names the right ones.
+
+The follow-up list and the two pipeline screens were missed in the first pass: they query their
+models and services directly instead of going through a repository, so the check that found the
+other ten never saw them. The follow-up list demands `leadhub_followups`, `leadhub_contacts` (the
+rows are eager-loaded with their contact and filtered on it) and `leadhub_form_mappings` (the
+"connect a form" hint asks whether any mapping is enabled). The board demands the pipelines,
+stages, opportunities and contacts it draws; the management screen the first three of those.
 
 On a flat-driver install the check stays out of the way: no migrations are expected there, and
 telling somebody to run them would not fix anything.
@@ -16,6 +24,20 @@ telling somebody to run them would not fix anything.
 The sync log used to check for its own table and then show its ordinary empty screen, which read
 as "your sync recorded nothing" — the wrong answer for an operator whose table is missing. It now
 says what is actually wrong.
+
+### Fixed: the CRM-core modules on the flat driver said nothing and then crashed
+
+Companies, tasks, pipelines and opportunities are eloquent-only — the README has always said so,
+and nothing in the code enforced it. Under the flat driver this addon registers none of its
+migrations, so `LEADHUB_DRIVER=flat` together with `features.companies=true` (or `tasks`, or
+`pipelines`) put the item in the nav, resolved the route, walked straight past the setup check —
+which stands down on flat by design, because contacts, follow-ups, tags, segments, form mappings
+and custom fields do have a YAML half — and died in the first query with nothing in the log.
+
+Those screens now answer 404 on the flat driver and their nav items are gone, the same way
+scoring and custom fields have always behaved. A setup page would have been the wrong answer
+here: `php artisan migrate` finds nothing to run on that installation, so it would have handed
+the reader an instruction that cannot work. Nothing changes on the eloquent driver.
 
 ## 2.11.1 — 2026-09-07
 

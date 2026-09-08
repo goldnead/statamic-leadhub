@@ -22,7 +22,7 @@ class CompanyController extends Controller
     public function index(Request $request)
     {
         $this->authorizeOrFail($request, 'view leadhub');
-        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessAvailable();
 
         // Three tables: the companies themselves, and the contact pivot the
         // `contacts_count` column below counts across.
@@ -75,7 +75,7 @@ class CompanyController extends Controller
     public function options(Request $request)
     {
         $this->authorizeOrFail($request, 'view leadhub');
-        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessAvailable();
 
         $options = Company::query()
             ->search($request->string('q')->toString() ?: null)
@@ -96,7 +96,7 @@ class CompanyController extends Controller
     public function show(Request $request, int|string $company)
     {
         $this->authorizeOrFail($request, 'view leadhub');
-        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessAvailable();
 
         $model = Company::query()->with(['contacts'])->findOrFail($company);
 
@@ -140,7 +140,7 @@ class CompanyController extends Controller
     public function create(Request $request)
     {
         $this->authorizeOrFail($request, 'manage leadhub companies');
-        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessAvailable();
 
         return Inertia::render('leadhub::Companies/Create', [
             'assignableUsers' => $this->users->assignable(),
@@ -164,7 +164,7 @@ class CompanyController extends Controller
      */
     public function store(StoreCompanyRequest $request)
     {
-        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessAvailable();
 
         $company = Company::query()->create($request->validated());
 
@@ -177,7 +177,7 @@ class CompanyController extends Controller
     public function edit(Request $request, int|string $company)
     {
         $this->authorizeOrFail($request, 'manage leadhub companies');
-        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessAvailable();
 
         $model = Company::query()->findOrFail($company);
 
@@ -200,7 +200,7 @@ class CompanyController extends Controller
 
     public function update(UpdateCompanyRequest $request, int|string $company)
     {
-        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessAvailable();
 
         $model = Company::query()->findOrFail($company);
         $model->fill($request->validated());
@@ -224,7 +224,7 @@ class CompanyController extends Controller
     public function destroy(Request $request, int|string $company)
     {
         $this->authorizeOrFail($request, 'manage leadhub companies');
-        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessAvailable();
 
         $model = Company::query()->findOrFail($company);
 
@@ -248,5 +248,24 @@ class CompanyController extends Controller
 
         return redirect(cp_route('leadhub.companies.index'))
             ->with('success', __('leadhub::companies.deleted'));
+    }
+
+    /**
+     * Companies are opt-in, and they are eloquent-only.
+     *
+     * There is no flat-file Company: the model is a table and nothing else,
+     * and under the flat driver this addon registers none of its migrations,
+     * so leadhub_companies does not exist and cannot be created. Without this
+     * line the combination `LEADHUB_DRIVER=flat` plus `features.companies=true`
+     * walked straight past Setup::guard() — which stands down on flat by
+     * design, for the entities that do have a YAML half — and died in
+     * Company::query() one statement later, with nothing in the log. A 404 is
+     * the honest answer for a module that genuinely is not installed, and it is
+     * what ScoringController and CustomFieldController already say.
+     */
+    protected function abortUnlessAvailable(): void
+    {
+        abort_unless(config('leadhub.features.companies', false), 404);
+        $this->abortUnlessEloquent();
     }
 }

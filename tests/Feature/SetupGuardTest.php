@@ -11,7 +11,7 @@
  * owes the reader one sentence instead.
  *
  * These tests reproduce that database — a working Statamic install with every
- * LeadHub table removed — and hold all nine listings to an empty state plus a
+ * LeadHub table removed — and hold every CP listing to an empty state plus a
  * line in the log.
  */
 
@@ -19,6 +19,7 @@ use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
+use Statamic\Facades\CP\Nav;
 use Statamic\Facades\User;
 
 beforeEach(function (): void {
@@ -36,6 +37,7 @@ beforeEach(function (): void {
     config()->set('leadhub.features.companies', true);
     config()->set('leadhub.features.tasks', true);
     config()->set('leadhub.features.scoring', true);
+    config()->set('leadhub.features.pipelines', true);
 });
 
 /**
@@ -64,6 +66,9 @@ function withoutLeadhubTables(Closure $do): void
                 'leadhub_segment_contact',
                 'leadhub_events',
                 'leadhub_followups',
+                'leadhub_opportunities',
+                'leadhub_stages',
+                'leadhub_pipelines',
                 'leadhub_tasks',
                 'leadhub_scoring_rules',
                 'leadhub_custom_fields',
@@ -104,9 +109,10 @@ function inertiaPayload($test, string $route): array
 /**
  * Route name, the page it normally renders, and the table whose absence the
  * setup screen has to name first. Nine of these rows are the listings the lint
- * flagged — a guard on eight of them is a CRM that still answers 500 — and the
+ * flagged — a guard on eight of them is a CRM that still answers 500 — the
  * tenth is the sync log, which caught its own missing table from the start and
- * then told nobody about it.
+ * then told nobody about it, and the eleventh is the follow-up list, which the
+ * lint's pattern never saw.
  */
 dataset('guarded listings', [
     'dashboard' => ['leadhub.dashboard', 'leadhub::Dashboard', 'leadhub_contacts'],
@@ -119,6 +125,16 @@ dataset('guarded listings', [
     'form mappings' => ['leadhub.forms.index', 'leadhub::Forms/Index', 'leadhub_form_mappings'],
     'scoring' => ['leadhub.scoring.index', 'leadhub::Scoring/Index', 'leadhub_scoring_rules'],
     'sync log' => ['leadhub.sync-log', 'leadhub::SyncLog', 'leadhub_sync_logs'],
+    // Eleventh: the follow-up list. It stayed out of the first round because
+    // the lint looks for the repository verbs the other listings use and this
+    // one goes through FollowupService instead — the 500 was the same.
+    'followups' => ['leadhub.followups.index', 'leadhub::Followups/Index', 'leadhub_followups'],
+    // Twelfth and thirteenth: the Kanban board and the pipeline-management
+    // screen, which had no guard at all. Both query their models directly
+    // rather than through a repository, which is why the lint's pattern never
+    // reached them.
+    'pipeline board' => ['leadhub.pipelines.board', 'leadhub::Pipelines/Board', 'leadhub_pipelines'],
+    'pipeline manage' => ['leadhub.pipelines.manage', 'leadhub::Pipelines/Manage', 'leadhub_pipelines'],
 ]);
 
 it('answers 200 instead of 500 when the tables are missing', function (string $route): void {
@@ -188,4 +204,78 @@ it('stands down on the flat driver, whose tables are absent by design', function
 
     config()->set('leadhub.storage.driver', 'flat');
     expect(Setup::guard('Kontakte', 'leadhub_a_table_nobody_migrated'))->toBeNull();
+});
+
+/**
+ * The other half of that stand-down, which used to be a hole.
+ *
+ * Setup::guard() returns null on the flat driver for every table it is handed,
+ * and for contacts, events, follow-ups, tags, segments, form mappings and
+ * custom fields that is right: they have a YAML half and the screen works on
+ * afterwards. Companies, tasks, pipelines and opportunities have no YAML half
+ * at all, and the flat driver registers none of their migrations, so a flat
+ * install with the flag switched on walked past the guard without logging a
+ * word and died in the next query.
+ *
+ * A setup screen would have been the wrong answer too: `php artisan migrate`
+ * finds nothing to run on that install. So these screens 404 — the module
+ * really is not there — and the nav no longer offers them.
+ */
+dataset('eloquent-only modules', [
+    'companies' => ['leadhub.features.companies', 'leadhub.companies.index'],
+    'tasks' => ['leadhub.features.tasks', 'leadhub.tasks.index'],
+    'pipeline board' => ['leadhub.features.pipelines', 'leadhub.pipelines.board'],
+    'pipeline manage' => ['leadhub.features.pipelines', 'leadhub.pipelines.manage'],
+]);
+
+it('404s an eloquent-only module on the flat driver instead of dying in its first query', function (string $flag, string $route): void {
+    config()->set($flag, true);
+    config()->set('leadhub.storage.driver', 'flat');
+
+    // 404, positively asserted. Before the fix this line read 500, and the log
+    // was empty — which is the whole reason the case exists.
+    $this->withHeaders(['X-Inertia' => 'true'])
+        ->get(cp_route($route))
+        ->assertStatus(404);
+})->with('eloquent-only modules');
+
+/**
+ * Every label in the built CP nav, sections and children flattened.
+ *
+ * resolveChildren() first: LeadHub hangs its screens off one nav item as a
+ * closure, and an unresolved closure is what `children()` hands back — mapping
+ * over it reads as "no children" and would quietly make the assertions below
+ * true whatever the driver says.
+ */
+function navLabels(): array
+{
+    return collect(Nav::build())
+        ->flatMap(fn ($section) => collect($section['items'] ?? [])
+            ->flatMap(fn ($item) => collect($item->resolveChildren()->children() ?: [])
+                ->map->display()
+                ->prepend($item->display())))
+        ->all();
+}
+
+it('drops the eloquent-only nav items on the flat driver', function (): void {
+    config()->set('leadhub.features.companies', true);
+    config()->set('leadhub.features.tasks', true);
+    config()->set('leadhub.features.pipelines', true);
+
+    // Both directions, or this proves nothing: a navLabels() that silently
+    // returned [] would satisfy every not->toContain() below and report a fix
+    // that was never made.
+    config()->set('leadhub.storage.driver', 'eloquent');
+    expect(navLabels())->toContain('Companies')
+        ->and(navLabels())->toContain('Tasks')
+        ->and(navLabels())->toContain('Pipelines');
+
+    // A nav item that leads to a 404 is still a defect, even once the
+    // controller answers honestly.
+    config()->set('leadhub.storage.driver', 'flat');
+    expect(navLabels())->not->toContain('Companies')
+        ->and(navLabels())->not->toContain('Tasks')
+        ->and(navLabels())->not->toContain('Pipelines')
+        // …and the screens that do have a flat half are still there.
+        ->and(navLabels())->toContain('Contacts');
 });

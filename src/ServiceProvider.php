@@ -707,23 +707,29 @@ class ServiceProvider extends AddonServiceProvider
                     ->route('leadhub.contacts.index'),
             ];
 
-            // CRM-core sections — only shown when their feature flag is on
-            // (and, implicitly, the eloquent driver is in use).
-            if (config('leadhub.features.pipelines', false)) {
+            // CRM-core sections. The flag alone is not enough: the driver used
+            // to be assumed here ("implicitly eloquent"), and it is not — a
+            // flat install with features.companies=true got the nav item, the
+            // route, and a 500 on a table that driver never migrates. The
+            // controllers 404 that combination now, and a nav item that leads
+            // to a 404 is still a defect, so the driver is asked here too,
+            // exactly as the scoring item below has always done.
+            $eloquent = config('leadhub.storage.driver', 'eloquent') === 'eloquent';
+
+            if (config('leadhub.features.pipelines', false) && $eloquent) {
                 $items[] = $nav->item(__('leadhub::nav.pipelines'))
                     ->route('leadhub.pipelines.board');
             }
-            if (config('leadhub.features.tasks', false)) {
+            if (config('leadhub.features.tasks', false) && $eloquent) {
                 $items[] = $nav->item(__('leadhub::nav.tasks'))
                     ->route('leadhub.tasks.index');
             }
-            if (config('leadhub.features.companies', false)) {
+            if (config('leadhub.features.companies', false) && $eloquent) {
                 $items[] = $nav->item(__('leadhub::nav.companies'))
                     ->route('leadhub.companies.index');
             }
 
-            if (config('leadhub.features.scoring', false)
-                && config('leadhub.storage.driver', 'eloquent') === 'eloquent') {
+            if (config('leadhub.features.scoring', false) && $eloquent) {
                 $items[] = $nav->item(__('leadhub::nav.scoring'))
                     ->route('leadhub.scoring.index');
             }
