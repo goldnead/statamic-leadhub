@@ -217,7 +217,18 @@ it('offers the select options to the builder, so a value is picked and not typed
 
     // A typed value that is not an option would be stored, evaluated, and match
     // nobody — the rule looks right and is always false.
-    expect($wortschatz['custom_fields'][0]['options'])->toBe([['value' => 'hh', 'label' => 'Hamburg']]);
+    //
+    // toEqual, not toBe, and the difference is the whole reason this test was
+    // red on MySQL and green on SQLite. `options` is a `json` column: MySQL
+    // stores it as its own binary object and hands the keys back in ITS order
+    // (by key length, then alphabetically — so `label` before `value`), while
+    // SQLite keeps the text exactly as written. toBe is assertSame, and two
+    // arrays are only identical if the keys come in the same order, so it was
+    // asserting the storage engine's key order and calling it the addon's
+    // behaviour. Both keys, both values and "exactly one option" still have to
+    // hold; only the order of two JSON object keys — which no consumer of this
+    // payload can even observe — no longer does.
+    expect($wortschatz['custom_fields'][0]['options'])->toEqual([['value' => 'hh', 'label' => 'Hamburg']]);
 });
 
 /*
