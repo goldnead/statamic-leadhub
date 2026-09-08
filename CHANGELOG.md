@@ -39,6 +39,27 @@ scoring and custom fields have always behaved. A setup page would have been the 
 here: `php artisan migrate` finds nothing to run on that installation, so it would have handed
 the reader an instruction that cannot work. Nothing changes on the eloquent driver.
 
+### Internal: the test suite and the static analysis are green again
+
+No behaviour changes for an installed site — all of this is the build, which had been red since
+2026-09-06 and was holding this release up.
+
+The MySQL run was failing on two counts. The setup-guard tests above reproduced an unmigrated
+install by dropping the addon's tables inside a transaction and rolling back, which restores the
+schema on SQLite and does nothing on MySQL, where DDL commits implicitly: the rollback then found
+no transaction and reported `SAVEPOINT trans2 does not exist` instead of a result. They now point
+the default connection at an empty in-memory database for the duration of the request, which
+needs no DDL at all. Separately, a custom-fields test compared select options with the storage
+engine's own JSON key order — MySQL returns the keys of a `json` column in its order, SQLite
+returns them as written — and asserted on something no consumer of that payload can observe.
+
+Larastan is green without anything being switched off. `Company` now declares its columns, the
+pivot-scoping helper keeps the relation types it is handed instead of flattening them to
+`Model`, and the notifications bridge reads the real `Identity` class from
+`goldnead/statamic-identity-contracts`, which joins `require-dev` — it stays out of `require`
+because the type is only ever touched through the optional notifications addon, which requires it
+itself. The analysis baseline shrank by 276 lines in the process; nothing was added to it.
+
 ## 2.11.1 — 2026-09-07
 
 ### Changed: `goldnead/statamic-brand-context` 1.13 or later
