@@ -18,7 +18,6 @@
 use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Schema;
 use Statamic\Facades\CP\Nav;
 use Statamic\Facades\User;
 
@@ -41,51 +40,52 @@ beforeEach(function (): void {
 });
 
 /**
- * Run $do against a database with no LeadHub tables, then put them back.
+ * Run $do against a database on which nothing has ever been migrated.
  *
- * All of them at once, because that is the state being reproduced: an install
- * that never migrated has none: guarding a page against one missing table while
- * the next query hits another is the same 500 one line further down.
+ * All the tables at once, because that is the state being reproduced: an
+ * install that never migrated has none, and guarding a page against one missing
+ * table while the next query hits another is the same 500 one line further
+ * down.
  *
- * The savepoint is not decoration. `loadMigrationsFrom()` in TestCase makes
- * testbench roll the migrations back when the test ends, and that rollback runs
- * before RefreshDatabase undoes anything — against tables this test dropped, it
- * dies on `no such index` and reports a broken harness instead of a result.
- * Rolling back to a savepoint restores the schema while the test is still
- * standing.
+ * An empty second connection, NOT `Schema::drop()` on the real one.
+ *
+ * The first version of this helper dropped the seventeen tables inside a
+ * transaction and rolled back, on the theory that the savepoint would put the
+ * schema back before testbench's own migration rollback ran. That holds on
+ * SQLite and is false on MySQL: DDL commits implicitly there, so `drop table`
+ * ended the transaction the moment it ran. The rollback afterwards then had no
+ * transaction left to undo and died with
+ * `SQLSTATE[42000] … 1305 SAVEPOINT trans2 does not exist` — in every one of
+ * the thirteen guarded listings, three times over. The tables really were gone
+ * by then, so nothing after it could pass either. Same trap that hit
+ * statamic-webhook-manager today.
+ *
+ * Pointing the default connection at an empty in-memory SQLite instead needs no
+ * DDL at all, so there is nothing for MySQL to commit behind our backs — and it
+ * is the more faithful picture anyway: the addon is installed, its tables never
+ * were. Taken from statamic-automations, which solved the same problem the same
+ * way.
  */
 function withoutLeadhubTables(Closure $do): void
 {
-    DB::beginTransaction();
+    config()->set('database.connections.unmigrated', [
+        'driver' => 'sqlite',
+        'database' => ':memory:',
+        'prefix' => '',
+        'foreign_key_constraints' => false,
+    ]);
+
+    $previous = (string) config('database.default');
+
+    config()->set('database.default', 'unmigrated');
+    DB::setDefaultConnection('unmigrated');
 
     try {
-        Schema::withoutForeignKeyConstraints(function (): void {
-            foreach ([
-                'leadhub_contact_tag',
-                'leadhub_contact_company',
-                'leadhub_segment_contact',
-                'leadhub_events',
-                'leadhub_followups',
-                'leadhub_opportunities',
-                'leadhub_stages',
-                'leadhub_pipelines',
-                'leadhub_tasks',
-                'leadhub_scoring_rules',
-                'leadhub_custom_fields',
-                'leadhub_form_mappings',
-                'leadhub_segments',
-                'leadhub_companies',
-                'leadhub_tags',
-                'leadhub_sync_logs',
-                'leadhub_contacts',
-            ] as $table) {
-                Schema::dropIfExists($table);
-            }
-        });
-
         $do();
     } finally {
-        DB::rollBack();
+        config()->set('database.default', $previous);
+        DB::setDefaultConnection($previous);
+        DB::purge('unmigrated');
     }
 }
 
