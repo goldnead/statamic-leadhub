@@ -271,7 +271,7 @@ class ContactController extends Controller
         $this->authorizeOrFail($request, 'view leadhub contacts');
 
         $contact = $this->contacts->find($contactId);
-        abort_unless($contact, 404);
+        abort_unless($contact !== null, 404);
 
         $eventsPaginator = $this->events->forContact($contact, 20, (int) $request->input('page', 1));
         $events = collect($eventsPaginator->items())->map(fn ($e) => [
@@ -557,7 +557,7 @@ class ContactController extends Controller
     public function update(UpdateContactRequest $request, int|string $contactId)
     {
         $contact = $this->contacts->find($contactId);
-        abort_unless($contact, 404);
+        abort_unless($contact !== null, 404);
 
         // Capture old values BEFORE filling — the flat-file driver re-syncs the
         // model on save(), so wasChanged() can't be relied on across drivers.
@@ -622,7 +622,7 @@ class ContactController extends Controller
         $this->authorizeOrFail($request, 'delete leadhub contacts');
 
         $contact = $this->contacts->find($contactId);
-        abort_unless($contact, 404);
+        abort_unless($contact !== null, 404);
 
         event(new LeadHubContactDeleted($contact));
         $this->contacts->delete($contact);
@@ -644,7 +644,7 @@ class ContactController extends Controller
         abort_unless(config('leadhub.features.companies', false), 404);
 
         $contact = $this->contacts->find($contactId);
-        abort_unless($contact, 404);
+        abort_unless($contact !== null, 404);
 
         $data = $request->validate([
             'company_id' => ['required', 'integer'],
@@ -655,7 +655,7 @@ class ContactController extends Controller
         // Through the brand-scoped relation, not Company::find(): a company of
         // another brand must come back as "no such company", not as a link.
         $company = Company::query()->whereKey($data['company_id'])->first();
-        abort_unless($company, 404);
+        abort_unless($company !== null, 404);
 
         $isPrimary = (bool) ($data['is_primary'] ?? false);
 
@@ -683,7 +683,7 @@ class ContactController extends Controller
         abort_unless(config('leadhub.features.companies', false), 404);
 
         $contact = $this->contacts->find($contactId);
-        abort_unless($contact, 404);
+        abort_unless($contact !== null, 404);
 
         $detached = $contact->companies()->detach($companyId);
 
@@ -699,7 +699,7 @@ class ContactController extends Controller
         $this->authorizeOrFail($request, 'archive leadhub contacts');
 
         $contact = $this->contacts->find($contactId);
-        abort_unless($contact, 404);
+        abort_unless($contact !== null, 404);
 
         $this->contacts->archive($contact);
         $this->timeline->recordContactArchived($contact);
@@ -713,7 +713,7 @@ class ContactController extends Controller
         $this->authorizeOrFail($request, 'archive leadhub contacts');
 
         $contact = $this->contacts->find($contactId);
-        abort_unless($contact, 404);
+        abort_unless($contact !== null, 404);
 
         $this->contacts->restore($contact);
 

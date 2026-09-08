@@ -121,7 +121,20 @@ class CompanyController extends Controller
                 // Same source the contacts screen reads, so the two never
                 // disagree about what "won" is called.
                 'status_label' => ((array) config('leadhub.statuses', []))[$contact->status] ?? $contact->status,
+                // `$contact->pivot` is Laravel's documented way to read a
+                // BelongsToMany row, and it exists only on instances loaded
+                // through the relation. There is no honest `@property` for it
+                // on the model, because on every Contact fetched any other way
+                // it is genuinely absent — declaring it would make a real
+                // "pivot is not there" bug invisible everywhere else.
+                //
+                // So it is ignored here, twice, per access. Not as a pattern in
+                // the baseline: that one is scoped to the file, and this
+                // controller is 700 lines in which a future `->pivot` typo
+                // would then also pass unseen.
+                // @phpstan-ignore property.notFound
                 'relationship_label' => $contact->pivot->relationship_label,
+                // @phpstan-ignore property.notFound
                 'is_primary' => (bool) $contact->pivot->is_primary,
                 'url' => cp_route('leadhub.contacts.show', $contact->id),
             ])->all(),

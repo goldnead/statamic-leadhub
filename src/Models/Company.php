@@ -7,8 +7,40 @@ use Goldnead\Leadhub\Models\Concerns\ScopesPivotToBrand;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
+/**
+ * The whole schema of `leadhub_companies`, declared for the analyser.
+ *
+ * `Contact` declares only its post-baseline columns, because the rest of its
+ * noise is frozen in the PHPStan baseline and the entries have to keep
+ * matching. This model goes the other way and declares everything, because the
+ * partial road is what broke the build: the baseline froze
+ * `Company::$name` at "occurs 3 times" and `$domain` at 2, then the companies
+ * screen grew two more reads and the counts drifted to 5 and 3. `ignore.count`
+ * is non-ignorable, so a controller gaining a line turned the Larastan job red
+ * without a single new defect behind it.
+ *
+ * Declaring the columns removes the cause instead of re-counting it. The seven
+ * frozen `Company::$…` entries go with it — the ratchet turning the right way.
+ *
+ * @property int $id
+ * @property int $brand_id
+ * @property string $uuid
+ * @property string|null $name
+ * @property string|null $name_normalized
+ * @property string|null $website
+ * @property string|null $domain
+ * @property string|null $industry
+ * @property string|null $employee_range
+ * @property string|null $description
+ * @property string $status
+ * @property string|null $owner_id
+ * @property array<string, mixed>|null $metadata_json
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class Company extends Model
 {
     use HasBrand;
@@ -87,6 +119,7 @@ class Company extends Model
         return $this->name ?? ($this->domain ?? __('leadhub::companies.unnamed'));
     }
 
+    /** @return BelongsToMany<Contact, $this> */
     public function contacts(): BelongsToMany
     {
         return $this->scopePivotToOwnBrand(

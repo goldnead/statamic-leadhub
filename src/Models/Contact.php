@@ -36,7 +36,17 @@ use Illuminate\Support\Str;
  * Mit der Deklaration schrumpft die Baseline um drei Eintraege — die Ratsche in
  * die richtige Richtung.
  *
+ * Nachtrag 2026-09-08: `email` und `status` sind aelter als die Baseline und
+ * stehen trotzdem hier. Sobald `Company::contacts()` seine Generics behielt,
+ * loeste sich `$contact` in den gemappten Closures von `Model` zu `Contact`
+ * auf — und die eingefrorenen `Model::$…`-Eintraege trafen nichts mehr,
+ * waehrend dieselben Zugriffe unter dem echten Klassennamen neu auftauchten.
+ * Beide Spalten zu deklarieren loest das an der Wurzel und nimmt zwoelf
+ * Baseline-Eintraege mit.
+ *
  * @property int $brand_id
+ * @property string|null $email
+ * @property string $status
  * @property array<string, mixed>|null $custom_fields
  * @property bool $do_not_contact
  * @property int $revenue_cent
@@ -168,6 +178,7 @@ class Contact extends Model
         );
     }
 
+    /** @return BelongsToMany<Company, $this> */
     public function companies(): BelongsToMany
     {
         return $this->scopePivotToOwnBrand(
