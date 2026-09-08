@@ -37,3 +37,14 @@ parameters:
     scanFiles:
         - tests/Fakes/insights-contracts.php
         - tests/Fakes/insights-table-metric.php
+
+    # And the notifications bridge takes a third road, which is the cheapest of
+    # the three wherever it is available: `Goldnead\IdentityContracts\Identity`
+    # comes from `goldnead/statamic-identity-contracts`, a public,
+    # dependency-free contracts package, so it sits in `require-dev` and the
+    # analysis reads the REAL class — no exclusion, no stand-in to keep in sync,
+    # no ignore rule to go stale. It stays out of `require` because the runtime
+    # need is genuinely optional: the type is only ever touched inside the
+    # closure the bridge hands to `goldnead/statamic-notifications`, which is a
+    # `suggest`, and that package requires identity-contracts itself. So on
+    # every install where the line can run, the class is really there.
