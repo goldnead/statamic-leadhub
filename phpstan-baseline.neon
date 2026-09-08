@@ -1333,12 +1333,6 @@ parameters:
 			path: src/Services/ClickTracking/ClickTrackingLinker.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$brand_id\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Services/CompanyResolver.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
 			identifier: property.notFound
 			count: 1
