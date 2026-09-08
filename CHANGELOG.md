@@ -1,5 +1,32 @@
 # Changelog
 
+## 2.11.1 — 2026-09-07
+
+### Geändert: `goldnead/statamic-brand-context` ab 1.13
+
+Die 28 Felder, die mit 2.11.0 auf den gemeinsamen Einstellungs-Bildschirm gezogen sind, gelten
+unter älteren Fassungen nicht verlässlich. Auf einer Installation mit einer einzigen Marke
+wurden die Werte der zuletzt angemeldeten Addons überhaupt nicht auf die Config gelegt: der
+Bildschirm zeigte nach dem Neuladen den gespeicherten Wert, `config()` antwortete für den Rest
+des Prozesses mit der Paketvorgabe, und der Markenwechsel, der es nachgeholt hätte, findet im
+Einmarken-Betrieb nie statt. Dazu löschte bis 1.12 ein zweites Speichern desselben Abschnitts
+die Überschreibung des ersten, ohne Meldung, und zwei Speichervorgänge hintereinander sind der
+Normalfall.
+
+Am Bildschirm und am Recht `manage leadhub settings` ändert sich nichts. Wer zwischen dem 06.09.
+und diesem Update Einstellungen gesetzt hat, sieht nach dem Aktualisieren nach, ob sie noch
+dastehen; verlorene Werte kommen nicht von selbst zurück.
+
+### Behoben: die Migrations-Tests räumten brand-context nur halb ab
+
+Nur für Mitwirkende, ohne Wirkung auf eine Installation. Der Testfall „brand-context ist nicht
+migriert" ließ `brand_user` und `brands` fallen. Seit brand-context 1.12 gibt es eine dritte
+Tabelle, `brand_settings`, mit einem Fremdschlüssel auf `brands`; InnoDB weigert sich dann,
+`brands` fallen zu lassen (Fehler 3730), und beide MySQL-Jobs fielen an dieser Stelle. SQLite
+kennt die Weigerung nicht, deshalb war die Lücke im SQLite-Lauf nicht zu sehen. Jetzt fallen
+alle Tabellen des Pakets, Kinder zuerst, per `dropIfExists`, damit eine ältere
+brand-context-Fassung ohne die dritte Tabelle weiter funktioniert.
+
 ## 2.11.0 — 2026-09-06
 
 ### Geändert: die Einstellungen ziehen auf den gemeinsamen Suite-Bildschirm
