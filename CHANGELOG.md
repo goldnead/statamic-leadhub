@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.12.0 — 2026-09-08
+
+### Fixed: an unmigrated install no longer answers HTTP 500
+
+All ten Control Panel screens — dashboard, contacts, companies, tasks, tags, segments, custom
+fields, forms, scoring and the sync log — used to die with `no such table` when the addon was
+installed but its migrations had never run. Each now shows an empty state naming the tables it
+is missing and saying to run `php artisan migrate`, and writes the reason to the log. Every
+screen lists only the tables it actually reads, so a half-migrated install names the right ones.
+
+On a flat-driver install the check stays out of the way: no migrations are expected there, and
+telling somebody to run them would not fix anything.
+
+The sync log used to check for its own table and then show its ordinary empty screen, which read
+as "your sync recorded nothing" — the wrong answer for an operator whose table is missing. It now
+says what is actually wrong.
+
 ## 2.11.1 — 2026-09-07
 
 ### Changed: `goldnead/statamic-brand-context` 1.13 or later
