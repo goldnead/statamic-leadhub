@@ -5,6 +5,7 @@ namespace Goldnead\Leadhub;
 use Goldnead\BrandContext\Settings\SettingsRegistry;
 use Goldnead\Leadhub\Console\BrandIntegrityCommand;
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
+use Goldnead\Leadhub\Console\ImportPostalCodesCommand;
 use Goldnead\Leadhub\Console\ImportScoringRulesCommand;
 use Goldnead\Leadhub\Console\MigrateFlatBrandsCommand;
 use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
@@ -179,6 +180,7 @@ class ServiceProvider extends AddonServiceProvider
         FireDueFollowupsCommand::class,
         SweepSegmentsCommand::class,
         ImportScoringRulesCommand::class,
+        ImportPostalCodesCommand::class,
         BrandIntegrityCommand::class,
     ];
 

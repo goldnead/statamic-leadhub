@@ -1,0 +1,5 @@
+DE	50667	Köln	Nordrhein-Westfalen	NW	Regierungsbezirk Köln	053	Köln, Stadt	05315	50.9387	6.9547	6
+DE	10875	Mercedes-Benz. io GmbH	Baden-Württemberg	01	Regierungsbezirk Stuttgart	081	Stadtkreis Stuttgart	08111	48.7794	9.1679	
+DE	10875	Fünfte Vermögensverwaltungsgesellschaft Zeus mbH	Baden-Württemberg	01	Regierungsbezirk Stuttgart	081	Stadtkreis Stuttgart	08111	48.7239	9.1699	
+DE	10875	Mercedes-Benz Vertrieb NFZ GmbH	Baden-Württemberg	01	Regierungsbezirk Stuttgart	081	Stadtkreis Stuttgart	08111	48.7239	9.1699	
+AT	1070	Wien, Neubau	Wien	09	Politischer Bezirk Wien (Stadt)	900	Gemeindebezirk Neubau	907	48.2085	16.3721	1

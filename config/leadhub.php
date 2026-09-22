@@ -432,4 +432,26 @@ return [
 
     'currency' => env('LEADHUB_CURRENCY', 'EUR'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Postal codes
+    |--------------------------------------------------------------------------
+    |
+    | Which countries `leadhub:postal-codes` imports when it is called without
+    | arguments. ISO two-letter codes; GeoNames publishes one file per country.
+    |
+    | The default is not "Germany" on purpose. A German-only table answers a
+    | Viennese postal code with nothing, and a segment that silently loses
+    | Austria looks like a radius that is too small.
+    |
+    | A list rather than an environment variable: which countries a site sells
+    | into is a property of the site, not of the machine it runs on, and the
+    | same answer has to hold in every environment.
+    |
+    */
+
+    'postal_codes' => [
+        'countries' => ['DE', 'AT', 'CH'],
+    ],
+
 ];

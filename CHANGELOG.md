@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+### Neu: „wohnt im Umkreis von X km um diese Postleitzahl"
+
+Regionale Ansprache ist bei Konzerten, Workshops und Coaching vor Ort der Normalfall, und bis
+heute gab es dafür keine Bedingung. Was stattdessen passiert, ist gut dokumentiert: dieselbe
+Auswahl wird von Hand nachgebaut, in zwei Systemen, mit zwei Namensformaten, einem
+Radius-Fehler und einem stillen Deckel — weil kein System sie besitzt.
+
+```json
+{ "type": "geo", "operator": "within_km", "plz": "50667", "value": 35 }
+```
+
+`outside_km` ist das Gegenstück. Ausgewertet wird zur Sendezeit, nicht beim Gruppenbau: eine
+Neuanmeldung ist sofort drin, ohne dass jemand nachträgt.
+
+**Ein Kontakt ohne Postleitzahl trifft bei keinem der beiden Operatoren.** „Wir wissen nicht,
+wo sie sind" ist nicht „sie sind weit weg", und eine regionale Einladung an einen unbekannten
+Ort ist genau der Fehler, den diese Bedingung verhindern soll. Die Zahl dieser Kontakte gehört
+neben die Segmentgröße, sonst liest sich ein kleines Segment wie ein zu enger Radius statt wie
+fehlende Daten.
+
+Dazu:
+
+- **`postal_code` und `country` am Kontakt**, als echte Spalten und in
+  `SegmentEvaluator::FIELDS`. Aus demselben Grund wie die zwischengespeicherten
+  Umsatzsummen: ein Custom Field ist weder Spalte noch indizierbar.
+- **Eine Postleitzahlen-Tabelle mit Koordinaten**, gefüllt von `leadhub:postal-codes` aus den
+  offenen GeoNames-Daten. Standardmäßig DE, AT und CH — **nicht nur Deutschland**, denn eine
+  deutsche Tabelle antwortet auf `A-1070` mit nichts, und Wien ist ein echtes Konzert. Eine
+  Postleitzahl, die im Datensatz mehrfach vorkommt, wird zu einer Zeile in der Mitte ihrer
+  Punkte; trägt die Datei eine fremde Länderzeile, wird sie gemeldet statt umetikettiert.
+- **Zweifacher Cache**, je Prozess und in der Anwendung: ein Sweep stellt dieselbe Frage für
+  jeden der dreitausend Kontakte, und die Antwort ändert sich nur beim Neu-Import.
+
+Die genaue Entfernung wird in PHP gerechnet, nicht im SQL. Die Bounding Box läuft als
+`whereBetween` über zwei indizierte Spalten und wirft fast alles weg; was übrig bleibt, misst
+PHP in Mikrosekunden. Der Grund ist Portabilität: der Großkreis-Term braucht `least`,
+`greatest` und `radians`, und SQLite hat keine davon — dort scheitert er mit „no such
+function" statt mit einer falschen Zahl.
+
+Der Segment-Builder im Control Panel kennt die Bedingung noch nicht; bis dahin ist sie über die
+Regel-JSON erreichbar.
+
 ### Geändert: die offenen Aufgaben stehen als Satz im Digest, nicht als Datensatz
 
 Die Quelle, die offene Aufgaben in den Digest von `goldnead/statamic-notifications` einspeist,

@@ -439,11 +439,27 @@ function describeLeadhubMysqlColumn(string $type): array
     ];
 }
 
+/** Bytes MySQL packs one side of a DECIMAL into: 4 per nine digits, then a tail. */
+function leadhubDecimalBytes(int $digits): int
+{
+    return intdiv($digits, 9) * 4 + [0, 1, 1, 2, 2, 3, 3, 4, 4][$digits % 9];
+}
+
 /** Worst-case bytes this column type occupies in an index under utf8mb4. */
 function leadhubMysqlIndexBytes(string $type): int
 {
     if (preg_match('/^(?:var)?char\((\d+)\)/', $type, $match)) {
         return (int) $match[1] * 4;
+    }
+
+    // DECIMAL is packed, not stored as digits: four bytes per group of nine,
+    // and a smaller tail for what is left over on each side of the point.
+    // Without this, decimal(10,7) falls through to the "cannot be indexed"
+    // default below and a coordinate index looks 1000x wider than it is.
+    if (preg_match('/^(?:decimal|numeric)\((\d+),\s*(\d+)\)/', $type, $match)) {
+        $decimals = (int) $match[2];
+
+        return leadhubDecimalBytes((int) $match[1] - $decimals) + leadhubDecimalBytes($decimals);
     }
 
     return match (true) {
@@ -452,6 +468,8 @@ function leadhubMysqlIndexBytes(string $type): int
         str_starts_with($type, 'mediumint') => 3,
         str_starts_with($type, 'int') => 4,
         str_starts_with($type, 'bigint') => 8,
+        str_starts_with($type, 'double') => 8,
+        str_starts_with($type, 'float') => 4,
         str_starts_with($type, 'timestamp'), str_starts_with($type, 'datetime') => 8,
         str_starts_with($type, 'date') => 3,
         // Blobs and JSON cannot be indexed whole at all. Reported as oversized

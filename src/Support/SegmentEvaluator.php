@@ -5,6 +5,7 @@ namespace Goldnead\Leadhub\Support;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
 use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Services\PostalCodeRadius;
 use Illuminate\Support\Carbon;
 
 /**
@@ -18,6 +19,7 @@ use Illuminate\Support\Carbon;
  *       { "type": "field", "field": "status", "operator": "eq", "value": "qualified" },
  *       { "type": "tag",   "operator": "has", "value": "vip" },
  *       { "type": "event", "operator": "has", "event": "purchase", "within_days": 30 },
+ *       { "type": "geo",   "operator": "within_km", "plz": "50667", "value": 35 },
  *       { "match": "any", "conditions": [ ... ] }   // nested group
  *     ]
  *   }
@@ -45,11 +47,15 @@ class SegmentEvaluator
         // field by hand before a contributed total becomes segmentable.
         'revenue_cent', 'revenue_refunded_cent', 'purchase_count',
         'first_purchase_at', 'last_purchase_at',
+        // Where the contact is, coarsely. Columns rather than custom fields
+        // because the `geo` condition has to be answerable by the database.
+        'postal_code', 'country',
     ];
 
     public function __construct(
         protected TagRepository $tags,
         protected EventRepository $events,
+        protected PostalCodeRadius $postalCodes,
     ) {}
 
     /**
@@ -110,6 +116,7 @@ class SegmentEvaluator
             'tag' => $this->evaluateTag($contact, $condition),
             'event' => $this->evaluateEvent($contact, $condition),
             'custom' => $this->evaluateCustom($contact, $condition),
+            'geo' => $this->evaluateGeo($contact, $condition),
             default => $this->evaluateField($contact, $condition),
         };
     }
@@ -161,6 +168,51 @@ class SegmentEvaluator
             (string) ($condition['operator'] ?? 'eq'),
             $condition['value'] ?? null,
         );
+    }
+
+    /**
+     * „Wohnt im Umkreis von X km um diese Postleitzahl."
+     *
+     * ```json
+     * { "type": "geo", "operator": "within_km", "plz": "50667", "value": 35 }
+     * ```
+     *
+     * `outside_km` is the counterpart. Both read the contact's own columns
+     * rather than a relation, and the radius itself comes from a service for
+     * the reason named in the class docblock: a flat-file contact has nothing
+     * to join against.
+     *
+     * A contact without a postal code matches **neither** operator. "We do not
+     * know where they are" is not "they are far away", and mailing a regional
+     * invitation to an unknown location is the mistake this condition exists to
+     * stop. The number of such contacts belongs beside the segment size in the
+     * interface, otherwise a small segment reads as a wrong radius.
+     */
+    protected function evaluateGeo(Contact $contact, array $condition): bool
+    {
+        $centre = trim((string) ($condition['plz'] ?? $condition['postal_code'] ?? ''));
+        $radius = (float) ($condition['value'] ?? $condition['radius'] ?? 0);
+        $operator = (string) ($condition['operator'] ?? 'within_km');
+
+        if ($centre === '' || $radius <= 0) {
+            return false;
+        }
+
+        $postalCode = $contact->getAttribute('postal_code');
+
+        if ($postalCode === null || trim((string) $postalCode) === '') {
+            return false;
+        }
+
+        $inside = $this->postalCodes->covers(
+            $centre,
+            (string) ($condition['country'] ?? 'DE'),
+            $radius,
+            (string) $postalCode,
+            (string) ($contact->getAttribute('country') ?? 'DE'),
+        );
+
+        return $operator === 'outside_km' ? ! $inside : $inside;
     }
 
     protected function evaluateTag(Contact $contact, array $condition): bool
