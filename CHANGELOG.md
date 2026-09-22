@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.12.1 — 2026-09-22
+
+### Fixed: installierbar auf aktuellem Statamic 6
+
+Das Paket verlangte `inertiajs/inertia-laravel ^1.0|^2.0`. Statamic 6.33.0 ist die erste
+Version, die `^2.0 || ^3.0` erlaubt, und löst dort auf v3 auf — wer sie einsetzt, konnte dieses
+Addon nicht mehr installieren. Composer meldete das als unlösbare Anforderung, nicht als
+veraltete Angabe, und das liest sich auf den ersten Blick wie ein Fehler am eigenen Projekt.
+
+Die Anforderung steht jetzt auf `^2.0 || ^3.0`, wie in `statamic-brand-context`. Am Code war
+nichts zu tun: genutzt werden `Inertia::render` und der Typ `Inertia\Response`, beide unter v3
+unverändert; es gibt keine eigene Middleware und keinen Gebrauch der Testing-Helfer, deren API
+sich hätte drehen können. Die Suite lief unter Inertia 3.3.4 mit 728 grünen Tests durch.
+
+Auf Statamic vor 6.33.0 ändert sich nichts, dort wird weiterhin Inertia 2 gezogen.
+
 ## 2.12.0 — 2026-09-08
 
 ### Fixed: an unmigrated install no longer answers HTTP 500
