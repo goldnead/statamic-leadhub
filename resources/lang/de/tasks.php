@@ -29,6 +29,12 @@ return [
     'notifications' => [
         'assigned_label' => 'Aufgabe zugewiesen',
         'assigned_message' => 'Dir wurde eine Aufgabe zugewiesen: :title',
+
+        // Die Zeile über offene Aufgaben im Benachrichtigungs-Digest. Als Satz
+        // ausgeschrieben, weil genau das in der Mail landet: der Digest druckt
+        // die `line` einer Quelle und sonst nichts.
+        'digest_open' => '{1} Du hast :count offene Aufgabe.|[2,*] Du hast :count offene Aufgaben.',
+        'digest_overdue' => '{1} :count davon ist überfällig.|[2,*] :count davon sind überfällig.',
     ],
 
     'priorities' => [

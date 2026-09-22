@@ -29,6 +29,12 @@ return [
     'notifications' => [
         'assigned_label' => 'Task assigned',
         'assigned_message' => 'A task was assigned to you: :title',
+
+        // The open-task line in the notifications digest. Written out as a
+        // sentence because that is what goes into the mail: the digest prints
+        // a source's `line` and nothing else.
+        'digest_open' => '{1} You have :count open task.|[2,*] You have :count open tasks.',
+        'digest_overdue' => '{1} :count of them is overdue.|[2,*] :count of them are overdue.',
     ],
 
     'priorities' => [

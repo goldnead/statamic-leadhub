@@ -27,7 +27,16 @@ use Illuminate\Support\Facades\DB;
 class TaskDigestSource implements DigestSource
 {
     /**
-     * @return array<string, mixed>
+     * Since statamic-notifications 1.10.0 only `line` reaches the mail: one
+     * finished sentence. Anything else in this array is ignored, and a source
+     * that returns no `line` contributes nothing at all — not a row in the
+     * body, and not a reason to send the digest. The counts stay because they
+     * are what the sentence is built from and what this addon's own tests read.
+     *
+     * Under an older notifications release the extra key is simply unused, so
+     * this runs either way.
+     *
+     * @return array{line?: string, open_tasks?: int, overdue_tasks?: int}
      */
     public function collect(Identity $recipient, Carbon $windowStart, Carbon $windowEnd): array
     {
@@ -58,9 +67,26 @@ class TaskDigestSource implements DigestSource
             ->count();
 
         return array_filter([
+            'line' => $this->line($open, $overdue),
             'open_tasks' => $open,
             'overdue_tasks' => $overdue,
         ]);
+    }
+
+    /** What the recipient actually reads. */
+    protected function line(int $open, int $overdue): string
+    {
+        $line = trans_choice('leadhub::tasks.notifications.digest_open', $open, ['count' => $open]);
+
+        if ($overdue === 0) {
+            return $line;
+        }
+
+        return $line.' '.trans_choice(
+            'leadhub::tasks.notifications.digest_overdue',
+            $overdue,
+            ['count' => $overdue],
+        );
     }
 
     protected function tableExists(string $table): bool

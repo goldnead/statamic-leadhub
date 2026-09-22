@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### Geändert: die offenen Aufgaben stehen als Satz im Digest, nicht als Datensatz
+
+Die Quelle, die offene Aufgaben in den Digest von `goldnead/statamic-notifications` einspeist,
+lieferte bisher nur Zahlen (`open_tasks`, `overdue_tasks`). Die Vorlage dort hatte damit nichts
+anzufangen und hat sie als JSON-Block in die Mail gedruckt.
+
+Ab `statamic-notifications` 1.10.0 druckt der Digest genau einen Schlüssel: `line`, einen fertigen
+Satz. Die Quelle schreibt ihn jetzt, in Deutsch und Englisch. Die Zahlen bleiben daneben stehen,
+sie sind die Grundlage des Satzes.
+
+Wichtig für ältere Fassungen des Digests: dort ist der neue Schlüssel schlicht unbenutzt. Nichts
+bricht, in keiner Richtung.
+
 ## 2.12.1 — 2026-09-22
 
 ### Fixed: installierbar auf aktuellem Statamic 6

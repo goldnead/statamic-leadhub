@@ -193,7 +193,12 @@ it('contributes open tasks to the digest, which covered follow-ups only', functi
         ->collect($identity, now()->subWeek(), now()->addDay());
 
     expect($contribution['open_tasks'])->toBe(2)
-        ->and($contribution['overdue_tasks'])->toBe(1);
+        ->and($contribution['overdue_tasks'])->toBe(1)
+        // `line` is the only part the digest mail prints, so it has to carry
+        // both numbers as words rather than leave them in the payload.
+        ->and($contribution['line'])->toContain('2')
+        ->and($contribution['line'])->toContain('1')
+        ->and($contribution['line'])->not->toContain('{');
 });
 
 it('contributes nothing for somebody with no open tasks', function (): void {
