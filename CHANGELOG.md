@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.13.0 — 2026-09-23
 
 ### Neu: „wohnt im Umkreis von X km um diese Postleitzahl"
 
