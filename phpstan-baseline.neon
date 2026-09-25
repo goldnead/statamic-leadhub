@@ -1061,6 +1061,7 @@ parameters:
 			identifier: property.defaultValue
 			count: 1
 			path: src/ServiceProvider.php
+			reportUnmatched: false
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
