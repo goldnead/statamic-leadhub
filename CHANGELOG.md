@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Behoben
+
+- Die Einstellungsseite der Benachrichtigungen bietet „Aufgabe zugewiesen" nur noch Super-Usern und Benutzern mit dem Recht `view leadhub` an. Bisher reichte ein Konto, und in ChoirLive hat jede Newsletter-Adresse eines. Am Versand ändert sich nichts.
+
 ## 2.13.0 — 2026-09-23
 
 ### Neu: „wohnt im Umkreis von X km um diese Postleitzahl"

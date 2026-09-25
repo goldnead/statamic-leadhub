@@ -7,6 +7,8 @@ use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Tests\Integration\NotificationsTestCase;
 use Goldnead\Notifications\Models\NotificationItem;
+use Goldnead\Notifications\Preferences\PreferenceResolver;
+use Statamic\Facades\Role;
 use Statamic\Facades\User;
 
 /**
@@ -199,6 +201,35 @@ it('contributes open tasks to the digest, which covered follow-ups only', functi
         ->and($contribution['line'])->toContain('2')
         ->and($contribution['line'])->toContain('1')
         ->and($contribution['line'])->not->toContain('{');
+});
+
+// ------------------------------------------------------------- audience
+
+/** The notification types the preference page would offer this user. */
+function offeredTypes($user): array
+{
+    return collect(app(PreferenceResolver::class)
+        ->matrixFor(IdentityContext::resolve($user)))->pluck('type')->all();
+}
+
+it('does not offer the task type to a subscriber who has an account', function (): void {
+    // ChoirLive, 25.09.2026: every newsletter address has an account, and the
+    // preference page offered it "Aufgabe zugewiesen". An account is not the
+    // line; the right to view LeadHub is.
+    $subscriber = User::make()->email('mara@chor.test');
+    $subscriber->save();
+
+    expect(offeredTypes($subscriber))->not->toContain(NotificationsBridge::TASK_ASSIGNED);
+});
+
+it('offers the task type to someone who may view LeadHub', function (): void {
+    Role::make('crm')->addPermission('access cp')->addPermission('view leadhub')->save();
+
+    $member = User::make()->email('crm-member@example.com')->assignRole('crm');
+    $member->save();
+
+    expect(offeredTypes($member))->toContain(NotificationsBridge::TASK_ASSIGNED)
+        ->and(offeredTypes($this->colleague))->toContain(NotificationsBridge::TASK_ASSIGNED);
 });
 
 it('contributes nothing for somebody with no open tasks', function (): void {

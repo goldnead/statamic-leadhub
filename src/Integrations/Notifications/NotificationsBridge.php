@@ -4,6 +4,7 @@ namespace Goldnead\Leadhub\Integrations\Notifications;
 
 use Goldnead\IdentityContracts\Identity;
 use Goldnead\Notifications\NotificationManager;
+use Statamic\Facades\User;
 
 /**
  * Optional wiring into `goldnead/statamic-notifications`. A no-op when that
@@ -49,6 +50,21 @@ class NotificationsBridge
             && app()->bound('notifications');
     }
 
+    /**
+     * Someone on the team: a super user or a user who may view LeadHub.
+     * Contacts and subscribers with an account are not.
+     */
+    public static function isStaff(Identity $recipient): bool
+    {
+        if ($recipient->userId === null) {
+            return false;
+        }
+
+        $user = User::find($recipient->userId);
+
+        return $user !== null && ($user->isSuper() || $user->hasPermission('view leadhub'));
+    }
+
     public function boot(): void
     {
         if (! static::available()) {
@@ -85,10 +101,12 @@ class NotificationsBridge
                  * "dir wurde eine Aufgabe zugewiesen" in der
                  * Selbstbedienungs-Seite jedes Newsletter-Abonnenten.
                  *
-                 * `userId` ist die Grenze: wer kein Konto in der Anwendung hat,
-                 * kann keine Aufgabe bekommen.
+                 * Ein Konto allein ist nicht die Grenze: in ChoirLive hat jede
+                 * Newsletter-Adresse eines (25.09.2026). Die Grenze ist das
+                 * Recht, LeadHub zu sehen. Gilt nur fuer die Einstellungsseite,
+                 * am Versand aendert es nichts.
                  */
-                ->appliesTo(fn (Identity $recipient) => $recipient->userId !== null)
+                ->appliesTo(fn (Identity $recipient): bool => self::isStaff($recipient))
 
                 /*
                  * Kein Digest fuer die Zuweisung selbst.
