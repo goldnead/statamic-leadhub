@@ -4,7 +4,6 @@ namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
-use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FormMappingRepository;
 use Goldnead\Leadhub\Contracts\Repositories\NoteRepository;
 use Goldnead\Leadhub\Contracts\Repositories\TagRepository;
@@ -15,10 +14,9 @@ use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Http\Requests\StoreContactRequest;
 use Goldnead\Leadhub\Http\Requests\UpdateContactRequest;
 use Goldnead\Leadhub\Integrations\Entitlements\AccessGranter;
+use Goldnead\Leadhub\LeadHubManager;
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
-use Goldnead\Leadhub\Models\Opportunity;
-use Goldnead\Leadhub\Models\Task;
 use Goldnead\Leadhub\Services\CustomFieldService;
 use Goldnead\Leadhub\Services\LeadHubNotifier;
 use Goldnead\Leadhub\Services\TagService;
@@ -26,9 +24,9 @@ use Goldnead\Leadhub\Services\TimelineService;
 use Goldnead\Leadhub\Support\ContactPanels;
 use Goldnead\Leadhub\Support\ContactPicker;
 use Goldnead\Leadhub\Support\Setup;
-use Goldnead\Leadhub\Support\Timeline\ContactTimeline;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Statamic\CP\Column;
@@ -40,7 +38,6 @@ class ContactController extends Controller
         protected EventRepository $events,
         protected NoteRepository $notes,
         protected TagRepository $tagsRepo,
-        protected FollowupRepository $followups,
         protected FormMappingRepository $mappings,
         protected TimelineService $timeline,
         protected TagService $tags,
@@ -283,9 +280,12 @@ class ContactController extends Controller
             'created_at' => $e->created_at?->diffForHumans(),
         ])->all();
 
-        // Fetch via the repository — find() doesn't eager-load relations, so
-        // relying on relationLoaded() here would always miss active follow-ups.
-        $active = $this->followups->activeForOne($contact);
+        // Through the manager's getters, which `leadhub:kontakt` reads as well:
+        // the screen and the agent bridge answer "what is open for this
+        // person" from one place. find() doesn't eager-load relations, so
+        // relationLoaded() here would always miss active follow-ups.
+        $leadhub = app(LeadHubManager::class);
+        $active = $leadhub->followupsFor($contact)[0] ?? null;
 
         // Attribution (UTM / referrer / landing page) — only the populated
         // fields, and only when the feature is enabled.
@@ -320,7 +320,7 @@ class ContactController extends Controller
         // Everything about this person in one order: LeadHub's own events plus
         // what payments, entitlements, booking and consent know, each only when
         // installed. The headline numbers ride along. See Support\Timeline.
-        $timeline = app(ContactTimeline::class)->build($contact);
+        $timeline = $leadhub->timelineFor($contact);
 
         $granter = app(AccessGranter::class);
         $canGrant = $granter->available() && $this->userCan($request, 'grant leadhub access');
@@ -367,13 +367,13 @@ class ContactController extends Controller
                 ],
             ],
             'activeFollowup' => $active ? [
-                'id' => (string) ($active->uuid),
-                'due_at' => $active->due_at?->format('Y-m-d H:i'),
-                'due_at_iso' => $active->due_at?->toIso8601String(),
-                'note' => $active->note,
-                'is_overdue' => method_exists($active, 'isOverdue') && $active->isOverdue(),
-                'complete_url' => cp_route('leadhub.followups.complete', $active->uuid),
-                'delete_url' => cp_route('leadhub.followups.destroy', $active->uuid),
+                'id' => (string) ($active['uuid']),
+                'due_at' => $this->wallClock($active['due_at']),
+                'due_at_iso' => $active['due_at'],
+                'note' => $active['note'],
+                'is_overdue' => $active['is_overdue'],
+                'complete_url' => cp_route('leadhub.followups.complete', $active['uuid']),
+                'delete_url' => cp_route('leadhub.followups.destroy', $active['uuid']),
             ] : null,
             'statuses' => $statuses,
             'allTags' => $allTags,
@@ -496,58 +496,54 @@ class ContactController extends Controller
                 ])->values()->all();
         }
 
+        // The rows come from the manager, which `leadhub:kontakt` reads too;
+        // what is added here is only what a screen needs: labels and links.
+        $leadhub = app(LeadHubManager::class);
+
         if ($features['tasks']) {
-            $out['tasks'] = Task::query()
-                ->where('contact_id', $contact->id)
-                ->orderByRaw('completed_at is not null')
-                ->orderByRaw('due_at is null, due_at asc')
-                ->get()
-                ->map(fn ($task) => [
-                    'id' => (string) $task->id,
-                    'title' => $task->title,
-                    'status' => $task->status,
-                    'priority' => $task->priority,
-                    'priority_label' => __('leadhub::tasks.priorities.'.$task->priority),
-                    'due_at' => $task->due_at?->format('Y-m-d H:i'),
-                    'is_overdue' => $task->isOverdue(),
-                    'is_completed' => $task->isCompleted(),
-                    'assignee_id' => $task->assignee_id,
-                    'assignee_name' => $task->assignee_id ? $this->users->label($task->assignee_id) : null,
-                    'complete_url' => cp_route('leadhub.tasks.complete', $task->id),
+            $out['tasks'] = collect($leadhub->tasksFor($contact))
+                ->map(fn (array $task) => [
+                    'id' => (string) $task['id'],
+                    'title' => $task['title'],
+                    'status' => $task['status'],
+                    'priority' => $task['priority'],
+                    'priority_label' => __('leadhub::tasks.priorities.'.$task['priority']),
+                    'due_at' => $this->wallClock($task['due_at']),
+                    'is_overdue' => $task['is_overdue'],
+                    'is_completed' => $task['is_completed'],
+                    'assignee_id' => $task['assignee_id'],
+                    'assignee_name' => $task['assignee_id'] ? $this->users->label($task['assignee_id']) : null,
+                    'complete_url' => cp_route('leadhub.tasks.complete', $task['id']),
                     'index_url' => cp_route('leadhub.tasks.index'),
                 ])->values()->all();
         }
 
         if ($features['pipelines']) {
-            $out['opportunities'] = Opportunity::query()
-                ->where('contact_id', $contact->id)
-                ->with(['pipeline', 'stage'])
-                ->orderByDesc('last_activity_at')
-                ->get()
-                ->map(fn ($opp) => [
-                    'id' => (string) $opp->id,
-                    'title' => $opp->title,
-                    'status' => $opp->status,
-                    'outcome' => $opp->outcome,
+            $out['opportunities'] = collect($leadhub->opportunitiesFor($contact))
+                ->map(fn (array $opp) => [
+                    'id' => (string) $opp['id'],
+                    'title' => $opp['title'],
+                    'status' => $opp['status'],
+                    'outcome' => $opp['outcome'],
                     // The badge on the contact screen used to print the raw
                     // column value ("open"), which reads like a broken button
                     // rather than a state. Label it here, next to the value.
-                    'status_label' => __('leadhub::pipelines.opportunity_status.'.$opp->status),
-                    'outcome_label' => $opp->outcome
-                        ? __('leadhub::pipelines.opportunity_outcome.'.$opp->outcome)
+                    'status_label' => __('leadhub::pipelines.opportunity_status.'.$opp['status']),
+                    'outcome_label' => $opp['outcome']
+                        ? __('leadhub::pipelines.opportunity_outcome.'.$opp['outcome'])
                         : null,
-                    'value_estimate' => $opp->value_estimate !== null ? (float) $opp->value_estimate : null,
-                    'confidence' => $opp->confidence,
-                    'stage_name' => $opp->stage?->name,
-                    'pipeline_name' => $opp->pipeline?->name,
-                    'closed_at' => $opp->closed_at?->format('Y-m-d'),
+                    'value_estimate' => $opp['value_estimate'],
+                    'confidence' => $opp['confidence'],
+                    'stage_name' => $opp['stage_name'],
+                    'pipeline_name' => $opp['pipeline_name'],
+                    'closed_at' => $this->wallClock($opp['closed_at'], 'Y-m-d'),
                     // The deal's own screen, not the board it sits on. Until
                     // v2.4.0 this pointed at the board, which answers "what is
                     // in this column" — a person looking at *this* deal in
                     // *this* contact's list had to find it again among the
                     // cards, and the stage history was unreachable from
                     // anywhere in the CP.
-                    'show_url' => cp_route('leadhub.pipelines.opportunities.show', $opp->id),
+                    'show_url' => cp_route('leadhub.pipelines.opportunities.show', $opp['id']),
                 ])->values()->all();
         }
 
@@ -718,5 +714,15 @@ class ContactController extends Controller
         $this->contacts->restore($contact);
 
         return back()->with('success', __('leadhub::contacts.flashes.restored'));
+    }
+
+    /**
+     * An ISO date from the manager's getters, back in the short form the
+     * screen shows. The offset travels with the string, so the wall-clock time
+     * is the one the model held.
+     */
+    protected function wallClock(?string $iso, string $format = 'Y-m-d H:i'): ?string
+    {
+        return $iso === null || $iso === '' ? null : Carbon::parse($iso)->format($format);
     }
 }

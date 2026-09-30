@@ -878,6 +878,86 @@ Event::listen(LeadHubStatusChanged::class, function (LeadHubStatusChanged $event
 
 ---
 
+## For agents / CLI
+
+Two read-only commands answer the questions an agent outside the app asks, over SSH. They write
+nothing, dispatch no events and log no content. Both take `--json` (text otherwise) and
+`--brand=<handle|id>`; without `--brand` a multi-brand install answers for every brand and names
+the brand on each match or block (`brand` is `null` on a single-brand install).
+
+```bash
+php artisan leadhub:kontakt "anna" --json            # email, id, uuid or part of a name
+php artisan leadhub:kontakt anna@example.com --json --timeline=10
+php artisan leadhub:heute --json
+```
+
+**`leadhub:kontakt`** exits 0 for all three outcomes; only an unknown brand exits 1 with
+`{"error": "Unknown brand [x]."}`. An exact email, id or uuid beats a name fragment.
+
+```json
+{
+  "query": "anna",
+  "status": "found",
+  "brand": null,
+  "total": 1,
+  "matches": [
+    {"id": 42, "uuid": "…", "name": "Anna Beispiel", "email": "anna@example.com",
+     "tags": ["kundin"], "last_activity_at": "2026-09-29T18:02:11+02:00", "archived": false, "brand": null}
+  ],
+  "contact": {
+    "id": 42, "uuid": "…", "email": "anna@example.com", "first_name": "Anna", "last_name": "Beispiel",
+    "full_name": "Anna Beispiel", "phone": null, "company": null, "status": "customer", "source": "form",
+    "tags": ["kundin"], "owner_id": null, "created_at": "…", "last_activity_at": "…",
+    "revenue_cent": 12000, "revenue_refunded_cent": 0, "net_revenue_cent": 12000, "revenue_currency": "EUR",
+    "purchase_count": 1, "first_purchase_at": "…", "last_purchase_at": "…",
+    "brand": null, "archived_at": null,
+    "revenue": [{"reference": "payments:payment:7", "source": "statamic-payments", "amount_cent": 12000,
+                 "refunded_cent": 0, "net_cent": 12000, "currency": "EUR", "occurred_at": "…", "meta": {}}],
+    "timeline": {
+      "entries": [{"id": "…", "source": "leadhub", "kind": "…", "at": "…", "summary": "…",
+                   "badge": null, "amount": null, "detail": [], "actor": null}],
+      "total": 14, "sources": {"payments": true}, "failed": [], "stats": {}
+    },
+    "followups": [{"id": 3, "uuid": "…", "due_at": "…", "note": "…", "is_overdue": false}],
+    "tasks": [{"id": 5, "uuid": "…", "contact_id": 42, "opportunity_id": null, "title": "Angebot schicken",
+               "status": "open", "priority": "normal", "due_at": "…", "assignee_id": null,
+               "completed_at": null, "is_overdue": false, "is_completed": false}],
+    "opportunities": [{"id": 2, "uuid": "…", "contact_id": 42, "pipeline_id": 1, "stage_id": 1,
+                       "title": "10er-Karte", "value_estimate": 900.0, "confidence": null, "status": "open",
+                       "outcome": null, "owner_id": null, "stage_name": "Anfrage", "stage_slug": "anfrage",
+                       "pipeline_name": "Coaching", "closed_at": null, "last_activity_at": "…"}]
+  }
+}
+```
+
+`status` is `found` (one match, `contact` filled), `ambiguous` (`matches` holds up to ten,
+`total` counts all, `contact` is `null`) or `none`. `tasks` and `opportunities` hold open ones
+only and are empty while the module is off or under the flat-file driver.
+
+**`leadhub:heute`** — per brand, a count and the first five of each list:
+
+```json
+{
+  "generated_at": "…", "multi_brand": false, "brand": null,
+  "brands": [{
+    "brand": null,
+    "new_contacts": {"last_24h": {"count": 2, "items": [{"id": 43, "uuid": "…", "name": "…", "email": "…", "status": "new", "created_at": "…"}]},
+                     "last_7d": {"count": 9, "items": []}},
+    "followups": {"due_today": {"count": 1, "items": [{"id": 3, "due_at": "…", "note": "…", "contact": {"id": 42, "uuid": "…", "name": "…", "email": "…"}}]},
+                  "overdue": {"count": 0, "items": []}},
+    "tasks": {"available": true,
+              "due_today": {"count": 1, "items": [{"id": 5, "title": "…", "priority": "normal", "due_at": "…", "contact": {"id": 42, "uuid": "…", "name": "…", "email": "…"}}]},
+              "overdue": {"count": 0, "items": []}}
+  }]
+}
+```
+
+The same reads are public on the facade for code inside the app: `LeadHub::timelineFor()`,
+`followupsFor()`, `tasksFor($contact, openOnly: true)` and `opportunitiesFor()`. The contact
+screen uses them too, so the screen and the commands cannot drift apart.
+
+---
+
 ## Testing
 
 LeadHub ships with Pest unit and feature tests:

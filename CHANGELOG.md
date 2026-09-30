@@ -1,5 +1,36 @@
 # Changelog
 
+## Unreleased
+
+### Neu: lesende Kommandos für Agenten
+
+Ein Agent außerhalb der App (per SSH, `php artisan …`) kann jetzt fragen, was LeadHub über eine
+Person weiß und was heute ansteht. Beide Kommandos schreiben nichts, lösen keine Events aus und
+loggen keine Inhalte; das ist durch Tests belegt (Query-Log ohne INSERT/UPDATE/DELETE, keine
+Events, keine Logzeilen, unveränderte Flat-File-Dateien).
+
+- `leadhub:kontakt {suche} {--json} {--timeline=20} {--brand=}`: `suche` ist eine E-Mail, eine
+  ID, eine UUID oder ein Namensteil. Ein Treffer liefert das Profil (`present()` plus Marke,
+  Käufe, die letzten N Einträge der zusammengeführten Timeline, offene Follow-ups, offene Aufgaben
+  und offene Verkaufschancen mit Phase), mehrere eine kurze Liste (höchstens 10), keiner
+  `status: none`. Alle drei enden mit Exit-Code 0; nur eine unbekannte Marke mit 1.
+- `leadhub:heute {--json} {--brand=}`: neue Kontakte der letzten 24 Stunden und 7 Tage, heute
+  fällige und überfällige Follow-ups und Aufgaben, je Liste die Zahl und die ersten fünf.
+- Multi-Brand: ohne `--brand` über alle Marken, jeder Treffer und jeder Block nennt seine Marke.
+  Das Profil wird in der Marke gebaut, der der Kontakt gehört.
+
+JSON-Schlüssel und Beispiel im README unter „For agents / CLI".
+
+### Geändert
+
+- `LeadHubManager` hat vier neue lesende Getter: `timelineFor()`, `followupsFor()`, `tasksFor()`
+  und `opportunitiesFor()` (je Kontakt, ID oder UUID; `tasksFor`/`opportunitiesFor` mit
+  `openOnly`). Die Kontaktseite im CP liest Timeline, aktives Follow-up, Aufgaben und
+  Verkaufschancen jetzt über diese Getter statt über eigene Abfragen, damit Bildschirm und
+  Kommando dieselbe Antwort geben. An den Props der Seite ändert sich nichts.
+- `Contact` deklariert `uuid`, `created_at`, `last_activity_at` und `archived_at`; die
+  PHPStan-Baseline verliert dadurch 199 Zeilen eingefrorener Einträge.
+
 ## 2.13.1 — 2026-09-25
 
 ### Behoben

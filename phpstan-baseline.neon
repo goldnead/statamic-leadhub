@@ -19,12 +19,6 @@ parameters:
 			path: src/Console/SendFollowupDigestCommand.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Console/SendFollowupDigestCommand.php
-
-		-
 			message: '#^Offset ''overdue'' on array\{items\: non\-empty\-list\<array\{name\: string, due_at\: mixed, overdue\: bool, url\: mixed, note\: mixed\}\>, overdue\: int\<0, max\>, today\: int\<0, max\>\} on left side of \?\? always exists and is not nullable\.$#'
 			identifier: nullCoalesce.offset
 			count: 1
@@ -91,12 +85,6 @@ parameters:
 			path: src/Crm/AbstractDestination.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Crm/AbstractDestination.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
 			identifier: property.notFound
 			count: 1
@@ -143,12 +131,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: src/Crm/HubSpotDestination.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
-			identifier: property.notFound
-			count: 2
-			path: src/Http/Controllers/Cp/ContactController.php
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$assigned_to\.$#'
@@ -169,19 +151,7 @@ parameters:
 			path: src/Http/Controllers/Cp/ContactController.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Http/Controllers/Cp/ContactController.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$engagement_score\.$#'
-			identifier: property.notFound
-			count: 2
-			path: src/Http/Controllers/Cp/ContactController.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
 			identifier: property.notFound
 			count: 2
 			path: src/Http/Controllers/Cp/ContactController.php
@@ -196,36 +166,6 @@ parameters:
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$source_form\.$#'
 			identifier: property.notFound
 			count: 2
-			path: src/Http/Controllers/Cp/ContactController.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 13
-			path: src/Http/Controllers/Cp/ContactController.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$due_at\.$#'
-			identifier: property.notFound
-			count: 2
-			path: src/Http/Controllers/Cp/ContactController.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$note\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Http/Controllers/Cp/ContactController.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 3
-			path: src/Http/Controllers/Cp/ContactController.php
-
-		-
-			message: '#^Call to function method_exists\(\) with Goldnead\\Leadhub\\Models\\Followup and ''isOverdue'' will always evaluate to true\.$#'
-			identifier: function.alreadyNarrowedType
-			count: 1
 			path: src/Http/Controllers/Cp/ContactController.php
 
 		-
@@ -529,12 +469,6 @@ parameters:
 			path: src/Http/Controllers/Web/TrackingController.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Http/Controllers/Web/TrackingController.php
-
-		-
 			message: '#^Call to static method registerTrigger\(\) on an unknown class Goldnead\\WebhookManager\\Facades\\WebhookManager\.$#'
 			identifier: class.notFound
 			count: 1
@@ -565,19 +499,7 @@ parameters:
 			path: src/LeadHubManager.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/LeadHubManager.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$first_name\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/LeadHubManager.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
 			identifier: property.notFound
 			count: 1
 			path: src/LeadHubManager.php
@@ -596,12 +518,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$source\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/LeadHubManager.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
 			identifier: property.notFound
 			count: 1
 			path: src/LeadHubManager.php
@@ -631,12 +547,6 @@ parameters:
 			path: src/Listeners/DispatchCrmSync.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Models/Contact.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$email_normalized\.$#'
 			identifier: property.notFound
 			count: 2
@@ -664,12 +574,6 @@ parameters:
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$phone_normalized\.$#'
 			identifier: property.notFound
 			count: 2
-			path: src/Models/Contact.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
 			path: src/Models/Contact.php
 
 		-
@@ -823,12 +727,6 @@ parameters:
 			path: src/Models/Task.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Notifications/LeadAssignedNotification.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
 			identifier: property.notFound
 			count: 1
@@ -839,24 +737,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: src/Notifications/NewLeadNotification.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Notifications/NewLeadNotification.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
-			identifier: property.notFound
-			count: 2
-			path: src/Repositories/Eloquent/EloquentContactRepository.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Repositories/Eloquent/EloquentContactRepository.php
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:dueToday\(\)\.$#'
@@ -919,30 +799,6 @@ parameters:
 			path: src/Repositories/Eloquent/EloquentSegmentRepository.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
-			identifier: property.notFound
-			count: 2
-			path: src/Repositories/FlatFile/FlatFileContactRepository.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Repositories/FlatFile/FlatFileContactRepository.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 2
-			path: src/Repositories/FlatFile/FlatFileContactRepository.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Repositories/FlatFile/FlatFileFollowupRepository.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Followup\:\:\$contact_id\.$#'
 			identifier: property.notFound
 			count: 4
@@ -989,12 +845,6 @@ parameters:
 			identifier: property.notFound
 			count: 1
 			path: src/Repositories/FlatFile/FlatFileNoteRepository.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Repositories/FlatFile/FlatFileSegmentRepository.php
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$handle\.$#'
@@ -1061,19 +911,6 @@ parameters:
 			identifier: property.defaultValue
 			count: 1
 			path: src/ServiceProvider.php
-			reportUnmatched: false
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Services/ClickTracking/ClickTrackingLinker.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$archived_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Services/ContactMergeService.php
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$engagement_score\.$#'
@@ -1094,12 +931,6 @@ parameters:
 			path: src/Services/ContactMergeService.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 2
-			path: src/Services/ContactMergeService.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$consent\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1112,18 +943,6 @@ parameters:
 			path: src/Services/ContactResolver.php
 
 		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Services/ContactResolver.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Services/CrmSyncService.php
-
-		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$company\.$#'
 			identifier: property.notFound
 			count: 1
@@ -1131,18 +950,6 @@ parameters:
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$consent\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Services/ExportService.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$created_at\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Services/ExportService.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$last_activity_at\.$#'
 			identifier: property.notFound
 			count: 1
 			path: src/Services/ExportService.php
@@ -1200,12 +1007,6 @@ parameters:
 			identifier: property.notFound
 			count: 2
 			path: src/Services/ScoringService.php
-
-		-
-			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Contact\:\:\$uuid\.$#'
-			identifier: property.notFound
-			count: 2
-			path: src/Services/SegmentService.php
 
 		-
 			message: '#^Access to an undefined property Goldnead\\Leadhub\\Models\\Segment\:\:\$handle\.$#'

@@ -44,7 +44,15 @@ use Illuminate\Support\Str;
  * Beide Spalten zu deklarieren loest das an der Wurzel und nimmt zwoelf
  * Baseline-Eintraege mit.
  *
+ * Nachtrag 2026-09-30: `uuid`, `created_at`, `last_activity_at` und
+ * `archived_at` aus demselben Grund. `leadhub:kontakt` und `leadhub:heute`
+ * lesen sie, und die Baseline verliert dafuer die eingefrorenen Eintraege.
+ *
  * @property int $brand_id
+ * @property string $uuid
+ * @property Carbon|null $created_at
+ * @property Carbon|null $last_activity_at
+ * @property Carbon|null $archived_at
  * @property string|null $email
  * @property string $status
  * @property array<string, mixed>|null $custom_fields

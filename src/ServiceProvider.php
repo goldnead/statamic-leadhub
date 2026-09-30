@@ -4,6 +4,7 @@ namespace Goldnead\Leadhub;
 
 use Goldnead\BrandContext\Settings\SettingsRegistry;
 use Goldnead\Leadhub\Console\BrandIntegrityCommand;
+use Goldnead\Leadhub\Console\ContactLookupCommand;
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
 use Goldnead\Leadhub\Console\ImportPostalCodesCommand;
 use Goldnead\Leadhub\Console\ImportScoringRulesCommand;
@@ -12,6 +13,7 @@ use Goldnead\Leadhub\Console\SendFollowupDigestCommand;
 use Goldnead\Leadhub\Console\StacheWarmCommand;
 use Goldnead\Leadhub\Console\StorageMigrateCommand;
 use Goldnead\Leadhub\Console\SweepSegmentsCommand;
+use Goldnead\Leadhub\Console\TodayCommand;
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Contracts\Repositories\FollowupRepository;
@@ -182,6 +184,8 @@ class ServiceProvider extends AddonServiceProvider
         ImportScoringRulesCommand::class,
         ImportPostalCodesCommand::class,
         BrandIntegrityCommand::class,
+        ContactLookupCommand::class,
+        TodayCommand::class,
     ];
 
     public function register(): void

@@ -688,6 +688,132 @@ class LeadHubManager
             ->all();
     }
 
+    // -- What we know about one person --------------------------------------
+    //
+    // The reads behind the contact screen, public so that the screen, the
+    // `leadhub:kontakt` command and any sibling ask the same question the same
+    // way. Each takes a Contact, an id or a uuid; an unknown contact is null or
+    // an empty list, never an exception.
+
+    /**
+     * The merged timeline: LeadHub's own events plus every registered
+     * {@see TimelineSource}, newest first, with the headline numbers.
+     * Null when there is no such contact.
+     *
+     * @return array{entries: list<array<string, mixed>>, sources: array<string, bool>, failed: list<string>, stats: array<string, mixed>, total: int}|null
+     */
+    public function timelineFor(Contact|int|string $contact, ?int $limit = null): ?array
+    {
+        $model = $this->resolveContact($contact);
+
+        return $model ? app(ContactTimeline::class)->build($model, $limit) : null;
+    }
+
+    /**
+     * Follow-ups not yet completed, soonest first.
+     *
+     * @return list<array{id: mixed, uuid: mixed, due_at: string|null, note: string|null, is_overdue: bool}>
+     */
+    public function followupsFor(Contact|int|string $contact): array
+    {
+        $model = $this->resolveContact($contact);
+
+        if (! $model) {
+            return [];
+        }
+
+        return $this->followups->activeFor($model)
+            ->map(fn ($followup) => [
+                'id' => $followup->id,
+                'uuid' => $followup->uuid,
+                'due_at' => optional($followup->due_at)->toIso8601String(),
+                'note' => $followup->note,
+                'is_overdue' => method_exists($followup, 'isOverdue') && $followup->isOverdue(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The contact's tasks: open before completed, then by due date, undated
+     * last. Empty while `features.tasks` is off or under the flat-file driver,
+     * which the CRM-core modules do not support.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function tasksFor(Contact|int|string $contact, bool $openOnly = false): array
+    {
+        $model = $this->resolveContact($contact);
+
+        if (! $model || ! $this->crmAvailable('tasks', $model)) {
+            return [];
+        }
+
+        return Task::query()
+            ->where('contact_id', $model->id)
+            ->when($openOnly, fn ($query) => $query->open())
+            ->orderByRaw('completed_at is not null')
+            ->orderByRaw('due_at is null, due_at asc')
+            ->get()
+            ->map(fn (Task $task) => $this->presentTask($task) + [
+                'is_overdue' => $task->isOverdue(),
+                'is_completed' => $task->isCompleted(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * The contact's deals with pipeline and stage, most recently active first.
+     * Empty while `features.pipelines` is off or under the flat-file driver.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function opportunitiesFor(Contact|int|string $contact, bool $openOnly = false): array
+    {
+        $model = $this->resolveContact($contact);
+
+        if (! $model || ! $this->crmAvailable('pipelines', $model)) {
+            return [];
+        }
+
+        return Opportunity::query()
+            ->where('contact_id', $model->id)
+            ->when($openOnly, fn ($query) => $query->open())
+            ->with(['pipeline', 'stage'])
+            ->orderByDesc('last_activity_at')
+            ->get()
+            ->map(fn (Opportunity $opportunity) => array_merge($this->presentOpportunity($opportunity), [
+                'value_estimate' => $opportunity->value_estimate !== null ? (float) $opportunity->value_estimate : null,
+                'stage_name' => $opportunity->stage?->name,
+                'stage_slug' => $opportunity->stage?->slug,
+                'pipeline_name' => $opportunity->pipeline?->name,
+                'closed_at' => $opportunity->closed_at?->toIso8601String(),
+                'last_activity_at' => $opportunity->last_activity_at?->toIso8601String(),
+            ]))
+            ->values()
+            ->all();
+    }
+
+    protected function resolveContact(Contact|int|string $contact): ?Contact
+    {
+        if ($contact instanceof Contact) {
+            return $contact;
+        }
+
+        $model = $this->contacts->find($contact);
+
+        return $model instanceof Contact ? $model : null;
+    }
+
+    /** A CRM-core module is on, and the contact lives where its tables can see it. */
+    protected function crmAvailable(string $feature, Contact $contact): bool
+    {
+        return (bool) config('leadhub.features.'.$feature, false)
+            && config('leadhub.storage.driver', 'eloquent') === 'eloquent'
+            && $contact->exists;
+    }
+
     // -- Contact screen -----------------------------------------------------
 
     /**
