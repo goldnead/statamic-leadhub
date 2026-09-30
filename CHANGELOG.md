@@ -29,7 +29,7 @@ JSON-Schlüssel und Beispiel im README unter „For agents / CLI".
   Verkaufschancen jetzt über diese Getter statt über eigene Abfragen, damit Bildschirm und
   Kommando dieselbe Antwort geben. An den Props der Seite ändert sich nichts.
 - `Contact` deklariert `uuid`, `created_at`, `last_activity_at` und `archived_at`; die
-  PHPStan-Baseline verliert dadurch 199 Zeilen eingefrorener Einträge.
+  PHPStan-Baseline verliert dadurch 198 Zeilen eingefrorener Einträge.
 
 ## 2.13.1 — 2026-09-25
 
