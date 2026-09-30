@@ -75,7 +75,7 @@ class TaskService
 
     public function dueToday(?string $assigneeId = null, ?int $limit = null): Collection
     {
-        $query = Task::query()->dueToday();
+        $query = Task::query()->dueToday()->with('contact');
 
         if ($assigneeId) {
             $query->forAssignee($assigneeId);
@@ -86,7 +86,7 @@ class TaskService
 
     public function overdue(?string $assigneeId = null, ?int $limit = null): Collection
     {
-        $query = Task::query()->overdue();
+        $query = Task::query()->overdue()->with('contact');
 
         if ($assigneeId) {
             $query->forAssignee($assigneeId);

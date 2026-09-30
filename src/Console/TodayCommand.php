@@ -95,7 +95,13 @@ class TodayCommand extends Command
             'id' => $followup->id,
             'due_at' => optional($followup->due_at)->toIso8601String(),
             'note' => $followup->note,
-            'contact' => $this->contactRef(blank($followup->contact_id) ? null : $contacts->find($followup->contact_id)),
+            // The eloquent repository eager-loads the contact; only the
+            // flat-file one needs the lookup.
+            'contact' => $this->contactRef(match (true) {
+                $followup->relationLoaded('contact') => $followup->getRelation('contact'),
+                blank($followup->contact_id) => null,
+                default => $contacts->find($followup->contact_id),
+            }),
         ];
 
         $tasksAvailable = (bool) config('leadhub.features.tasks', false)
