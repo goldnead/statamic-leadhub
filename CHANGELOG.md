@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.14.0 — 2026-09-30
 
 ### Neu: lesende Kommandos für Agenten
 
