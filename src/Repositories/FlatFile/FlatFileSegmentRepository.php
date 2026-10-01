@@ -55,6 +55,7 @@ class FlatFileSegmentRepository implements SegmentRepository
             'description' => null,
             'rules' => [],
             'is_active' => true,
+            'managed_by' => null,
             'created_at' => $now,
             'updated_at' => $now,
         ], $attributes);
@@ -91,6 +92,9 @@ class FlatFileSegmentRepository implements SegmentRepository
                 }
                 if (array_key_exists('is_active', $attributes)) {
                     $row['is_active'] = (bool) $attributes['is_active'];
+                }
+                if (array_key_exists('managed_by', $attributes)) {
+                    $row['managed_by'] = $attributes['managed_by'];
                 }
                 $row['updated_at'] = now()->toIso8601String();
                 $data['segments'][$i] = $row;

@@ -25,6 +25,11 @@ class UpdateContactRequest extends FormRequest
             'email' => 'sometimes|required|email|max:255',
             'phone' => 'sometimes|nullable|string|max:255',
             'company' => 'sometimes|nullable|string|max:255',
+            // Coarse location for `geo` segments. Normalised in the controller
+            // (PostalCode::normalise, country uppercased), so "50 667" and
+            // "50667" are one place.
+            'postal_code' => 'sometimes|nullable|string|max:16',
+            'country' => 'sometimes|nullable|string|size:2|alpha',
             'status' => ['sometimes', 'string', 'in:'.implode(',', $statuses)],
             'assigned_to' => 'sometimes|nullable|string',
             'consent' => 'sometimes|boolean',

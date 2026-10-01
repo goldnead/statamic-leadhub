@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, Link, router } from '@statamic/cms/inertia';
 import {
-    Header, Panel, Card, Button, Badge, Text, Field, Select, Textarea,
+    Header, Panel, Card, Button, Badge, Text, Field, Input, Select, Textarea,
     DatePicker, Checkbox, ConfirmationModal, Modal, Dropdown, DropdownMenu, DropdownItem,
 } from '@statamic/cms/ui';
 import CompanyPicker from '../../support/CompanyPicker.vue';
@@ -20,6 +20,7 @@ const props = defineProps([
                         //   complete_url, delete_url } | null
     'statuses',         // { key: label }
     'allTags',          // [{ id, name, slug }]
+    'countries',        // ['DE', 'AT', 'CH'] — what the postal-code directory imports
     'assignableUsers',  // [{ value, label }]
     'canArchive',
     'canDelete',
@@ -117,6 +118,41 @@ function changeStatus() {
 
 function changeOwner() {
     router.patch(props.contact.update_url, { assigned_to: assignedTo.value || null }, { preserveScroll: true });
+}
+
+// ── Location: what a `geo` segment reads ───────────────────────────────────
+
+const postalCode = ref(props.contact.postal_code || '');
+const country = ref(props.contact.country || (props.countries || ['DE'])[0] || 'DE');
+const locationErrors = ref({});
+const savingLocation = ref(false);
+const countryOptions = computed(() => {
+    const list = [...(props.countries || ['DE'])];
+    // A country outside the directory's list stays visible rather than being
+    // silently swapped for the first option on the next save.
+    if (props.contact.country && ! list.includes(props.contact.country)) list.push(props.contact.country);
+    return list.map((c) => ({ value: c, label: c }));
+});
+const locationDirty = computed(() =>
+    postalCode.value.trim() !== (props.contact.postal_code || '')
+    || country.value !== (props.contact.country || (props.countries || ['DE'])[0] || 'DE'),
+);
+
+function saveLocation() {
+    if (savingLocation.value) return;
+    savingLocation.value = true;
+    router.patch(props.contact.update_url, {
+        postal_code: postalCode.value.trim() || null,
+        country: country.value || null,
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            locationErrors.value = {};
+            postalCode.value = props.contact.postal_code || '';
+        },
+        onError: (errors) => { locationErrors.value = errors || {}; },
+        onFinish: () => { savingLocation.value = false; },
+    });
 }
 
 function saveTags() {
@@ -349,6 +385,10 @@ const showCrm = computed(() =>
                                         {{ __('Text from the form. Not a linked company record.') }}
                                     </Text>
                                 </dd>
+                            </div>
+                            <div v-if="contact.postal_code" class="flex gap-2" data-leadhub-contact-location>
+                                <dt class="text-gray-500 w-20 shrink-0">{{ __('Location') }}</dt>
+                                <dd>{{ [contact.postal_code, contact.place].filter(Boolean).join(' ') }}<span v-if="contact.country" class="text-gray-500"> · {{ contact.country }}</span></dd>
                             </div>
                             <div v-if="contact.source_form" class="flex gap-2">
                                 <dt class="text-gray-500 w-20 shrink-0">{{ __('Source') }}</dt>
@@ -754,6 +794,41 @@ const showCrm = computed(() =>
                             adaptive-width
                             @update:model-value="changeOwner"
                         />
+                    </Card>
+                </Panel>
+
+                <!-- Location: postal code and country, which `geo` segments
+                     (a concert's radius) read. Without a postal code a contact
+                     is in no radius at all, inside or outside. -->
+                <Panel :heading="__('Location')" data-leadhub-location>
+                    <Card>
+                        <div class="space-y-3">
+                            <div class="grid grid-cols-[1fr_6rem] gap-2 *:min-w-0">
+                                <Field :label="__('Postal code')" :error="locationErrors.postal_code">
+                                    <Input v-model="postalCode" :placeholder="__('e.g. 50667')" data-leadhub-postal-code />
+                                </Field>
+                                <Field :label="__('Country')" :error="locationErrors.country">
+                                    <Select v-model="country" :options="countryOptions" class="w-full" data-leadhub-country />
+                                </Field>
+                            </div>
+                            <Text v-if="contact.postal_code && contact.place" as="div" size="sm" variant="subtle" data-leadhub-place>
+                                {{ contact.postal_code }} {{ contact.place }}
+                            </Text>
+                            <Text v-else-if="contact.postal_code" as="div" size="sm" variant="danger" data-leadhub-place-unknown>
+                                {{ __('The postal-code directory does not know this code, so no radius segment will find this contact.') }}
+                            </Text>
+                            <Text v-else as="div" size="sm" variant="subtle">
+                                {{ __('No postal code, so this contact is in no radius segment.') }}
+                            </Text>
+                            <Button
+                                :text="__('Save location')"
+                                variant="primary"
+                                size="sm"
+                                :disabled="!locationDirty || savingLocation"
+                                data-leadhub-save-location
+                                @click="saveLocation"
+                            />
+                        </div>
                     </Card>
                 </Panel>
 

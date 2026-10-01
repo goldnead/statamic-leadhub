@@ -1,5 +1,39 @@
 # Changelog
 
+## Unreleased
+
+### Neu: PLZ-Umkreis im Segment-Editor, verwaltete Segmente sichtbar
+
+- **Segment-Editor kennt `geo`.** „Kontakt wohnt im Umkreis von / außerhalb von [km] um
+  Postleitzahl [PLZ] ([Land])", mit Live-Zahl wie die anderen Bedingungen. Unter der Bedingung
+  steht der aufgelöste Mittelpunkt („Mittelpunkt: 89073 Ulm") oder, rot, dass das PLZ-Verzeichnis
+  die Postleitzahl nicht kennt. Unter der Trefferzahl steht, wie viele Kontakte keine PLZ haben
+  und deshalb in keine Umkreis-Bedingung fallen. Die Vorschau liefert dafür zusätzlich
+  `places` (`{"DE:89073": "Ulm"}`, `null` für unbekannt) und `without_postal_code` (`null` ohne
+  geo-Bedingung). Länder aus `leadhub.postal_codes.countries`.
+- **Neues Feld `managed_by` am Segment** (Migration `2026_10_01_000001`, im Flat-Treiber im
+  `segments.yaml`): `['source' => …, 'label' => …, 'url' => …]`, gesetzt über
+  `SegmentRepository::create()` / `update()`, `null` gibt das Segment frei. `source` ist Pflicht,
+  sonst gilt das Feld als leer (`Segment::managedBy()`, `isManaged()`). Nicht über das
+  CP-Formular setzbar. Die Segmentliste zeigt ein Abzeichen „Verwaltet von …" mit Link auf `url`;
+  im Editor sind Name, Handle und Regeln nur lesbar, und das Update ignoriert sie auch serverseitig,
+  weil der nächste Abgleich des Besitzers sie zurückschreiben würde. Beschreibung und Aktiv
+  bleiben bearbeitbar. Für die Serien-Segmente aus statamic-marketing gedacht.
+- **Kontakt-Detail: Standort.** PLZ und Land sichtbar (Kontakt-Kasten, „79100 Freiburg im
+  Breisgau · DE") und in der Seitenleiste bearbeitbar. Store- und Update-Request nehmen
+  `postal_code` (max. 16) und `country` (zwei Buchstaben); gespeichert wird normalisiert wie im
+  PLZ-Verzeichnis („ 79 098 " → `79098`, `de` → `DE`).
+
+### Behoben
+
+- Der Segment-Editor schrieb beim Öffnen und Speichern jede Bedingung, die keine Tag- oder
+  Ereignis-Bedingung war, in eine `field`-Bedingung um: eigene Felder, `geo` und verschachtelte
+  Gruppen trafen danach niemanden mehr. Alle Formen überleben jetzt den Weg durchs Formular;
+  Gruppen bleiben unverändert und werden als Gruppe angezeigt.
+- Segmentliste: Mitgliederzahl als Zahl statt als Knopf-artiges Badge, Aktiv-Status als `pill`,
+  lange Handles abgeschnitten statt zweizeilig. Bedingungstypen im Editor mit Namen statt
+  Rohwert (`custom`, `geo`).
+
 ## 2.14.0 — 2026-09-30
 
 ### Neu: lesende Kommandos für Agenten

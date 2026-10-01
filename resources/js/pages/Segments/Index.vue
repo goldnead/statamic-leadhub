@@ -61,19 +61,35 @@ function destroy() {
             @refreshing="reloadPage"
         >
             <template #cell-name="{ row }">
-                <Link :href="row.edit_url" class="font-medium text-primary hover:underline">{{ row.name }}</Link>
+                <div class="flex flex-col items-start gap-1">
+                    <Link :href="row.edit_url" class="font-medium text-primary hover:underline">{{ row.name }}</Link>
+                    <!-- Another addon maintains this one (a concert series'
+                         radius segment). The badge links to the owner, where
+                         the rule is actually changed. -->
+                    <Badge
+                        v-if="row.managed_by"
+                        pill
+                        color="purple"
+                        icon="padlock-locked"
+                        :href="row.managed_by.url || undefined"
+                        :text="__('Managed by :name', { name: row.managed_by.label || row.managed_by.source })"
+                        data-leadhub-managed-badge
+                    />
+                </div>
             </template>
 
             <template #cell-handle="{ row }">
-                <span class="text-xs text-gray-500">{{ row.handle }}</span>
+                <!-- A series handle carries a UUID; wrapped over two lines it
+                     doubles every row's height. Cut, with the whole in the title. -->
+                <span class="block max-w-[16rem] truncate font-mono text-xs text-gray-500 dark:text-gray-400" :title="row.handle">{{ row.handle }}</span>
             </template>
 
             <template #cell-members_count="{ row }">
-                <Badge color="default" :text="String(row.members_count)" />
+                <span class="tabular-nums">{{ row.members_count }}</span>
             </template>
 
             <template #cell-is_active="{ row }">
-                <Badge :color="row.is_active ? 'green' : 'default'" :text="row.is_active ? __('Active') : __('Inactive')" />
+                <Badge pill :color="row.is_active ? 'green' : 'default'" :text="row.is_active ? __('Active') : __('Inactive')" />
             </template>
 
             <template #prepended-row-actions="{ row }">

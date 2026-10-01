@@ -4,12 +4,14 @@ namespace Goldnead\Leadhub\Http\Controllers\Cp;
 
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\SegmentRepository;
+use Goldnead\Leadhub\Models\PostalCode;
 use Goldnead\Leadhub\Models\Segment;
 use Goldnead\Leadhub\Services\CustomFieldService;
 use Goldnead\Leadhub\Services\SegmentService;
 use Goldnead\Leadhub\Support\SegmentEvaluator;
 use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Statamic\CP\Column;
 
@@ -47,6 +49,7 @@ class SegmentController extends Controller
             'description' => $segment->description,
             'is_active' => (bool) $segment->is_active,
             'members_count' => (int) ($segment->members_count ?? $this->segments->membersCount($segment)),
+            'managed_by' => $segment->managedBy(),
             'edit_url' => cp_route('leadhub.segments.edit', $segment->uuid),
             'delete_url' => cp_route('leadhub.segments.destroy', $segment->uuid),
         ])->all();
@@ -96,6 +99,7 @@ class SegmentController extends Controller
                 'description' => $model->description,
                 'is_active' => (bool) $model->is_active,
                 'rules' => (array) $model->rules,
+                'managed_by' => $model->managedBy(),
                 'update_url' => cp_route('leadhub.segments.update', $model->uuid),
                 'delete_url' => cp_route('leadhub.segments.destroy', $model->uuid),
             ],
@@ -124,7 +128,16 @@ class SegmentController extends Controller
         $model = $this->segments->find($segment);
         abort_unless($model, 404);
 
-        $this->segments->update($model, $this->validated($request));
+        $attributes = $this->validated($request);
+
+        // The owner's next sync writes name and rule back, so an edit here
+        // would look saved and then quietly revert. The form shows them
+        // read-only; this is the same rule for anyone posting around it.
+        if ($model->isManaged()) {
+            unset($attributes['name'], $attributes['handle'], $attributes['rules']);
+        }
+
+        $this->segments->update($model, $attributes);
 
         return back()->with('success', __('leadhub::segments.flashes.updated'));
     }
@@ -156,7 +169,11 @@ class SegmentController extends Controller
         $draft = new Segment(['rules' => (array) $request->input('rules', [])]);
         $draft->handle = '__preview__';
 
+        $rules = (array) $draft->rules;
+        $geo = $this->geoConditions($rules);
+
         $count = 0;
+        $withoutPostalCode = 0;
         $evaluator = app(SegmentEvaluator::class);
         $contacts = app(ContactRepository::class);
 
@@ -164,14 +181,79 @@ class SegmentController extends Controller
         do {
             $paginator = $contacts->paginate([], perPage: 200, page: $page);
             foreach ($paginator->items() as $contact) {
-                if ($evaluator->matches($contact, (array) $draft->rules)) {
+                if ($evaluator->matches($contact, $rules)) {
                     $count++;
+                }
+                if ($geo !== [] && trim((string) $contact->getAttribute('postal_code')) === '') {
+                    $withoutPostalCode++;
                 }
             }
             $page++;
         } while ($paginator->hasMorePages());
 
-        return response()->json(['count' => $count]);
+        return response()->json([
+            'count' => $count,
+            // A geo condition matches nobody without a postal code, in either
+            // direction (see SegmentEvaluator::evaluateGeo). Said beside the
+            // count, so a small segment reads as missing data, not as a wrong
+            // radius. Null when no condition asks where anybody lives.
+            'without_postal_code' => $geo === [] ? null : $withoutPostalCode,
+            // "DE:50667" => "Köln", or null for a centre the directory does not
+            // know — which matches nobody and is the typo worth showing.
+            'places' => $this->places($geo),
+        ]);
+    }
+
+    /**
+     * Every geo condition in a rule tree, nested groups included.
+     *
+     * @param  array<string, mixed>  $rules
+     * @return array<int, array<string, mixed>>
+     */
+    protected function geoConditions(array $rules): array
+    {
+        $found = [];
+
+        foreach ((array) ($rules['conditions'] ?? []) as $condition) {
+            if (! is_array($condition)) {
+                continue;
+            }
+
+            if (isset($condition['conditions'])) {
+                array_push($found, ...$this->geoConditions($condition));
+
+                continue;
+            }
+
+            if (($condition['type'] ?? null) === 'geo') {
+                $found[] = $condition;
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $conditions
+     * @return array<string, string|null>
+     */
+    protected function places(array $conditions): array
+    {
+        $places = [];
+        $directory = $conditions !== [] && Schema::hasTable('leadhub_postal_codes');
+
+        foreach ($conditions as $condition) {
+            $code = PostalCode::normalise((string) ($condition['plz'] ?? $condition['postal_code'] ?? ''));
+            $country = strtoupper(trim((string) ($condition['country'] ?? 'DE'))) ?: 'DE';
+
+            if ($code === '' || array_key_exists($country.':'.$code, $places)) {
+                continue;
+            }
+
+            $places[$country.':'.$code] = $directory ? PostalCode::lookup($code, $country)?->place : null;
+        }
+
+        return $places;
     }
 
     protected function validated(Request $request): array
@@ -210,6 +292,11 @@ class SegmentController extends Controller
             'custom_fields' => app(CustomFieldService::class)->forRuleBuilder(),
             'tag_operators' => ['has', 'has_not'],
             'event_operators' => ['has', 'has_not'],
+            // „Postleitzahl im Umkreis von 30 km um 50667 (DE)". The countries
+            // are the ones the postal-code directory imports; a centre outside
+            // them could never resolve.
+            'geo_operators' => ['within_km', 'outside_km'],
+            'countries' => PostalCode::countries(),
             'statuses' => array_keys((array) config('leadhub.statuses', [])),
         ];
     }

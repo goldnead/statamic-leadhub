@@ -28,6 +28,9 @@ class StoreContactRequest extends FormRequest
             'email' => 'nullable|email|max:255',
             'phone' => 'nullable|string|max:255',
             'company' => 'nullable|string|max:255',
+            // See UpdateContactRequest.
+            'postal_code' => 'nullable|string|max:16',
+            'country' => 'nullable|string|size:2|alpha',
             'status' => ['sometimes', 'nullable', 'string', 'in:'.implode(',', $statuses)],
             'assigned_to' => 'nullable|string',
             'consent' => 'sometimes|boolean',

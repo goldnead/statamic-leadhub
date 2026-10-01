@@ -21,7 +21,55 @@ class Segment extends Model
     protected $casts = [
         'rules' => SegmentRules::class,
         'is_active' => 'boolean',
+        'managed_by' => 'array',
     ];
+
+    /**
+     * Who maintains this segment, if not the people editing it in the CP.
+     *
+     * Set by another addon through `SegmentRepository::create()` / `update()`:
+     *
+     *     ['source' => 'statamic-marketing', 'label' => 'Serie: …', 'url' => 'https://…']
+     *
+     * `source` is required (an owner nobody can name is no owner), `label` and
+     * `url` are optional. Anything else is dropped. A managed segment's name
+     * and rule are read-only in the CP, because the owner's next sync would
+     * write them back.
+     *
+     * @return array{source: string, label: string|null, url: string|null}|null
+     */
+    public function managedBy(): ?array
+    {
+        $value = $this->getAttribute('managed_by');
+
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        $source = trim((string) ($value['source'] ?? ''));
+
+        if ($source === '') {
+            return null;
+        }
+
+        $label = trim((string) ($value['label'] ?? ''));
+        $url = trim((string) ($value['url'] ?? ''));
+
+        return [
+            'source' => $source,
+            'label' => $label === '' ? null : $label,
+            'url' => $url === '' ? null : $url,
+        ];
+    }
+
+    public function isManaged(): bool
+    {
+        return $this->managedBy() !== null;
+    }
 
     protected static function booted(): void
     {

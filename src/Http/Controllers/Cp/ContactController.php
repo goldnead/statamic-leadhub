@@ -17,6 +17,7 @@ use Goldnead\Leadhub\Integrations\Entitlements\AccessGranter;
 use Goldnead\Leadhub\LeadHubManager;
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
+use Goldnead\Leadhub\Models\PostalCode;
 use Goldnead\Leadhub\Services\CustomFieldService;
 use Goldnead\Leadhub\Services\LeadHubNotifier;
 use Goldnead\Leadhub\Services\TagService;
@@ -28,6 +29,7 @@ use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Statamic\CP\Column;
 
@@ -230,7 +232,7 @@ class ContactController extends Controller
 
         $validated = $request->validated();
 
-        $attributes = collect($validated)->except(['tag_ids', 'custom_fields'])->all();
+        $attributes = $this->normaliseLocation(collect($validated)->except(['tag_ids', 'custom_fields'])->all());
         $attributes['status'] = $attributes['status']
             ?? (string) config('leadhub.default_status', 'new');
         $attributes['consent'] = (bool) ($validated['consent'] ?? false);
@@ -341,6 +343,9 @@ class ContactController extends Controller
                     'name' => $t->name,
                 ])->values()->all(),
                 'source_form' => $contact->source_form,
+                'postal_code' => $contact->getAttribute('postal_code') ?: null,
+                'country' => $contact->getAttribute('country') ?: null,
+                'place' => $this->placeFor($contact->getAttribute('postal_code'), $contact->getAttribute('country')),
                 'engagement_score' => config('leadhub.features.scoring', false)
                     ? (int) $contact->engagement_score
                     : null,
@@ -377,6 +382,7 @@ class ContactController extends Controller
             ] : null,
             'statuses' => $statuses,
             'allTags' => $allTags,
+            'countries' => PostalCode::countries(),
             'canArchive' => $this->userCan($request, 'archive leadhub contacts'),
             'canDelete' => $this->userCan($request, 'delete leadhub contacts'),
             // Linked CRM records. `contact.company` above is the free-text
@@ -563,7 +569,9 @@ class ContactController extends Controller
         // tag_ids is not a column on the contact — it's synced to the tag
         // relation below. Filling it onto the model would try to persist a
         // non-existent column.
-        $contact->fill(collect($request->validated())->except(['tag_ids', 'custom_fields'])->all());
+        $contact->fill($this->normaliseLocation(
+            collect($request->validated())->except(['tag_ids', 'custom_fields'])->all()
+        ));
 
         // Through the service, never straight onto the model: a value stored in
         // the shape it arrived in — "20" for a number, "on" for a checkbox —
@@ -724,5 +732,43 @@ class ContactController extends Controller
     protected function wallClock(?string $iso, string $format = 'Y-m-d H:i'): ?string
     {
         return $iso === null || $iso === '' ? null : Carbon::parse($iso)->format($format);
+    }
+
+    /**
+     * The place a postal code names, so "53111" reads as "53111 Bonn" — and a
+     * code the directory does not know reads as exactly that, which is why a
+     * `geo` segment would never find this contact.
+     *
+     * Null without the directory table: a flat-file install that never ran the
+     * migrations has nothing to ask, and that is not an error on this screen.
+     */
+    protected function placeFor(?string $postalCode, ?string $country): ?string
+    {
+        if ($postalCode === null || trim($postalCode) === '' || ! Schema::hasTable('leadhub_postal_codes')) {
+            return null;
+        }
+
+        return PostalCode::lookup($postalCode, $country ?: 'DE')?->place;
+    }
+
+    /**
+     * Postal code and country in the shape the directory stores them.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    protected function normaliseLocation(array $attributes): array
+    {
+        if (array_key_exists('postal_code', $attributes)) {
+            $code = PostalCode::normalise((string) ($attributes['postal_code'] ?? ''));
+            $attributes['postal_code'] = $code === '' ? null : $code;
+        }
+
+        if (array_key_exists('country', $attributes)) {
+            $country = strtoupper(trim((string) ($attributes['country'] ?? '')));
+            $attributes['country'] = $country === '' ? null : $country;
+        }
+
+        return $attributes;
     }
 }

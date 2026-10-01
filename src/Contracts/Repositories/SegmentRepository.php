@@ -13,8 +13,18 @@ interface SegmentRepository
 
     public function findByHandle(string $handle): ?Segment;
 
+    /**
+     * Attributes: `name`, `handle`, `description`, `rules`, `is_active`, and
+     * optionally `managed_by` for a segment another addon maintains:
+     *
+     *     ['source' => 'statamic-marketing', 'label' => 'Serie: …', 'url' => 'https://…']
+     *
+     * The CP then shows it as managed, links to `url`, and keeps its name and
+     * rule read-only. See `Segment::managedBy()`.
+     */
     public function create(array $attributes): Segment;
 
+    /** Same attributes as create(); `managed_by => null` releases the segment. */
     public function update(Segment $segment, array $attributes): Segment;
 
     public function delete(Segment $segment): void;

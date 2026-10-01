@@ -88,6 +88,23 @@ class PostalCode extends Model
             ->first();
     }
 
+    /**
+     * The countries the directory imports (`leadhub.postal_codes.countries`),
+     * uppercased. What the CP offers wherever a country is picked: a code
+     * outside this list can never resolve.
+     *
+     * @return array<int, string>
+     */
+    public static function countries(): array
+    {
+        return collect((array) config('leadhub.postal_codes.countries', ['DE', 'AT', 'CH']))
+            ->map(fn ($c) => strtoupper(trim((string) $c)))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
     /** Strips spaces, dots and a country prefix, uppercases the rest. */
     public static function normalise(string $postalCode): string
     {
