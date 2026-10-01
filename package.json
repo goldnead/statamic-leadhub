@@ -5,7 +5,8 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "build:check": "bash scripts/check-dist-fresh.sh"
+        "build:check": "bash scripts/check-dist-fresh.sh",
+        "test": "node --test tests/js/*.test.mjs"
     },
     "dependencies": {
         "@internationalized/date": "^3.7.0",

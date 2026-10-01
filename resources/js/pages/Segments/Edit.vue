@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ref, reactive, watch, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
 import { Header, Panel, Card, Alert, Badge, Button, Field, Input, Select, Switch, Text } from '@statamic/cms/ui';
+import { normalizeGeoCondition, EVALUATOR_DEFAULT_COUNTRY } from '../../support/segmentRules.js';
 
 const props = defineProps([
     'segment',      // null on create, else { id, name, handle, description, is_active, rules, managed_by, update_url, delete_url }
@@ -55,15 +56,8 @@ function normalizeCondition(c) {
     if (type === 'tag') return { type: 'tag', operator: c.operator ?? 'has', value: c.value ?? '' };
     if (type === 'event') return { type: 'event', operator: c.operator ?? 'has', event: c.event ?? '', within_days: c.within_days ?? null };
     if (type === 'custom') return { type: 'custom', field: c.field ?? '', operator: c.operator ?? 'eq', value: c.value ?? '' };
-    if (type === 'geo') {
-        return {
-            type: 'geo',
-            operator: c.operator === 'outside_km' ? 'outside_km' : 'within_km',
-            plz: String(c.plz ?? c.postal_code ?? ''),
-            value: Number(c.value ?? c.radius ?? 30),
-            country: String(c.country ?? defaultCountry.value),
-        };
-    }
+    // Without a country it stays without one — see support/segmentRules.js.
+    if (type === 'geo') return normalizeGeoCondition(c);
     return { type: 'field', field: c.field ?? props.vocabulary.fields[0], operator: c.operator ?? 'eq', value: c.value ?? '' };
 }
 
@@ -174,7 +168,9 @@ if (form.rules.conditions.length) {
 }
 
 function placeKey(condition) {
-    return `${(condition.country || defaultCountry.value).toUpperCase()}:${String(condition.plz || '').replace(/[\s.]+/g, '').toUpperCase()}`;
+    // The evaluator's default, not the first configured country: the place
+    // shown has to be the one the condition is evaluated against.
+    return `${(condition.country || EVALUATOR_DEFAULT_COUNTRY).toUpperCase()}:${String(condition.plz || '').replace(/[\s.]+/g, '').toUpperCase()}`;
 }
 
 /** "Köln", null for a code the directory does not know, undefined while not yet asked. */
@@ -370,7 +366,13 @@ function submit() {
                                     <Input v-model="condition.plz" :read-only="locked" :placeholder="__('e.g. 50667')" />
                                 </Field>
                                 <Field :label="__('Country')" class="w-28">
-                                    <Select v-model="condition.country" class="w-full" :read-only="locked" :options="countryOptions" />
+                                    <Select
+                                        v-model="condition.country"
+                                        class="w-full"
+                                        :read-only="locked"
+                                        :options="countryOptions"
+                                        :placeholder="__('Default (:country)', { country: EVALUATOR_DEFAULT_COUNTRY })"
+                                    />
                                 </Field>
                             </template>
 

@@ -41,3 +41,7 @@ jobs:
 
       - name: Verify committed resources/dist is fresh
         run: npm run build:check
+
+      # The editor's rule normalisation, as plain functions (node --test).
+      - name: JS tests
+        run: npm test

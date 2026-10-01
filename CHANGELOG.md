@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Behoben: eine Umkreis-Bedingung ohne Land bleibt ohne Land
+
+Der Segment-Editor setzte einer `geo`-Bedingung ohne `country` beim Öffnen das erste Land aus
+`leadhub.postal_codes.countries` ein; stand dort AT vorn, verschob schon Öffnen und Speichern einen
+deutschen Umkreis nach Österreich. Jetzt bleibt das Feld leer (Auswahl zeigt „Vorgabe (DE)"), und es
+gilt wie bisher die Vorgabe des Auswerters, DE; auch die angezeigte Ortsauflösung fragt dann DE.
+Die Normalisierung steht in `resources/js/support/segmentRules.js` und hat einen Test
+(`npm test`, `node --test`, ohne Abhängigkeiten; auch im Build-Check-Workflow).
+
 ### Neu: PLZ-Umkreis im Segment-Editor, verwaltete Segmente sichtbar
 
 - **Segment-Editor kennt `geo`.** „Kontakt wohnt im Umkreis von / außerhalb von [km] um
