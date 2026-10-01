@@ -163,9 +163,10 @@ it('schreibt Name und Regel eines verwalteten Segments im CP nicht um', function
     $fresh = $repo->findByHandle('series-koeln');
 
     expect($fresh->name)->toBe('Konzert: Köln')
-        ->and((array) $fresh->rules)->toBe($rules)
+        // toEqual, not toBe: MySQL's JSON column returns object keys in its own order.
+        ->and((array) $fresh->rules)->toEqual($rules)
         ->and($fresh->description)->toBe('Notiz fuer das Team')
-        ->and($fresh->managedBy())->toBe(serienVerwaltung());
+        ->and($fresh->managedBy())->toEqual(serienVerwaltung());
 });
 
 it('laesst managed_by nicht ueber das CP-Formular setzen', function (): void {
