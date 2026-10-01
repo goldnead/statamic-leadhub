@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.15.0 — 2026-10-01
+
 ### Behoben: eine Umkreis-Bedingung ohne Land bleibt ohne Land
 
 Der Segment-Editor setzte einer `geo`-Bedingung ohne `country` beim Öffnen das erste Land aus
