@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.15.1 — 2026-10-14
+
+- Fix: `2026_07_24_100000_add_brand_id_to_leadhub_tables` failed on PostgreSQL with `SQLSTATE[2BP01]`,
+  because a unique is a constraint there and cannot be removed with `DROP INDEX`. Uniques are now
+  dropped with `dropUnique`. Verified with a full `migrate` and `migrate:rollback` on PostgreSQL 16.
+
 ## 2.15.0 — 2026-10-01
 
 ### Behoben: eine Umkreis-Bedingung ohne Land bleibt ohne Land
