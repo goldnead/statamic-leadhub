@@ -320,7 +320,10 @@ return new class extends Migration
 
         foreach ([...$drop, $name] as $obsolete) {
             if ($indexes->has($obsolete)) {
-                Schema::table($table, fn (Blueprint $blueprint) => $blueprint->dropIndex($obsolete));
+                // Postgres backs a unique with a constraint; DROP INDEX on it fails (2BP01).
+                Schema::table($table, fn (Blueprint $blueprint) => ($indexes[$obsolete]['unique'] ?? false)
+                    ? $blueprint->dropUnique($obsolete)
+                    : $blueprint->dropIndex($obsolete));
             }
         }
 
