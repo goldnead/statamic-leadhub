@@ -3,7 +3,7 @@ import axios from 'axios';
 import { ref, reactive, watch, computed } from 'vue';
 import { Head, router } from '@statamic/cms/inertia';
 import { Header, Panel, Card, Alert, Badge, Button, Field, Input, Select, Switch, Text } from '@statamic/cms/ui';
-import { normalizeGeoCondition, EVALUATOR_DEFAULT_COUNTRY } from '../../support/segmentRules.js';
+import { normalizeRules as normalizeRulesFor, serializeRules, EVALUATOR_DEFAULT_COUNTRY } from '../../support/segmentRules.js';
 
 const props = defineProps([
     'segment',      // null on create, else { id, name, handle, description, is_active, rules, managed_by, update_url, delete_url }
@@ -21,7 +21,7 @@ const isEdit = computed(() => !! props.segment);
 const managedBy = computed(() => props.segment?.managed_by ?? null);
 const locked = computed(() => !! managedBy.value);
 
-// Declared before the form: normalizeCondition() reads them while the form is built.
+// Declared before the form, which is built from the saved rules.
 const countries = computed(() => props.vocabulary.countries ?? ['DE']);
 const defaultCountry = computed(() => countries.value[0] ?? 'DE');
 
@@ -33,32 +33,10 @@ const form = reactive({
     rules: normalizeRules(props.segment?.rules),
 });
 
+// Opening and saving must hand the server the same rules: the round trip
+// (normalizeRules in, serializeRules out) lives in support/segmentRules.js, with tests.
 function normalizeRules(rules) {
-    if (! rules || typeof rules !== 'object') {
-        return { match: 'all', conditions: [] };
-    }
-    return {
-        match: rules.match === 'any' ? 'any' : 'all',
-        conditions: Array.isArray(rules.conditions) ? rules.conditions.map(normalizeCondition) : [],
-    };
-}
-
-// Every shape the evaluator knows survives a round trip through this form.
-// Before, anything that was not a tag or an event came back as a `field`
-// condition, so opening and saving a segment rewrote its custom-field and geo
-// conditions into ones that match nobody.
-function normalizeCondition(c) {
-    // A nested group: the builder does not edit groups, but must not destroy
-    // one either. Kept as it is and shown as a group.
-    if (Array.isArray(c.conditions)) return { ...c, type: 'group' };
-
-    const type = c.type ?? 'field';
-    if (type === 'tag') return { type: 'tag', operator: c.operator ?? 'has', value: c.value ?? '' };
-    if (type === 'event') return { type: 'event', operator: c.operator ?? 'has', event: c.event ?? '', within_days: c.within_days ?? null };
-    if (type === 'custom') return { type: 'custom', field: c.field ?? '', operator: c.operator ?? 'eq', value: c.value ?? '' };
-    // Without a country it stays without one — see support/segmentRules.js.
-    if (type === 'geo') return normalizeGeoCondition(c);
-    return { type: 'field', field: c.field ?? props.vocabulary.fields[0], operator: c.operator ?? 'eq', value: c.value ?? '' };
+    return normalizeRulesFor(rules, props.vocabulary);
 }
 
 const conditionLabels = {
@@ -186,11 +164,7 @@ function submit() {
         handle: form.handle || null,
         description: form.description || null,
         is_active: form.is_active,
-        // A group goes back exactly as it came; the `type` was only for display.
-        rules: {
-            ...form.rules,
-            conditions: form.rules.conditions.map(({ type, ...rest }) => (type === 'group' ? rest : { type, ...rest })),
-        },
+        rules: serializeRules(form.rules),
     };
     if (isEdit.value) {
         router.patch(props.segment.update_url, payload, { preserveScroll: true });
