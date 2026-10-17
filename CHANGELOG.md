@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 2.16.1 — 2026-10-18
+
+- Tests: opening a segment in the editor and saving it hands the server the same rules, for
+  custom-field, radius (`geo`) and nested-group conditions (`tests/js/segment-roundtrip.test.mjs`,
+  `npm test`). The behaviour itself has held since 2.15.0 (before, a Save turned such conditions
+  into plain field conditions that match nobody); there was no test that would have caught it
+  coming back. The editor's rule round trip moved from `Segments/Edit.vue` into
+  `resources/js/support/segmentRules.js` (`normalizeRules`, `serializeRules`) so it can be tested.
+  No change in behaviour, rebuilt CP bundle.
+
 ## 2.16.0 — 2026-10-17
 
 ### Changed
