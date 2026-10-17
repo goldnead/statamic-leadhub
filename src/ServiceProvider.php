@@ -758,17 +758,9 @@ class ServiceProvider extends AddonServiceProvider
                 $nav->item(__('leadhub::nav.segments'))
                     ->route('leadhub.segments.index')
                     ->can('view leadhub segments'),
-                // Points at the suite's shared settings screen, not at a
-                // LeadHub route: the screen lives in brand-context now and
-                // shows one section per addon. The entry stays under LeadHub
-                // because that is where an operator looks for LeadHub's
-                // settings, and it carries the permission the section is gated
-                // on — the shared page hides sections the user may not manage,
-                // so without the check this would be a link to a page with no
-                // LeadHub on it.
-                $nav->item(__('leadhub::nav.settings'))
-                    ->route('brand-context.settings.index')
-                    ->can('manage leadhub settings'),
+                // No settings entry here: statamic-brand-context (>= 1.16) hangs
+                // a "Settings" child under this entry on its own, via
+                // `Support\Settings::settingsNavParent()`.
                 $nav->item(__('leadhub::nav.sync_log'))
                     ->route('leadhub.sync-log'),
             ]);
