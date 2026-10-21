@@ -67,7 +67,8 @@ class SimPersonSource implements ProvidesSimPersons
             return null;
         }
 
-        $contact = Contact::query()->find((int) $key);
+        // Archived contacts are not found by search, so a key that names one is not hers to copy either.
+        $contact = Contact::query()->active()->find((int) $key);
 
         if ($contact === null) {
             return null;
@@ -89,7 +90,7 @@ class SimPersonSource implements ProvidesSimPersons
             return [];
         }
 
-        $contact = Contact::query()->find($id);
+        $contact = Contact::query()->active()->find($id);
 
         // Only the person the identity names: the same id with another address is not her.
         if ($contact === null || strtolower(trim((string) $contact->email)) !== $email) {
