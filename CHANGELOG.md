@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.17.0 — 2026-10-21
+
 - The CRM is a person source for the dry run's "as it is for person X" (statamic-brand-context `PersonSources`):
   it finds a contact by address or name and hands over her tags, status, name, address, scalar custom fields and
   whether she asked not to be written to. Read only, nothing logged, needs `view leadhub contacts`. Skipped with
@@ -934,6 +936,8 @@ green against v8.1.2: 479 passed, 2160 assertions.
 It also blocked `goldnead/statamic-marketing`, which requires this package.
 
 ## Unreleased
+
+## 2.17.0 — 2026-10-21
 ### Fixed — the webhook-manager integration job tested nothing, then tested nothing loudly
 
 `scripts/test-webhook-manager.sh` staged its throwaway copy with `git archive HEAD`.
