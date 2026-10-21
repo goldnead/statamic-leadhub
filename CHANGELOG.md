@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- The CRM is a person source for the dry run's "as it is for person X" (statamic-brand-context `PersonSources`):
+  it finds a contact by address or name and hands over her tags, status, name, address, scalar custom fields and
+  whether she asked not to be written to. Read only, nothing logged, needs `view leadhub contacts`. Skipped with
+  an older statamic-brand-context.
+
 ## 2.16.1 — 2026-10-18
 
 - Tests: opening a segment in the editor and saving it hands the server the same rules, for

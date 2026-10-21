@@ -3,6 +3,7 @@
 namespace Goldnead\Leadhub;
 
 use Goldnead\BrandContext\Settings\SettingsRegistry;
+use Goldnead\BrandContext\Simulation\PersonSources;
 use Goldnead\Leadhub\Console\BrandIntegrityCommand;
 use Goldnead\Leadhub\Console\ContactLookupCommand;
 use Goldnead\Leadhub\Console\FireDueFollowupsCommand;
@@ -49,6 +50,7 @@ use Goldnead\Leadhub\Integrations\Insights\OpportunityValueWon;
 use Goldnead\Leadhub\Integrations\Insights\ScoreChanges;
 use Goldnead\Leadhub\Integrations\Insights\TasksCompleted;
 use Goldnead\Leadhub\Integrations\Notifications\NotificationsBridge;
+use Goldnead\Leadhub\Integrations\SimPersonSource;
 use Goldnead\Leadhub\Integrations\Timeline\BookingSource;
 use Goldnead\Leadhub\Integrations\Timeline\ConsentSource;
 use Goldnead\Leadhub\Integrations\Timeline\EntitlementsSource;
@@ -309,6 +311,12 @@ class ServiceProvider extends AddonServiceProvider
         $this->registerWebhookManagerBridge();
         $this->registerNotificationTypes();
         $this->registerInsightsMetrics();
+
+        // The dry run's "as it is for person X" can copy a real person from the CRM. Read only, and guarded:
+        // an install with an older statamic-brand-context has no such registry, and nothing else is affected.
+        if (class_exists(PersonSources::class)) {
+            $this->app->make(PersonSources::class)->register(SimPersonSource::class);
+        }
     }
 
     /**
