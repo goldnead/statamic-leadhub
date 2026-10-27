@@ -126,7 +126,7 @@ function when(iso) {
                 <TableColumns>
                     <TableColumn>{{ __('File') }}</TableColumn>
                     <TableColumn>{{ __('Status') }}</TableColumn>
-                    <TableColumn>{{ __('Rows') }}</TableColumn>
+                    <TableColumn>{{ __('Row count') }}</TableColumn>
                     <TableColumn>{{ __('Created') }}</TableColumn>
                     <TableColumn>{{ __('Updated') }}</TableColumn>
                     <TableColumn>{{ __('Skipped') }}</TableColumn>

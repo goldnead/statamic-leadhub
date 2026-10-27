@@ -21,7 +21,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class PostalCodeRadius
 {
-    /** @var array<string, array<string, true>> Cache key => set of "CC:CODE". */
+    /** @var array<string, array<string, bool>> Cache key => set of "CC:CODE". */
     protected array $memo = [];
 
     public function __construct(protected int $ttlSeconds = 86400) {}
@@ -32,7 +32,7 @@ class PostalCodeRadius
      * An unknown centre returns an empty set rather than everything: a typo in
      * the segment must not mail the whole list.
      *
-     * @return array<string, true> keyed "CC:CODE" for O(1) membership
+     * @return array<string, bool> keyed "CC:CODE" for O(1) membership
      */
     public function within(string $postalCode, string $country, float $km): array
     {
