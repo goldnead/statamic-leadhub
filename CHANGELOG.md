@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- Contact import (**Contacts → Import contacts**, permission `import leadhub contacts`): CSV/TXT upload or text
+  pasted from Excel, column mapping with suggestions (also to custom fields, or a new one), preview, then a queued
+  job that works through the file in chunks. Duplicates are merged through `ContactResolver`, no mail and no
+  "new lead" alert goes out, consent is never invented, opted-out addresses are skipped, bad rows land in a
+  downloadable report instead of stopping the run. New config block `leadhub.imports`. See the README.
+- `LeadHubNotifier::withoutNewLeadAlerts()` to create contacts in bulk without alerting staff per contact.
+
 ## 2.17.0 — 2026-10-21
 
 - The CRM is a person source for the dry run's "as it is for person X" (statamic-brand-context `PersonSources`):

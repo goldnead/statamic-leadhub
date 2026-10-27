@@ -40,8 +40,33 @@ class LeadHubNotifier
 {
     public function __construct(protected UserDirectory $users, protected BrandMailer $mailer) {}
 
+    /** Depth of {@see withoutNewLeadAlerts()} calls in progress. Static: the listener builds its own notifier. */
+    protected static int $newLeadMuted = 0;
+
+    /**
+     * Run a callback with the "new lead" alert switched off.
+     *
+     * For a contact import: ten thousand rows are ten thousand contacts
+     * created, and not one of them is a lead that walked in and needs a
+     * reply. Only this alert is muted; every other event still fires.
+     */
+    public static function withoutNewLeadAlerts(\Closure $callback): mixed
+    {
+        static::$newLeadMuted++;
+
+        try {
+            return $callback();
+        } finally {
+            static::$newLeadMuted--;
+        }
+    }
+
     public function newLead(Contact $contact): bool
     {
+        if (static::$newLeadMuted > 0) {
+            return false;
+        }
+
         if (! $this->enabled() || ! config('leadhub.notifications.new_lead', true)) {
             return false;
         }

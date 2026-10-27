@@ -8,6 +8,7 @@ use Goldnead\Leadhub\Http\Controllers\Cp\DashboardController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ExportController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FollowupController;
 use Goldnead\Leadhub\Http\Controllers\Cp\FormMappingController;
+use Goldnead\Leadhub\Http\Controllers\Cp\ImportController;
 use Goldnead\Leadhub\Http\Controllers\Cp\NoteController;
 use Goldnead\Leadhub\Http\Controllers\Cp\OpportunityController;
 use Goldnead\Leadhub\Http\Controllers\Cp\PipelineController;
@@ -53,6 +54,18 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         // "Grant access" from the contact screen. Writes through the
         // entitlements facade; 404 when that addon is not installed.
         Route::post('/{contact}/grant-access', [AccessGrantController::class, 'store'])->name('grant-access');
+    });
+
+    // Contact import. `leadhubImport` and not `import`: a route parameter name
+    // is an application-wide namespace (see the note on custom fields below).
+    // The id is a uuid the controller validates; the permission check comes first.
+    Route::prefix('import')->name('import.')->group(function () {
+        Route::get('/', [ImportController::class, 'create'])->name('create');
+        Route::post('/', [ImportController::class, 'upload'])->name('upload');
+        Route::get('/{leadhubImport}', [ImportController::class, 'show'])->name('show');
+        Route::post('/{leadhubImport}/preview', [ImportController::class, 'preview'])->name('preview');
+        Route::post('/{leadhubImport}/run', [ImportController::class, 'run'])->name('run');
+        Route::get('/{leadhubImport}/errors', [ImportController::class, 'errors'])->name('errors');
     });
 
     // Follow-ups

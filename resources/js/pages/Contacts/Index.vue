@@ -17,7 +17,8 @@ const props = defineProps([
     'tagOptions',         // [{ value, label }]
     'sourceOptions',      // [{ value, label }]
     'exportUrl',          // string
-    'showArchived',       // bool
+    'importUrl',          // string | null — contact import (needs `import leadhub contacts`)
+    'showArchived',      // bool
     'hasFormConnected',   // bool
     'configureFormsUrl',  // string
     'createUrl',          // string | null — manual "create contact" (feature-gated)
@@ -176,6 +177,13 @@ function restore(row) {
                 :description="__('Pick a Statamic form and map its fields to a LeadHub contact.')"
             />
             <EmptyStateItem
+                v-if="importUrl"
+                :href="importUrl"
+                icon="upload"
+                :heading="__('Import contacts')"
+                :description="__('Bring in a list from a CSV file or paste it from Excel.')"
+            />
+            <EmptyStateItem
                 v-if="createUrl"
                 :href="createUrl"
                 icon="plus"
@@ -188,6 +196,7 @@ function restore(row) {
     <!-- Filled state -->
     <div v-else class="max-w-page mx-auto">
         <Header :title="__('Contacts')" icon="users">
+            <Button v-if="importUrl" :text="__('Import contacts')" icon="upload" variant="default" @click="router.visit(importUrl)" />
             <Button :text="__('Export CSV')" icon="download" variant="default" @click="exportCsv" />
             <CommandPaletteItem
                 v-if="createUrl"

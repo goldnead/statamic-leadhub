@@ -22,6 +22,7 @@ It is **not** a full CRM. It's the missing layer between your website forms and 
 - **Tags** — manual or rule-driven segmentation
 - **Per-form mapping** — toggle LeadHub per form, map each form's fields to contact fields
 - **Filterable list + CSV export** — find leads fast, export filtered subsets
+- **Contact import** — CSV, TXT or text pasted from Excel; column mapping, preview, runs on the queue, duplicates merged, no mail sent. See [Importing contacts](#importing-contacts)
 - **Dashboard** — KPIs, latest activity, due/overdue follow-ups
 - **Settings in the Control Panel** — 28 of the keys in `config/leadhub.php` are editable under **LeadHub → Settings** (`manage leadhub settings`), stored as the difference to the file. See [Settings in the Control Panel](#settings-in-the-control-panel)
 - **Lead assignment + notifications** — assign an owner to each lead; e-mail your team on new leads, assignments, and a daily follow-up digest
@@ -143,6 +144,7 @@ LeadHub registers sixteen permissions under the `LeadHub` group. Assign them to 
 | `delete leadhub contacts` | Deleting a contact for good. |
 | `archive leadhub contacts` | Archiving and unarchiving a contact. |
 | `export leadhub contacts` | The CSV export of the contact list, filters included. |
+| `import leadhub contacts` | The contact import: upload or paste, mapping, preview, run, report. |
 | `manage leadhub tags` | The Tags screen: creating, renaming and deleting tags. |
 | `view leadhub segments` | The Segments screen, read-only, including a segment's member list. |
 | `manage leadhub segments` | Creating, editing, activating and deleting segments, and the rule editor. |
@@ -313,6 +315,48 @@ Why it matters even for internal mail: one relay account verifies one set of sen
 Rebind `Goldnead\Leadhub\Contracts\SenderIdentityResolver` to answer differently for this addon alone; rebind the brand-context contract to answer for every addon that has not been rebound.
 
 ---
+
+## Importing contacts
+
+**LeadHub → Contacts → Import contacts** (needs `import leadhub contacts`) brings in a list from MailerLite,
+Brevo, Mailchimp or a spreadsheet.
+
+1. **Upload a CSV/TXT file** (comma, semicolon or tab separated; UTF-8 or Windows-1252) **or paste the cells**
+   from Excel. Both go through the same parser. The page states up front, in plain words, that duplicates are
+   merged and that no confirmation mail goes out.
+2. **Map the columns.** Each column goes to a contact field: email, first/last/full name, phone, company,
+   postal code, country, status, consent, tags, or (eloquent driver) one of your custom fields. Headers like
+   `Vorname`, `E-Mail`, `PLZ` or `Mobil` are recognised, anything else starts as *leave out*. A column can
+   also be created as a **new custom field**. Optional for the whole file: a tag, a status for new contacts.
+3. **Preview** the first rows: each is marked *will be created*, *will be merged*, *skipped* or *invalid*.
+   Nothing is written yet.
+4. **Import.** The file is read in chunks of `leadhub.imports.chunk_size` rows (default 500), one queued
+   `ImportContactsJob` per chunk, so a large list never runs inside a request. The result page shows the counts
+   and refreshes while the queue works. Make sure a queue worker runs (`QUEUE_CONNECTION` other than `sync`
+   for big lists).
+
+What an import does **not** do, on purpose:
+
+- **Create duplicates.** Every row goes through `ContactResolver::resolveOrCreate()`, the same resolve-or-create
+  the form pipeline and `LeadHub::ingest()` use: matched by normalised email, then phone; a field that already
+  has a value is not overwritten, an empty one is filled. A second row for the same address in the file merges too.
+- **Send mail.** No confirmation to the contact and no "new lead" alert to staff (only that one alert is muted
+  during an import). CRM destinations, if you enabled them, sync as they do for any contact.
+- **Invent consent.** A contact comes in *without* a recorded consent unless the file has a consent column
+  that says yes (`1`, `ja`, `yes`, `true`, `x`, `subscribed`) or you tick "Everyone in this file gave consent".
+  Consent is never taken away by an import either.
+- **Touch an opt-out.** An address with `do_not_contact` is skipped and listed in the report, never updated and
+  never set back to consented.
+- **Stop at a bad row.** A row with no or an invalid email, a country that is not a 2-letter code, an unknown
+  status or an exception is counted, listed with its reason (first `leadhub.imports.issue_limit` = 1000) and
+  available as a CSV report, spreadsheet formulas neutralised. The other rows go on.
+
+Every imported contact gets a timeline entry "Imported from <file>". The staged file and the result live under
+`leadhub.imports.directory` (default `leadhub/imports`) on `leadhub.imports.disk` (a local disk); the **Previous
+imports** list on the import page shows date, rows, created, updated, skipped and errors per import.
+
+Not included yet: undoing an import, a "single contact" tab (the existing *New contact* form does that),
+re-running a finished import, and removing old staged files (delete the folder when you no longer need the report).
 
 ## Marketing attribution
 

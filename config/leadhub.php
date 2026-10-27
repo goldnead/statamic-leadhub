@@ -88,6 +88,27 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Contact Import
+    |--------------------------------------------------------------------------
+    |
+    | A staged file and its result live on this disk, one folder per import.
+    | The file is read in chunks of `chunk_size` rows, one queued job each, so
+    | a big list never runs inside a request or a single job.
+    |
+    */
+
+    'imports' => [
+        'disk' => 'local',
+        'directory' => 'leadhub/imports',
+        'chunk_size' => 500,
+        'max_upload_kb' => 10240,
+        // How many problem rows are kept for the error report. The counts are exact either way.
+        'issue_limit' => 1000,
+        'preview_rows' => 8,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Feature Flags
     |--------------------------------------------------------------------------
     |

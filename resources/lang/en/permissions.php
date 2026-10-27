@@ -8,6 +8,7 @@ return [
     'delete_contacts' => 'Delete contacts',
     'archive_contacts' => 'Archive contacts',
     'export_contacts' => 'Export contacts',
+    'import_contacts' => 'Import contacts',
     'grant_access' => 'Grant access (entitlements)',
     'manage_tags' => 'Manage tags',
     'view_segments' => 'View segments',
