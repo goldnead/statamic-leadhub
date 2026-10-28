@@ -9,7 +9,8 @@
   job that works through the file in chunks. Duplicates are merged through `ContactResolver`, no mail and no
   "new lead" alert goes out, consent is never invented, opted-out addresses are skipped, bad rows land in a
   downloadable report instead of stopping the run. New config block `leadhub.imports`. See the README.
-- `LeadHubNotifier::withoutNewLeadAlerts()` to create contacts in bulk without alerting staff per contact.
+- `Support\BulkWrite`: while it is active (a contact import), the "new lead" staff alert and the outbound
+  webhook bridge skip each contact. Segments and CRM destinations still see every contact.
 
 ## 2.17.0 — 2026-10-21
 

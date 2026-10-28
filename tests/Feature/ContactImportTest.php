@@ -8,6 +8,8 @@
  */
 
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
+use Goldnead\Leadhub\Events\LeadHubContactCreated;
+use Goldnead\Leadhub\Integrations\WebhookManager\WebhookManagerBridge;
 use Goldnead\Leadhub\Jobs\ImportContactsJob;
 use Goldnead\Leadhub\Models\CustomField;
 use Goldnead\Leadhub\Notifications\NewLeadNotification;
@@ -15,9 +17,12 @@ use Goldnead\Leadhub\Services\ContactImportService;
 use Goldnead\Leadhub\Services\ContactResolver;
 use Goldnead\Leadhub\Services\Import\ColumnGuesser;
 use Goldnead\Leadhub\Services\Import\ImportStore;
+use Goldnead\Leadhub\Support\BulkWrite;
 use Goldnead\Leadhub\Support\ContactDto;
 use Goldnead\Leadhub\Support\EmailNormalizer;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
@@ -283,6 +288,103 @@ it('reads a Windows-1252 file and stores the text as UTF-8', function (): void {
     runImport($id, ['email', 'full_name']);
 
     expect(importContact('mueller@example.com')->full_name)->toBe('Müller');
+});
+
+it('neutralises a formula in the header of the error report', function (): void {
+    $id = stageCsv("email,\"=HYPERLINK(\"\"http://evil\"\")\"\nnot-an-email,x\n");
+    runImport($id, ['email', '']);
+
+    $body = $this->get(cp_route('leadhub.import.errors', $id))->streamedContent();
+    $firstLine = strtok($body, "\n");
+
+    expect($firstLine)->toContain("'=HYPERLINK")
+        ->and($firstLine)->not->toContain(',=HYPERLINK')
+        ->and($firstLine)->not->toContain('"=HYPERLINK');
+});
+
+it('never overwrites existing fields, even when the site allows it for submissions', function (): void {
+    config()->set('leadhub.overwrite_existing_fields_from_submissions', true);
+
+    app(ContactResolver::class)->resolveOrCreate(new ContactDto(
+        email: 'keep@example.com', firstName: 'Janet', phone: '+49 30 123456', company: 'Alt GmbH', source: 'form',
+    ));
+
+    $id = stageCsv("email,first_name,phone,company\nkeep@example.com,Jane,+49 99 999999,Neu AG\nfresh@example.com,Fresh,,\n");
+    runImport($id, ['email', 'first_name', 'phone', 'company']);
+
+    $kept = importContact('keep@example.com');
+    expect($kept->first_name)->toBe('Janet')
+        ->and($kept->phone)->toBe('+49 30 123456')
+        ->and($kept->company)->toBe('Alt GmbH')
+        ->and($kept->source)->toBe('form')
+        ->and(importContact('fresh@example.com')->source)->toBe('import')
+        // The switch is the site's, not the import's: it is back as it was.
+        ->and(config('leadhub.overwrite_existing_fields_from_submissions'))->toBeTrue();
+});
+
+it('marks the whole run as a bulk write so outbound webhooks stay quiet per row', function (): void {
+    $seen = [];
+    Event::listen(
+        LeadHubContactCreated::class,
+        function () use (&$seen): void {
+            $seen[] = BulkWrite::active();
+        },
+    );
+
+    $id = stageCsv("email\nbulk-a@example.com\nbulk-b@example.com\n");
+    runImport($id, ['email']);
+
+    expect($seen)->toBe([true, true])
+        ->and(BulkWrite::active())->toBeFalse();
+});
+
+it('does not hand a bulk-written event to the webhook manager', function (): void {
+    Log::spy();
+
+    $bridge = new WebhookManagerBridge;
+    $dispatch = Closure::bind(
+        fn () => $this->dispatch('leadhub.contact.created', new stdClass),
+        $bridge,
+        WebhookManagerBridge::class,
+    );
+
+    // Without the peer addon an attempt fails and logs a warning; an early
+    // return does not. That difference is what shows the event was skipped.
+    BulkWrite::run($dispatch);
+
+    Log::shouldNotHaveReceived('warning');
+});
+
+it('keeps the exception text out of the report and logs it instead', function (): void {
+    Log::spy();
+    app()->instance(ContactResolver::class, new class(app(ContactRepository::class)) extends ContactResolver
+    {
+        public function resolveOrCreate(ContactDto $dto): array
+        {
+            throw new RuntimeException('SQLSTATE secret-table-name');
+        }
+    });
+
+    $id = stageCsv("email\nboom@example.com\n");
+    runImport($id, ['email']);
+
+    $state = app(ImportStore::class)->find($id);
+    expect($state['counts']['errors'])->toBe(1)
+        ->and(json_encode($state['issues']))->not->toContain('secret-table-name');
+
+    $body = $this->get(cp_route('leadhub.import.errors', $id))->streamedContent();
+    expect($body)->not->toContain('secret-table-name');
+    Log::shouldHaveReceived('warning')->once();
+});
+
+it('starts a staged import once: a second run is a redirect, not a second job', function (): void {
+    Queue::fake();
+    $id = stageCsv("email\ntwice@example.com\n");
+
+    runImport($id, ['email'])->assertRedirect();
+    runImport($id, ['email'])->assertRedirect(cp_route('leadhub.import.show', $id));
+
+    Queue::assertPushed(ImportContactsJob::class, 1);
 });
 
 it('refuses upload, run and error report for a user without the import permission', function (): void {

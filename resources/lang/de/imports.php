@@ -7,6 +7,7 @@ return [
     'disclaimer' => [
         'duplicates' => 'Dubletten werden zusammengeführt: Eine Adresse, die es schon gibt, wird aktualisiert und nie doppelt angelegt. Ein Feld, das schon einen Wert hat, wird nicht überschrieben.',
         'no_mail' => 'Der Import verschickt keine Bestätigungsmail und keine Benachrichtigung, weil die Leute auf deiner Liste nicht noch einmal gefragt werden.',
+        'sync' => 'Importierte Kontakte zählen in deinen Segmenten und werden, wenn du ein CRM angebunden hast, wie jeder Kontakt dorthin übertragen. Ausgehende Webhooks werden nicht für jeden importierten Kontakt ausgelöst.',
         'permission' => 'Stelle sicher, dass sich alle auf der Liste wirklich eingetragen und dir erlaubt haben, sie per E-Mail anzuschreiben.',
     ],
     'targets' => [

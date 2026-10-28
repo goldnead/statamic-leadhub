@@ -20,6 +20,7 @@ use Goldnead\Leadhub\Events\LeadHubSubmissionAttached;
 use Goldnead\Leadhub\Events\LeadHubTagAdded;
 use Goldnead\Leadhub\Events\LeadHubTagRemoved;
 use Goldnead\Leadhub\Events\LeadHubTaskAssigned;
+use Goldnead\Leadhub\Support\BulkWrite;
 use Goldnead\WebhookManager\Events\TriggerDetected;
 use Goldnead\WebhookManager\Facades\WebhookManager;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -137,6 +138,12 @@ class WebhookManagerBridge
      */
     protected function dispatch(string $handle, object $event): void
     {
+        // A contact import fires these per row; a webhook per imported contact
+        // is not what the person who set the webhook up meant. See BulkWrite.
+        if (BulkWrite::active()) {
+            return;
+        }
+
         try {
             $trigger = WebhookManager::triggers()->get($handle);
 

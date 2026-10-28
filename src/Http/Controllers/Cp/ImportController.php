@@ -6,6 +6,7 @@ use Goldnead\BrandContext\Facades\BrandContext;
 use Goldnead\Leadhub\Services\ContactImportService;
 use Goldnead\Leadhub\Services\Import\ImportStore;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -120,7 +121,12 @@ class ImportController extends Controller
     {
         $this->authorizeOrFail($request, self::PERMISSION);
         $state = $this->load($leadhubImport);
-        abort_unless($state['status'] === ContactImportService::STATUS_STAGED, 404);
+        $show = cp_route('leadhub.import.show', $state['id']);
+
+        // Already started (a double click, a second tab): show it, do not start it again.
+        if ($state['status'] !== ContactImportService::STATUS_STAGED) {
+            return redirect()->to($show);
+        }
 
         [$mapping, $options] = $this->input($request);
 
@@ -128,7 +134,24 @@ class ImportController extends Controller
             return back()->withErrors($errors);
         }
 
-        $this->import->start($state, $mapping, $options);
+        // staged -> queued has to happen once. The lock covers the gap between
+        // reading the state above and writing "queued" in start(): two requests
+        // in that gap would both see "staged" and queue the file twice.
+        $started = Cache::lock('leadhub:import:'.$state['id'], 30)->get(function () use ($state, $mapping, $options): bool {
+            $fresh = $this->store->find($state['id']);
+
+            if (! $fresh || $fresh['status'] !== ContactImportService::STATUS_STAGED) {
+                return false;
+            }
+
+            $this->import->start($fresh, $mapping, $options);
+
+            return true;
+        });
+
+        if (! $started) {
+            return redirect()->to($show);
+        }
 
         return redirect()->to(cp_route('leadhub.import.show', $state['id']))
             ->with('success', __('leadhub::imports.flashes.started'));
@@ -142,7 +165,8 @@ class ImportController extends Controller
         $callback = function () use ($state): void {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, array_merge([__('leadhub::imports.report.row'), __('leadhub::imports.report.type'), __('leadhub::imports.report.reason')], $state['header']), ',', '"', '');
+            // The header is the uploaded file's own first row: as untrusted as any cell below it.
+            fputcsv($out, array_map($this->safeCell(...), array_merge([__('leadhub::imports.report.row'), __('leadhub::imports.report.type'), __('leadhub::imports.report.reason')], $state['header'])), ',', '"', '');
 
             foreach ($state['issues'] as $issue) {
                 fputcsv($out, array_map($this->safeCell(...), array_merge(
@@ -233,6 +257,7 @@ class ImportController extends Controller
         return [
             __('leadhub::imports.disclaimer.duplicates'),
             __('leadhub::imports.disclaimer.no_mail'),
+            __('leadhub::imports.disclaimer.sync'),
             __('leadhub::imports.disclaimer.permission'),
         ];
     }

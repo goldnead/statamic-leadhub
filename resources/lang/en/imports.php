@@ -7,6 +7,7 @@ return [
     'disclaimer' => [
         'duplicates' => 'Duplicates are merged: an address that already exists is updated, never created twice, and a field that already has a value is not overwritten.',
         'no_mail' => 'Importing sends no confirmation email and no notification, because the people on your list are not asked again.',
+        'sync' => 'Imported contacts count in your segments and, if you connected a CRM, are synced to it like any contact. Outbound webhooks are not fired for each imported contact.',
         'permission' => 'Make sure everyone on the list actually signed up and gave you permission to email them.',
     ],
     'targets' => [

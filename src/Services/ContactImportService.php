@@ -11,9 +11,11 @@ use Goldnead\Leadhub\Models\Event;
 use Goldnead\Leadhub\Services\Import\ColumnGuesser;
 use Goldnead\Leadhub\Services\Import\CsvReader;
 use Goldnead\Leadhub\Services\Import\ImportStore;
+use Goldnead\Leadhub\Support\BulkWrite;
 use Goldnead\Leadhub\Support\ContactDto;
 use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\PhoneNormalizer;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -26,9 +28,12 @@ use Illuminate\Support\Str;
  *
  * Three things an import does differently, on purpose:
  *
- * - It never alerts staff to "new lead" for each row (see
- *   {@see LeadHubNotifier::withoutNewLeadAlerts()}) and sends nothing to the
- *   contact. The people on the list were not asked just now.
+ * - It runs as a {@see BulkWrite}: no "new lead" alert to staff and no
+ *   outbound webhook per row, and nothing is sent to the contact. The people
+ *   on the list were not asked just now. Contact events still fire, so
+ *   segments and CRM destinations (if enabled) see every contact.
+ * - It never overwrites a field that has a value, whatever the site's
+ *   `overwrite_existing_fields_from_submissions` says about form submissions.
  * - It never invents consent. A contact comes in as not consented unless the
  *   file has a consent column that says yes or the person ticks the box for
  *   the whole file.
@@ -268,8 +273,27 @@ class ContactImportService
 
         return (bool) BrandContext::runFor(
             (int) $state['brand_id'],
-            fn () => LeadHubNotifier::withoutNewLeadAlerts(fn () => $this->runChunk($state)),
+            fn () => BulkWrite::run(fn () => $this->withoutOverwriting(fn () => $this->runChunk($state))),
         );
+    }
+
+    /**
+     * The overwrite switch is for form submissions: a visitor correcting their
+     * own details. A list in a file is not that, and an old export must never
+     * replace what a contact has told us since. Forced off for the run, put
+     * back as it was.
+     */
+    protected function withoutOverwriting(\Closure $callback): mixed
+    {
+        $key = 'leadhub.overwrite_existing_fields_from_submissions';
+        $before = config($key);
+        config([$key => false]);
+
+        try {
+            return $callback();
+        } finally {
+            config([$key => $before]);
+        }
     }
 
     /** @param  array<string, mixed>  $state */
@@ -290,7 +314,12 @@ class ContactImportService
                 $result = $this->processRow($state, $cells, $sheetRow);
             } catch (\Throwable $e) {
                 // One bad row must not take the other ten thousand with it.
-                $result = ['outcome' => 'error', 'reason' => 'exception', 'detail' => $e->getMessage()];
+                // The message can carry SQL and table names; the report goes to
+                // whoever may import, so it gets a fixed text and the log the cause.
+                Log::warning('[LeadHub] Import row failed', [
+                    'import' => $state['id'], 'row' => $sheetRow, 'message' => $e->getMessage(),
+                ]);
+                $result = ['outcome' => 'error', 'reason' => 'exception'];
             }
 
             $bucket = ['create' => 'created', 'update' => 'updated', 'skipped' => 'skipped', 'error' => 'errors'][$result['outcome']];
@@ -360,7 +389,8 @@ class ContactImportService
             phone: $parsed['phone'],
             company: $parsed['company'],
             consent: $parsed['consent'],
-            source: 'import',
+            // Only a contact the import creates is "from the import"; an existing one keeps its origin.
+            source: $existing ? null : 'import',
             defaultStatus: $parsed['status'],
             attribution: array_filter([
                 'postal_code' => $parsed['postal_code'],
