@@ -804,6 +804,8 @@ class ServiceProvider extends AddonServiceProvider
                                     ->label(__('leadhub::permissions.archive_contacts')),
                                 Permission::make('export leadhub contacts')
                                     ->label(__('leadhub::permissions.export_contacts')),
+                                Permission::make('import leadhub contacts')
+                                    ->label(__('leadhub::permissions.import_contacts')),
                                 // Writes into a neighbour (entitlements), so
                                 // its own authority: reading a contact and
                                 // opening a paid course for them are not the

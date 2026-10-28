@@ -29,6 +29,9 @@ import CustomFieldsIndex from './pages/CustomFields/Index.vue';
 import SegmentsIndex from './pages/Segments/Index.vue';
 import SegmentsEdit from './pages/Segments/Edit.vue';
 import ScoringIndex from './pages/Scoring/Index.vue';
+import ImportsCreate from './pages/Imports/Create.vue';
+import ImportsMap from './pages/Imports/Map.vue';
+import ImportsShow from './pages/Imports/Show.vue';
 import SyncLog from './pages/SyncLog.vue';
 import SetupRequired from './pages/SetupRequired.vue';
 
@@ -49,6 +52,9 @@ Statamic.booting(() => {
     Statamic.$inertia.register('leadhub::Pipelines/OpportunityCreate', OpportunityCreate);
     Statamic.$inertia.register('leadhub::Pipelines/OpportunityEdit', OpportunityEdit);
     Statamic.$inertia.register('leadhub::Pipelines/OpportunityShow', OpportunityShow);
+    Statamic.$inertia.register('leadhub::Imports/Create', ImportsCreate);
+    Statamic.$inertia.register('leadhub::Imports/Map', ImportsMap);
+    Statamic.$inertia.register('leadhub::Imports/Show', ImportsShow);
     Statamic.$inertia.register('leadhub::Followups/Index', FollowupsIndex);
     Statamic.$inertia.register('leadhub::Forms/Index', FormsIndex);
     Statamic.$inertia.register('leadhub::Forms/Edit', FormsEdit);

@@ -10,6 +10,7 @@ use Goldnead\Leadhub\Notifications\FollowupDigestNotification;
 use Goldnead\Leadhub\Notifications\LeadAssignedNotification;
 use Goldnead\Leadhub\Notifications\NewLeadNotification;
 use Goldnead\Leadhub\Sending\BrandMailer;
+use Goldnead\Leadhub\Support\BulkWrite;
 use Goldnead\Leadhub\Support\UserDirectory;
 use Illuminate\Notifications\Notification as LaravelNotification;
 use Illuminate\Support\Facades\Log;
@@ -42,6 +43,12 @@ class LeadHubNotifier
 
     public function newLead(Contact $contact): bool
     {
+        // A contact import creates contacts in bulk; none of them is a lead
+        // that walked in and needs a reply. See BulkWrite.
+        if (BulkWrite::active()) {
+            return false;
+        }
+
         if (! $this->enabled() || ! config('leadhub.notifications.new_lead', true)) {
             return false;
         }

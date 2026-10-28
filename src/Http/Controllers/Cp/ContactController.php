@@ -162,6 +162,10 @@ class ContactController extends Controller
                 'label' => $h,
             ])->all(),
             'exportUrl' => cp_route('leadhub.export'),
+            // null (button hidden) for a user without the import permission.
+            'importUrl' => $this->userCan($request, 'import leadhub contacts')
+                ? cp_route('leadhub.import.create')
+                : null,
             'showArchived' => $filters['archived'],
             'scoringEnabled' => $scoring,
             'scoreSort' => $filters['sort'] === 'engagement_score' ? ($filters['direction'] === 'asc' ? 'asc' : 'desc') : null,
