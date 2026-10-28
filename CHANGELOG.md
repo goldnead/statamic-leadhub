@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 2.18.0 — 2026-10-28
+
 ### Added
 
 - Contact import (**Contacts → Import contacts**, permission `import leadhub contacts`): CSV/TXT upload or text
