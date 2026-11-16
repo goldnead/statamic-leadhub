@@ -55,9 +55,9 @@ beforeEach(function (): void {
  * ships no `app` view — a plain GET would fail on the harness rather than on
  * anything this addon does.
  */
-function inertiaPayload($test, string $route): array
+function inertiaPayload($test, string $route, array $params = []): array
 {
-    $response = $test->withHeaders(['X-Inertia' => 'true'])->get(cp_route($route));
+    $response = $test->withHeaders(['X-Inertia' => 'true'])->get(cp_route($route, $params));
 
     $response->assertStatus(200);
 
@@ -237,3 +237,53 @@ it('drops the eloquent-only nav items on the flat driver', function (): void {
         // …and the screens that do have a flat half are still there.
         ->and(navLabels())->toContain('Contacts');
 });
+
+/*
+ * Detail pages: a route with a `{param}` that loads its model before the
+ * controller method starts. Its setup screen has to come from the route
+ * middleware (brand-context's GuardSetup), because the controller's own guard
+ * is never reached on these requests. Each row: route name, its parameters, and
+ * the table whose absence the screen has to name.
+ */
+function guardedDetailPages(): array
+{
+    return [
+        'contact' => ['leadhub.contacts.show', ['contact' => 1], 'leadhub_contacts'],
+        'company edit' => ['leadhub.companies.edit', ['company' => 1], 'leadhub_companies'],
+        'company show' => ['leadhub.companies.show', ['company' => 1], 'leadhub_companies'],
+        'task edit' => ['leadhub.tasks.edit', ['task' => 1], 'leadhub_tasks'],
+        'form mapping edit' => ['leadhub.forms.edit', ['formHandle' => 'leads'], 'leadhub_form_mappings'],
+        'segment edit' => ['leadhub.segments.edit', ['segment' => 1], 'leadhub_segments'],
+        'opportunity show' => ['leadhub.pipelines.opportunities.show', ['opportunity' => 1], 'leadhub_opportunities'],
+        'opportunity edit' => ['leadhub.pipelines.opportunities.edit', ['opportunity' => 1], 'leadhub_opportunities'],
+        'pipeline board detail' => ['leadhub.pipelines.board.show', ['pipeline' => 1], 'leadhub_pipelines'],
+    ];
+}
+
+dataset('guarded detail pages', guardedDetailPages());
+
+it('renders the setup screen on a detail page instead of a query error', function (string $route, array $params, string $table): void {
+    $this->withUnmigratedDatabase(function () use ($route, $params, $table): void {
+        $payload = inertiaPayload($this, $route, $params);
+
+        expect($payload['component'])->toBe('leadhub::SetupRequired')
+            ->and($payload['props']['tables'])->toContain($table);
+    });
+})->with('guarded detail pages');
+
+// No guest test for the detail pages here: this suite's routes do not carry Statamic's `statamic.cp` groups, so
+// no login check runs ahead of the guard whatever the routes are given. That the setup screen stays behind the
+// login is what GuardSetup does for a route that carries the groups, and is tested in statamic-brand-context.
+
+it('still answers 404 for an unknown id on a detail page once the tables exist', function (string $route, array $params): void {
+    $unknown = array_map(fn ($value) => is_int($value) ? 999999 : 'no-such-handle', $params);
+
+    $this->withHeaders(['X-Inertia' => 'true'])
+        ->get(cp_route($route, $unknown))
+        ->assertNotFound();
+})->with(array_filter(
+    guardedDetailPages(),
+    // The board answers 200 for an unknown pipeline id, not 404, so this row
+    // has no 404 to keep.
+    fn (array $row): bool => $row[0] !== 'leadhub.pipelines.board.show',
+));
