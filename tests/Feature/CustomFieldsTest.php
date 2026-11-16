@@ -5,7 +5,6 @@ use Goldnead\Leadhub\Models\CustomField;
 use Goldnead\Leadhub\Models\Segment;
 use Goldnead\Leadhub\Services\CustomFieldService;
 use Goldnead\Leadhub\Support\SegmentEvaluator;
-use Illuminate\Support\Facades\Schema;
 use Statamic\Facades\User;
 
 /**
@@ -335,14 +334,15 @@ it('serves the segment builder on a driver that has no such table', function ():
     $this->actingAs(User::make()->email('cf-flat@example.com')->makeSuper()->save());
 
     config()->set('leadhub.storage.driver', 'flat');
-    Schema::drop('leadhub_custom_fields');
 
-    // Before the fix this was a 500 — "no such table" — and it took the whole
-    // segment area with it, not just this feature.
-    $antwort = $this->withHeaders(['X-Inertia' => 'true'])
-        ->get(cp_route('leadhub.segments.create'))->assertOk();
+    $this->withUnmigratedDatabase(function (): void {
+        // Before the fix this was a 500 — "no such table" — and it took the whole
+        // segment area with it, not just this feature.
+        $antwort = $this->withHeaders(['X-Inertia' => 'true'])
+            ->get(cp_route('leadhub.segments.create'))->assertOk();
 
-    expect(json_decode($antwort->getContent(), true)['props']['vocabulary']['custom_fields'])->toBe([]);
+        expect(json_decode($antwort->getContent(), true)['props']['vocabulary']['custom_fields'])->toBe([]);
+    });
 });
 
 it('hides its own screen on a driver that cannot serve it', function (): void {

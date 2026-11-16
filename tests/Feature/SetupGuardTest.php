@@ -16,7 +16,6 @@
  */
 
 use Goldnead\Leadhub\Support\Setup;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Statamic\Facades\CP\Nav;
 use Statamic\Facades\User;
@@ -39,55 +38,14 @@ beforeEach(function (): void {
     config()->set('leadhub.features.pipelines', true);
 });
 
-/**
- * Run $do against a database on which nothing has ever been migrated.
- *
- * All the tables at once, because that is the state being reproduced: an
+/*
+ * Every test below runs its request inside `$this->withUnmigratedDatabase()`:
+ * all the tables at once, because that is the state being reproduced. An
  * install that never migrated has none, and guarding a page against one missing
  * table while the next query hits another is the same 500 one line further
- * down.
- *
- * An empty second connection, NOT `Schema::drop()` on the real one.
- *
- * The first version of this helper dropped the seventeen tables inside a
- * transaction and rolled back, on the theory that the savepoint would put the
- * schema back before testbench's own migration rollback ran. That holds on
- * SQLite and is false on MySQL: DDL commits implicitly there, so `drop table`
- * ended the transaction the moment it ran. The rollback afterwards then had no
- * transaction left to undo and died with
- * `SQLSTATE[42000] … 1305 SAVEPOINT trans2 does not exist` — in every one of
- * the thirteen guarded listings, three times over. The tables really were gone
- * by then, so nothing after it could pass either. Same trap that hit
- * statamic-webhook-manager today.
- *
- * Pointing the default connection at an empty in-memory SQLite instead needs no
- * DDL at all, so there is nothing for MySQL to commit behind our backs — and it
- * is the more faithful picture anyway: the addon is installed, its tables never
- * were. Taken from statamic-automations, which solved the same problem the same
- * way.
+ * down. Why an empty second connection and not `Schema::drop()`: see the
+ * method on tests/TestCase.php.
  */
-function withoutLeadhubTables(Closure $do): void
-{
-    config()->set('database.connections.unmigrated', [
-        'driver' => 'sqlite',
-        'database' => ':memory:',
-        'prefix' => '',
-        'foreign_key_constraints' => false,
-    ]);
-
-    $previous = (string) config('database.default');
-
-    config()->set('database.default', 'unmigrated');
-    DB::setDefaultConnection('unmigrated');
-
-    try {
-        $do();
-    } finally {
-        config()->set('database.default', $previous);
-        DB::setDefaultConnection($previous);
-        DB::purge('unmigrated');
-    }
-}
 
 /**
  * The Inertia payload of a CP page, as the browser would receive it.
@@ -138,7 +96,7 @@ dataset('guarded listings', [
 ]);
 
 it('answers 200 instead of 500 when the tables are missing', function (string $route): void {
-    withoutLeadhubTables(function () use ($route): void {
+    $this->withUnmigratedDatabase(function () use ($route): void {
         $this->withHeaders(['X-Inertia' => 'true'])
             ->get(cp_route($route))
             ->assertStatus(200);
@@ -146,7 +104,7 @@ it('answers 200 instead of 500 when the tables are missing', function (string $r
 })->with('guarded listings');
 
 it('renders the setup screen and names the missing table', function (string $route, string $normal, string $table): void {
-    withoutLeadhubTables(function () use ($route, $table): void {
+    $this->withUnmigratedDatabase(function () use ($route, $table): void {
         $payload = inertiaPayload($this, $route);
 
         expect($payload['component'])->toBe('leadhub::SetupRequired')
@@ -172,7 +130,7 @@ it('renders the setup screen and names the missing table', function (string $rou
  * says so nowhere.
  */
 it('writes the reason to the log', function (string $route): void {
-    withoutLeadhubTables(function () use ($route): void {
+    $this->withUnmigratedDatabase(function () use ($route): void {
         Log::spy();
 
         $this->withHeaders(['X-Inertia' => 'true'])
