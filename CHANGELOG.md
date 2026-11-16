@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+
+- Control Panel: the detail pages and writes of contacts, follow-ups, forms, tags, custom fields, segments, companies, tasks, pipelines and scoring show the same setup screen as their listing when the addon's tables are missing, instead of a query error (HTTP 500). They carry the `brand.setup-guard` middleware of statamic-brand-context 1.27, which runs before route-model binding. On the flat-file driver nothing is checked, as before.
+
+### Upgrading
+
+- Requires statamic-brand-context 1.27 or newer. No migration, no new config key. With `route:cache`, the storage driver is read when the routes are cached.
+
 ## 2.18.0 — 2026-10-28
 
 ### Added
