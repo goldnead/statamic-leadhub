@@ -26,6 +26,20 @@ use Inertia\Response;
 final class Setup
 {
     /**
+     * The given tables on the eloquent driver, none on any other.
+     *
+     * For the detail routes' `GuardSetup::using()`: the flat-file driver has no tables to miss and
+     * {@see guard()} stands down there, so the list the middleware checks has to be empty too, or
+     * every detail page would be sent through the guard for nothing.
+     *
+     * @return list<string>
+     */
+    public static function eloquentTables(string ...$tables): array
+    {
+        return config('leadhub.storage.driver', 'eloquent') === 'eloquent' ? array_values($tables) : [];
+    }
+
+    /**
      * The setup screen for a CP listing, or null when the page can run.
      *
      * @param  string  $title  The page's own heading, so the screen still reads as that page.

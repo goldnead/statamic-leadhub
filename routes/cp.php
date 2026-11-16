@@ -1,5 +1,6 @@
 <?php
 
+use Goldnead\BrandContext\Http\Middleware\GuardSetup;
 use Goldnead\Leadhub\Http\Controllers\Cp\AccessGrantController;
 use Goldnead\Leadhub\Http\Controllers\Cp\CompanyController;
 use Goldnead\Leadhub\Http\Controllers\Cp\ContactController;
@@ -17,7 +18,17 @@ use Goldnead\Leadhub\Http\Controllers\Cp\SegmentController;
 use Goldnead\Leadhub\Http\Controllers\Cp\SyncLogController;
 use Goldnead\Leadhub\Http\Controllers\Cp\TagController;
 use Goldnead\Leadhub\Http\Controllers\Cp\TaskController;
+use Goldnead\Leadhub\Support\Setup;
 use Illuminate\Support\Facades\Route;
+
+/*
+ * Detail routes (`/{contact}`, `/{company}/edit`, …) carry the setup guard as
+ * route middleware. They load their model before the controller method starts,
+ * so the guard inside `Setup::guard()` on the listing is never reached there:
+ * without the middleware a missing table is a query error, not the setup screen.
+ * Each group holds the table list and title of the controller's own `index()`
+ * guard, or of the controller the page belongs to where it has none.
+ */
 
 Route::prefix('leadhub')->name('leadhub.')->group(function () {
 
@@ -26,6 +37,9 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
 
     // Contacts
     Route::prefix('contacts')->name('contacts.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.contacts', ...Setup::eloquentTables('leadhub_contacts', 'leadhub_tags', 'leadhub_contact_tag', 'leadhub_followups', 'leadhub_form_mappings'));
+        $followupGuard = GuardSetup::using(Setup::class, 'leadhub::nav.followups', ...Setup::eloquentTables('leadhub_followups', 'leadhub_contacts', 'leadhub_form_mappings'));
+
         Route::get('/', [ContactController::class, 'index'])->name('index');
         // `create` and `options` must be registered before the `/{contact}`
         // wildcard so they aren't swallowed as a contact id.
@@ -34,61 +48,71 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         // forms. Brand-scoped through the repository like every other read.
         Route::get('/options', [ContactController::class, 'options'])->name('options');
         Route::post('/', [ContactController::class, 'store'])->name('store');
-        Route::get('/{contact}', [ContactController::class, 'show'])->name('show');
-        Route::patch('/{contact}', [ContactController::class, 'update'])->name('update');
-        Route::delete('/{contact}', [ContactController::class, 'destroy'])->name('destroy');
-        Route::post('/{contact}/archive', [ContactController::class, 'archive'])->name('archive');
-        Route::post('/{contact}/restore', [ContactController::class, 'restore'])->name('restore');
+        Route::get('/{contact}', [ContactController::class, 'show'])->name('show')->middleware($guard);
+        Route::patch('/{contact}', [ContactController::class, 'update'])->name('update')->middleware($guard);
+        Route::delete('/{contact}', [ContactController::class, 'destroy'])->name('destroy')->middleware($guard);
+        Route::post('/{contact}/archive', [ContactController::class, 'archive'])->name('archive')->middleware($guard);
+        Route::post('/{contact}/restore', [ContactController::class, 'restore'])->name('restore')->middleware($guard);
 
         // Linking a company to this contact. The pivot has existed since
         // v1.0; until now nothing in the CP could write to it, so the
         // "Linked companies" panel could only ever show what an import or a
         // sibling addon had put there.
         Route::post('/{contact}/companies', [ContactController::class, 'attachCompany'])
-            ->whereNumber('contact')->name('companies.attach');
+            ->whereNumber('contact')->name('companies.attach')->middleware($guard);
         Route::delete('/{contact}/companies/{company}', [ContactController::class, 'detachCompany'])
-            ->whereNumber('contact')->whereNumber('company')->name('companies.detach');
+            ->whereNumber('contact')->whereNumber('company')->name('companies.detach')->middleware($guard);
 
-        Route::post('/{contact}/notes', [NoteController::class, 'store'])->name('notes.store');
-        Route::post('/{contact}/followup', [FollowupController::class, 'store'])->name('followup.store');
+        Route::post('/{contact}/notes', [NoteController::class, 'store'])->name('notes.store')->middleware($guard);
+        Route::post('/{contact}/followup', [FollowupController::class, 'store'])->name('followup.store')->middleware($followupGuard);
         // "Grant access" from the contact screen. Writes through the
         // entitlements facade; 404 when that addon is not installed.
-        Route::post('/{contact}/grant-access', [AccessGrantController::class, 'store'])->name('grant-access');
+        Route::post('/{contact}/grant-access', [AccessGrantController::class, 'store'])->name('grant-access')->middleware($guard);
     });
 
     // Contact import. `leadhubImport` and not `import`: a route parameter name
     // is an application-wide namespace (see the note on custom fields below).
     // The id is a uuid the controller validates; the permission check comes first.
     Route::prefix('import')->name('import.')->group(function () {
+        // The import writes contacts, so preview and run need the contact tables.
+        // The page has no index() guard of its own; the contact list and title stand in.
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.contacts', ...Setup::eloquentTables('leadhub_contacts', 'leadhub_tags', 'leadhub_contact_tag', 'leadhub_followups', 'leadhub_form_mappings'));
+
         Route::get('/', [ImportController::class, 'create'])->name('create');
         Route::post('/', [ImportController::class, 'upload'])->name('upload');
         Route::get('/{leadhubImport}', [ImportController::class, 'show'])->name('show');
-        Route::post('/{leadhubImport}/preview', [ImportController::class, 'preview'])->name('preview');
-        Route::post('/{leadhubImport}/run', [ImportController::class, 'run'])->name('run');
+        Route::post('/{leadhubImport}/preview', [ImportController::class, 'preview'])->name('preview')->middleware($guard);
+        Route::post('/{leadhubImport}/run', [ImportController::class, 'run'])->name('run')->middleware($guard);
         Route::get('/{leadhubImport}/errors', [ImportController::class, 'errors'])->name('errors');
     });
 
     // Follow-ups
     Route::prefix('followups')->name('followups.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.followups', ...Setup::eloquentTables('leadhub_followups', 'leadhub_contacts', 'leadhub_form_mappings'));
+
         Route::get('/', [FollowupController::class, 'index'])->name('index');
-        Route::patch('/{followup}', [FollowupController::class, 'update'])->name('update');
-        Route::post('/{followup}/complete', [FollowupController::class, 'complete'])->name('complete');
-        Route::delete('/{followup}', [FollowupController::class, 'destroy'])->name('destroy');
+        Route::patch('/{followup}', [FollowupController::class, 'update'])->name('update')->middleware($guard);
+        Route::post('/{followup}/complete', [FollowupController::class, 'complete'])->name('complete')->middleware($guard);
+        Route::delete('/{followup}', [FollowupController::class, 'destroy'])->name('destroy')->middleware($guard);
     });
 
     // Form mappings
     Route::prefix('forms')->name('forms.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.forms', ...Setup::eloquentTables('leadhub_form_mappings'));
+
         Route::get('/', [FormMappingController::class, 'index'])->name('index');
-        Route::get('/{formHandle}', [FormMappingController::class, 'edit'])->name('edit');
-        Route::patch('/{formHandle}', [FormMappingController::class, 'update'])->name('update');
+        Route::get('/{formHandle}', [FormMappingController::class, 'edit'])->name('edit')->middleware($guard);
+        Route::patch('/{formHandle}', [FormMappingController::class, 'update'])->name('update')->middleware($guard);
     });
 
     // Tags
     Route::prefix('tags')->name('tags.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.tags', ...Setup::eloquentTables('leadhub_tags', 'leadhub_contact_tag', 'leadhub_contacts'));
+
         Route::get('/', [TagController::class, 'index'])->name('index');
         Route::post('/', [TagController::class, 'store'])->name('store');
-        Route::patch('/{tag}', [TagController::class, 'update'])->name('update');
-        Route::delete('/{tag}', [TagController::class, 'destroy'])->name('destroy');
+        Route::patch('/{tag}', [TagController::class, 'update'])->name('update')->middleware($guard);
+        Route::delete('/{tag}', [TagController::class, 'destroy'])->name('destroy')->middleware($guard);
     });
 
     // Custom fields (eloquent only)
@@ -118,16 +142,20 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
     // application-wide namespace, and any sibling addon's `Route::bind('field')`
     // would capture these two writes (see the note on the scoring group below).
     Route::prefix('custom-fields')->name('custom-fields.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.custom_fields', ...Setup::eloquentTables('leadhub_custom_fields', 'leadhub_contacts'));
+
         Route::get('/', [CustomFieldController::class, 'index'])->name('index');
         Route::post('/', [CustomFieldController::class, 'store'])->name('store');
         Route::patch('/{customField}', [CustomFieldController::class, 'update'])
-            ->whereNumber('customField')->name('update');
+            ->whereNumber('customField')->name('update')->middleware($guard);
         Route::delete('/{customField}', [CustomFieldController::class, 'destroy'])
-            ->whereNumber('customField')->name('destroy');
+            ->whereNumber('customField')->name('destroy')->middleware($guard);
     });
 
     // Segments
     Route::prefix('segments')->name('segments.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.segments', ...Setup::eloquentTables('leadhub_segments', 'leadhub_segment_contact', 'leadhub_contacts', 'leadhub_custom_fields'));
+
         Route::get('/', [SegmentController::class, 'index'])->name('index');
         Route::get('/create', [SegmentController::class, 'create'])->name('create');
         Route::post('/', [SegmentController::class, 'store'])->name('store');
@@ -138,13 +166,15 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         // this endpoint answers JSON, not an Inertia page. A read on GET is
         // both the honest verb and the one that stays out of Inertia's way.
         Route::get('/preview', [SegmentController::class, 'preview'])->name('preview');
-        Route::get('/{segment}', [SegmentController::class, 'edit'])->name('edit');
-        Route::patch('/{segment}', [SegmentController::class, 'update'])->name('update');
-        Route::delete('/{segment}', [SegmentController::class, 'destroy'])->name('destroy');
+        Route::get('/{segment}', [SegmentController::class, 'edit'])->name('edit')->middleware($guard);
+        Route::patch('/{segment}', [SegmentController::class, 'update'])->name('update')->middleware($guard);
+        Route::delete('/{segment}', [SegmentController::class, 'destroy'])->name('destroy')->middleware($guard);
     });
 
     // Companies (CRM-core, eloquent)
     Route::prefix('companies')->name('companies.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.companies', ...Setup::eloquentTables('leadhub_companies', 'leadhub_contact_company', 'leadhub_contacts'));
+
         Route::get('/', [CompanyController::class, 'index'])->name('index');
         // `create` before the `/{company}` wildcard, or it is read as an id.
         Route::get('/create', [CompanyController::class, 'create'])->name('create');
@@ -152,14 +182,16 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         // the `/{company}` wildcard, same reason as `create`.
         Route::get('/options', [CompanyController::class, 'options'])->name('options');
         Route::post('/', [CompanyController::class, 'store'])->name('store');
-        Route::get('/{company}/edit', [CompanyController::class, 'edit'])->whereNumber('company')->name('edit');
-        Route::get('/{company}', [CompanyController::class, 'show'])->whereNumber('company')->name('show');
-        Route::patch('/{company}', [CompanyController::class, 'update'])->whereNumber('company')->name('update');
-        Route::delete('/{company}', [CompanyController::class, 'destroy'])->whereNumber('company')->name('destroy');
+        Route::get('/{company}/edit', [CompanyController::class, 'edit'])->whereNumber('company')->name('edit')->middleware($guard);
+        Route::get('/{company}', [CompanyController::class, 'show'])->whereNumber('company')->name('show')->middleware($guard);
+        Route::patch('/{company}', [CompanyController::class, 'update'])->whereNumber('company')->name('update')->middleware($guard);
+        Route::delete('/{company}', [CompanyController::class, 'destroy'])->whereNumber('company')->name('destroy')->middleware($guard);
     });
 
     // Tasks (CRM-core, eloquent)
     Route::prefix('tasks')->name('tasks.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.tasks', ...Setup::eloquentTables('leadhub_tasks', 'leadhub_contacts'));
+
         Route::get('/', [TaskController::class, 'index'])->name('index');
         Route::get('/create', [TaskController::class, 'create'])->name('create');
         // Option feed for the opportunity picker on the task form. The
@@ -171,14 +203,19 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::get('/opportunity-options', [TaskController::class, 'opportunityOptions'])
             ->name('opportunityOptions');
         Route::post('/', [TaskController::class, 'store'])->name('store');
-        Route::post('/{task}/complete', [TaskController::class, 'complete'])->whereNumber('task')->name('complete');
-        Route::get('/{task}/edit', [TaskController::class, 'edit'])->whereNumber('task')->name('edit');
-        Route::patch('/{task}', [TaskController::class, 'update'])->whereNumber('task')->name('update');
-        Route::delete('/{task}', [TaskController::class, 'destroy'])->whereNumber('task')->name('destroy');
+        Route::post('/{task}/complete', [TaskController::class, 'complete'])->whereNumber('task')->name('complete')->middleware($guard);
+        Route::get('/{task}/edit', [TaskController::class, 'edit'])->whereNumber('task')->name('edit')->middleware($guard);
+        Route::patch('/{task}', [TaskController::class, 'update'])->whereNumber('task')->name('update')->middleware($guard);
+        Route::delete('/{task}', [TaskController::class, 'destroy'])->whereNumber('task')->name('destroy')->middleware($guard);
     });
 
     // Pipelines / opportunities (CRM-core, eloquent)
     Route::prefix('pipelines')->name('pipelines.')->group(function () {
+        // Two lists, as on the controller: the board's `index()` guard for the board
+        // and the opportunities, the manage screen's for the stage routes.
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.pipelines', ...Setup::eloquentTables('leadhub_pipelines', 'leadhub_stages', 'leadhub_opportunities', 'leadhub_contacts'));
+        $stageGuard = GuardSetup::using(Setup::class, 'leadhub::nav.pipelines', ...Setup::eloquentTables('leadhub_pipelines', 'leadhub_stages', 'leadhub_opportunities'));
+
         Route::get('/', [PipelineController::class, 'board'])->name('board');
         Route::get('/manage', [PipelineController::class, 'manage'])->name('manage');
         Route::post('/', [PipelineController::class, 'store'])->name('store');
@@ -191,7 +228,7 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         Route::post('/opportunities', [OpportunityController::class, 'store'])
             ->name('opportunities.store');
         Route::get('/opportunities/{opportunity}/edit', [OpportunityController::class, 'edit'])
-            ->whereNumber('opportunity')->name('opportunities.edit');
+            ->whereNumber('opportunity')->name('opportunities.edit')->middleware($guard);
         // The deal's own screen. Registered before the `/{pipeline}` board
         // route at the bottom of this group, and after `opportunities/create`
         // — `whereNumber` already keeps "create" out of this one, but the
@@ -201,27 +238,27 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
         // application-wide `Route::bind()` eventually eats (see the comment on
         // the scoring group).
         Route::get('/opportunities/{opportunity}', [OpportunityController::class, 'show'])
-            ->whereNumber('opportunity')->name('opportunities.show');
+            ->whereNumber('opportunity')->name('opportunities.show')->middleware($guard);
         Route::patch('/opportunities/{opportunity}', [OpportunityController::class, 'update'])
-            ->whereNumber('opportunity')->name('opportunities.update');
+            ->whereNumber('opportunity')->name('opportunities.update')->middleware($guard);
         Route::delete('/opportunities/{opportunity}', [OpportunityController::class, 'destroy'])
-            ->whereNumber('opportunity')->name('opportunities.destroy');
+            ->whereNumber('opportunity')->name('opportunities.destroy')->middleware($guard);
 
-        Route::post('/opportunities/{opportunity}/move', [PipelineController::class, 'move'])->name('move');
+        Route::post('/opportunities/{opportunity}/move', [PipelineController::class, 'move'])->name('move')->middleware($guard);
 
         // Stage management. Registered before the `/{pipeline}` board route —
         // different verbs, but keeping them together makes the ordering
         // intentional rather than accidental.
         Route::post('/{pipeline}/stages', [PipelineController::class, 'storeStage'])
-            ->whereNumber('pipeline')->name('stages.store');
+            ->whereNumber('pipeline')->name('stages.store')->middleware($stageGuard);
         Route::post('/{pipeline}/stages/reorder', [PipelineController::class, 'reorderStages'])
-            ->whereNumber('pipeline')->name('stages.reorder');
+            ->whereNumber('pipeline')->name('stages.reorder')->middleware($stageGuard);
         Route::patch('/{pipeline}/stages/{stage}', [PipelineController::class, 'updateStage'])
-            ->whereNumber('pipeline')->whereNumber('stage')->name('stages.update');
+            ->whereNumber('pipeline')->whereNumber('stage')->name('stages.update')->middleware($stageGuard);
         Route::delete('/{pipeline}/stages/{stage}', [PipelineController::class, 'destroyStage'])
-            ->whereNumber('pipeline')->whereNumber('stage')->name('stages.destroy');
+            ->whereNumber('pipeline')->whereNumber('stage')->name('stages.destroy')->middleware($stageGuard);
 
-        Route::get('/{pipeline}', [PipelineController::class, 'board'])->whereNumber('pipeline')->name('board.show');
+        Route::get('/{pipeline}', [PipelineController::class, 'board'])->whereNumber('pipeline')->name('board.show')->middleware($guard);
     });
 
     // Lead scoring rules (eloquent, gated on features.scoring)
@@ -236,12 +273,14 @@ Route::prefix('leadhub')->name('leadhub.')->group(function () {
     // addons, and nowhere else. Parameter names are shared namespace; a
     // generic one is a collision waiting for a sibling.
     Route::prefix('scoring')->name('scoring.')->group(function () {
+        $guard = GuardSetup::using(Setup::class, 'leadhub::nav.scoring', ...Setup::eloquentTables('leadhub_scoring_rules', 'leadhub_events'));
+
         Route::get('/', [ScoringController::class, 'index'])->name('index');
         Route::post('/', [ScoringController::class, 'store'])->name('store');
         Route::patch('/{scoringRule}', [ScoringController::class, 'update'])
-            ->whereNumber('scoringRule')->name('update');
+            ->whereNumber('scoringRule')->name('update')->middleware($guard);
         Route::delete('/{scoringRule}', [ScoringController::class, 'destroy'])
-            ->whereNumber('scoringRule')->name('destroy');
+            ->whereNumber('scoringRule')->name('destroy')->middleware($guard);
     });
 
     // Settings — moved to the suite's shared screen in brand-context.
