@@ -7,6 +7,7 @@ use Goldnead\Leadhub\ServiceProvider;
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\DB;
 use Inertia\ServiceProvider as InertiaServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 use Statamic\Licensing\Outpost;
@@ -279,5 +280,37 @@ abstract class TestCase extends OrchestraTestCase
         // so mount them here the same way production does.
         $router->middleware('web')
             ->group(__DIR__.'/../routes/web.php');
+    }
+
+    /**
+     * Run $work against a database on which nothing has ever been migrated.
+     *
+     * An empty second connection, NOT `Schema::drop()` on the real one: DDL
+     * commits implicitly on MySQL, which ends the transaction `RefreshDatabase`
+     * opened, so the rollback afterwards runs into nothing and then fails on a
+     * table that no longer exists (and a savepoint around the drop does not
+     * help, for the same reason). Code standard, section 15.
+     */
+    protected function withUnmigratedDatabase(callable $work): mixed
+    {
+        config()->set('database.connections.unmigrated', [
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+            'foreign_key_constraints' => false,
+        ]);
+
+        $previous = (string) config('database.default');
+
+        config()->set('database.default', 'unmigrated');
+        DB::setDefaultConnection('unmigrated');
+
+        try {
+            return $work();
+        } finally {
+            config()->set('database.default', $previous);
+            DB::setDefaultConnection($previous);
+            DB::purge('unmigrated');
+        }
     }
 }

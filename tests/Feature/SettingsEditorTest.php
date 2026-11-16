@@ -21,7 +21,6 @@
 use Goldnead\BrandContext\Models\BrandSetting;
 use Goldnead\BrandContext\Settings\SettingsRegistry;
 use Goldnead\Leadhub\Support\Settings;
-use Illuminate\Support\Facades\Schema;
 use Statamic\Facades\User;
 
 beforeEach(function (): void {
@@ -251,25 +250,25 @@ it('still reads the config when the shared settings table is missing', function 
     // that never ran one is a supported state and not a broken one. Reading has
     // to survive it: no rows means the config file, which is exactly the
     // behaviour before any settings screen existed.
-    Schema::drop('brand_settings');
+    $this->withUnmigratedDatabase(function (): void {
+        app('brand-context.settings')->forget('leadhub');
 
-    app('brand-context.settings')->forget('leadhub');
+        $props = json_decode(
+            $this->withHeaders(['X-Inertia' => 'true'])
+                ->get(cp_route('brand-context.settings.index'))
+                ->assertStatus(200)
+                ->getContent(),
+            true
+        )['props'] ?? [];
 
-    $props = json_decode(
-        $this->withHeaders(['X-Inertia' => 'true'])
-            ->get(cp_route('brand-context.settings.index'))
-            ->assertStatus(200)
-            ->getContent(),
-        true
-    )['props'] ?? [];
+        $section = collect($props['sections'] ?? [])->firstWhere('namespace', 'leadhub');
 
-    $section = collect($props['sections'] ?? [])->firstWhere('namespace', 'leadhub');
+        expect($section['values']['exports.queue_threshold'])->toBe(1000);
 
-    expect($section['values']['exports.queue_threshold'])->toBe(1000);
-
-    // And the screen says so rather than offering a Save that cannot work.
-    // brand-context gained `writable` on 06.09.2026 for exactly this state.
-    expect($props['writable'])->toBeFalse();
+        // And the screen says so rather than offering a Save that cannot work.
+        // brand-context gained `writable` on 06.09.2026 for exactly this state.
+        expect($props['writable'])->toBeFalse();
+    });
 });
 
 it('applies stored settings on a fresh boot', function (): void {
