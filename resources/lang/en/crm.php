@@ -3,6 +3,8 @@
 return [
     'synced' => 'Synced to :destination',
     'sync_failed' => 'Sync to :destination failed',
+    'removal_unsupported' => ':destination cannot take an opt-out: remove the contact there by hand',
+    'removal_gave_up' => 'Opt-out at :destination failed after every attempt: remove the contact there by hand',
 
     'title' => 'Sync log',
     'empty' => 'No CRM syncs yet.',

@@ -54,14 +54,23 @@ class CrmSyncService
      * Called when a contact opts out (do_not_contact) so external lists stay
      * compliant.
      *
+     * Destinations that cannot remove anyone are not part of the result; ask
+     * {@see reportUnsupportedRemovals()} for those.
+     *
+     * @param  list<string>|null  $only  limit to these destination keys (a retry)
+     * @param  list<string>  $skip  destination keys already done (a retry of the same job)
      * @return array<string, SyncResult>
      */
-    public function removeContact(Contact $contact): array
+    public function removeContact(Contact $contact, ?array $only = null, array $skip = []): array
     {
         $results = [];
 
         foreach ($this->destinations->enabled() as $key => $destination) {
             if (! $destination instanceof SupportsContactRemoval) {
+                continue;
+            }
+
+            if (($only !== null && ! in_array($key, $only, true)) || in_array($key, $skip, true)) {
                 continue;
             }
 
@@ -76,6 +85,85 @@ class CrmSyncService
         }
 
         return $results;
+    }
+
+    /**
+     * Enabled destinations that have no way to remove a contact (HubSpot, a
+     * plain webhook). They are not skipped in silence: each one gets a failed
+     * entry on the timeline and in the sync log, so someone removes the
+     * contact there by hand.
+     *
+     * @return list<string> destination keys
+     */
+    public function reportUnsupportedRemovals(Contact $contact): array
+    {
+        $keys = [];
+
+        foreach ($this->destinations->enabled() as $key => $destination) {
+            if ($destination instanceof SupportsContactRemoval) {
+                continue;
+            }
+
+            $this->recordRemovalProblem($contact, (string) $key, $destination->driver(), 'removal_unsupported');
+            $keys[] = (string) $key;
+        }
+
+        return $keys;
+    }
+
+    /**
+     * The removal job used up its attempts for these destinations.
+     *
+     * @param  list<string>  $keys
+     */
+    public function reportRemovalGaveUp(Contact $contact, array $keys, ?string $message = null): void
+    {
+        $enabled = $this->destinations->enabled();
+
+        foreach ($keys as $key) {
+            $driver = isset($enabled[$key]) ? $enabled[$key]->driver() : 'unknown';
+            $this->recordRemovalProblem($contact, $key, $driver, 'removal_gave_up', $message);
+        }
+    }
+
+    protected function recordRemovalProblem(Contact $contact, string $key, string $driver, string $reason, ?string $message = null): void
+    {
+        Log::warning('[LeadHub] Opt-out did not reach a CRM destination', [
+            'contact_uuid' => (string) $contact->uuid,
+            'destination' => $key,
+            'reason' => $reason,
+            'message' => $message,
+        ]);
+
+        $this->timeline->record(
+            $contact,
+            Event::TYPE_CRM_SYNC_FAILED,
+            __('leadhub::crm.'.$reason, ['destination' => $key]),
+            array_filter([
+                'destination' => $key,
+                'driver' => $driver,
+                'reason' => $reason,
+                'message' => $message,
+            ], fn ($v) => $v !== null && $v !== ''),
+        );
+
+        try {
+            if (Schema::hasTable('leadhub_sync_logs')) {
+                SyncLog::create([
+                    'contact_uuid' => (string) $contact->uuid,
+                    'contact_label' => $contact->displayName(),
+                    'destination' => $key,
+                    'driver' => $driver,
+                    'event' => 'removed',
+                    'status' => SyncLog::STATUS_FAILED,
+                    'response_code' => null,
+                    'message' => $message ?? __('leadhub::crm.'.$reason, ['destination' => $key]),
+                    'remote_id' => null,
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[LeadHub] Could not write CRM sync log', ['message' => $e->getMessage()]);
+        }
     }
 
     protected function record(Contact $contact, string $key, string $driver, string $event, SyncResult $result): void

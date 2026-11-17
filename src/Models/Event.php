@@ -44,6 +44,9 @@ class Event extends Model
     public const TYPE_CONTACT_ARCHIVED = 'contact_archived';
     public const TYPE_CONTACT_DELETED = 'contact_deleted';
     public const TYPE_CONTACTS_MERGED = 'contacts_merged';
+
+    /** The contact opted out (do_not_contact); the payload carries when. */
+    public const TYPE_CONTACT_OPTED_OUT = 'contact_opted_out';
     public const TYPE_SOURCE_INGESTED = 'source_ingested';
     public const TYPE_TASK_CREATED = 'task_created';
     public const TYPE_TASK_COMPLETED = 'task_completed';

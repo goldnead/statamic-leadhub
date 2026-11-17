@@ -3,6 +3,8 @@
 return [
     'synced' => 'Zu :destination synchronisiert',
     'sync_failed' => 'Synchronisierung zu :destination fehlgeschlagen',
+    'removal_unsupported' => ':destination kann keine Abmeldung entgegennehmen: dort bitte von Hand austragen',
+    'removal_gave_up' => 'Abmeldung bei :destination nach allen Versuchen fehlgeschlagen: dort bitte von Hand austragen',
 
     'title' => 'Sync-Log',
     'empty' => 'Noch keine CRM-Synchronisierungen.',

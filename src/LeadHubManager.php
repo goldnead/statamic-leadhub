@@ -14,6 +14,7 @@ use Goldnead\Leadhub\Events\LeadHubContactScoreChanged;
 use Goldnead\Leadhub\Events\LeadHubNoteAdded;
 use Goldnead\Leadhub\Events\LeadHubStatusChanged;
 use Goldnead\Leadhub\Facades\LeadHub;
+use Goldnead\Leadhub\Jobs\RemoveContactFromCrmJob;
 use Goldnead\Leadhub\Models\Company;
 use Goldnead\Leadhub\Models\Contact;
 use Goldnead\Leadhub\Models\Event;
@@ -42,6 +43,7 @@ use Goldnead\Leadhub\Support\EmailNormalizer;
 use Goldnead\Leadhub\Support\SourceEvent;
 use Goldnead\Leadhub\Support\Timeline\ContactTimeline;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -266,19 +268,84 @@ class LeadHubManager
     /**
      * Mark a contact as opted-out: sets do_not_contact and actively removes /
      * unsubscribes them from any CRM destination that supports removal.
+     *
+     * The result carries an `opt_out` report: when the opt-out happened, which
+     * destinations removed the contact, which failed (a retry job is queued
+     * for exactly those) and which cannot remove anyone (to be done by hand).
      */
     public function optOut(int|string $id): array
     {
         $contact = $this->mustFind($id);
+        $optedOutAt = null;
 
         if (! $contact->do_not_contact) {
             $contact->do_not_contact = true;
             $this->contacts->save($contact);
+
+            $optedOutAt = now();
+            $this->timeline->record(
+                $contact,
+                Event::TYPE_CONTACT_OPTED_OUT,
+                __('leadhub::timeline.contact_opted_out', ['date' => $optedOutAt->toDateTimeString()]),
+                ['opted_out_at' => $optedOutAt->toIso8601String()],
+            );
         }
 
-        app(CrmSyncService::class)->removeContact($contact);
+        $sync = app(CrmSyncService::class);
+        $results = $sync->removeContact($contact);
+        $unsupported = $sync->reportUnsupportedRemovals($contact);
 
-        return $this->present($this->reload($contact));
+        $removed = [];
+        $failed = [];
+        foreach ($results as $key => $result) {
+            if ($result->success) {
+                $removed[] = (string) $key;
+            } else {
+                $failed[(string) $key] = $result->message;
+            }
+        }
+
+        $retryQueued = false;
+        if ($failed !== []) {
+            try {
+                RemoveContactFromCrmJob::dispatch((string) $contact->uuid, array_keys($failed));
+                $retryQueued = true;
+            } catch (\Throwable $e) {
+                // On the sync queue the job runs right here and its failure
+                // surfaces as an exception. failed() has recorded it on the
+                // timeline already; the opt-out itself stands.
+                Log::warning('[LeadHub] Opt-out removal retry failed inline', ['message' => $e->getMessage()]);
+            }
+        }
+
+        return array_merge($this->present($this->reload($contact)), [
+            'opt_out' => [
+                'opted_out_at' => ($optedOutAt ?? $this->optedOutAt($contact))?->toIso8601String(),
+                'removed' => $removed,
+                'failed' => $failed,
+                'unsupported' => $unsupported,
+                'retry_queued' => $retryQueued,
+            ],
+        ]);
+    }
+
+    /** When an earlier optOut() call recorded the opt-out, if it did. */
+    protected function optedOutAt(Contact $contact): ?Carbon
+    {
+        // The flat-file driver keeps the timeline outside the events table.
+        if (config('leadhub.storage.driver', 'eloquent') !== 'eloquent') {
+            return null;
+        }
+
+        $event = Event::query()
+            ->where('contact_id', $contact->id)
+            ->where('type', Event::TYPE_CONTACT_OPTED_OUT)
+            ->latest('id')
+            ->first();
+
+        $at = data_get($event?->getAttribute('payload'), 'opted_out_at');
+
+        return is_string($at) ? Carbon::parse($at) : null;
     }
 
     public function addNote(int|string $id, string $body, ?string $userId = null): array
