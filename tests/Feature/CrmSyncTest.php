@@ -3,6 +3,7 @@
 use Goldnead\Leadhub\Contracts\Repositories\ContactRepository;
 use Goldnead\Leadhub\Contracts\Repositories\EventRepository;
 use Goldnead\Leadhub\Events\LeadHubContactCreated;
+use Goldnead\Leadhub\Exceptions\CrmSyncRetryableException;
 use Goldnead\Leadhub\Jobs\SyncContactToCrmJob;
 use Goldnead\Leadhub\Listeners\DispatchCrmSync;
 use Goldnead\Leadhub\Models\Event;
@@ -118,4 +119,61 @@ it('does not push contacts that are flagged do_not_contact', function (): void {
 
     expect($results)->toBe([]);
     Http::assertNothingSent();
+});
+
+/**
+ * The job has `tries`, and they only mean something if the job fails. A rate
+ * limit or a server error on the other side is worth another attempt; a 4xx
+ * the remote will answer the same way next time is not.
+ */
+function runSyncJob(SyncContactToCrmJob $job): void
+{
+    $job->handle(app(CrmSyncService::class), app(ContactRepository::class));
+}
+
+it('throws on a server error so the queue retries the job', function (): void {
+    Http::fake(['hooks.test/*' => Http::response('down', 503)]);
+    $contact = aContact('retry5xx@example.com');
+
+    expect(fn () => runSyncJob(new SyncContactToCrmJob((string) $contact->uuid, 'created')))
+        ->toThrow(CrmSyncRetryableException::class);
+});
+
+it('throws on a rate limit so the queue retries the job', function (): void {
+    Http::fake(['hooks.test/*' => Http::response('slow down', 429)]);
+    $contact = aContact('retry429@example.com');
+
+    expect(fn () => runSyncJob(new SyncContactToCrmJob((string) $contact->uuid, 'created')))
+        ->toThrow(CrmSyncRetryableException::class);
+});
+
+it('does not retry a client error the remote will repeat', function (): void {
+    Http::fake(['hooks.test/*' => Http::response('bad', 422)]);
+    $contact = aContact('noretry@example.com');
+
+    runSyncJob(new SyncContactToCrmJob((string) $contact->uuid, 'created'));
+
+    expect(SyncLog::where('status', 'failed')->exists())->toBeTrue();
+});
+
+it('retries only the destination that failed, not the one that took the contact', function (): void {
+    config()->set('leadhub.crm.destinations.second', [
+        'driver' => 'webhook',
+        'enabled' => true,
+        'url' => 'https://other.test/hook',
+        'triggers' => ['created'],
+    ]);
+    Http::fakeSequence('other.test/*')->push('down', 503)->push(['ok' => true], 200);
+    Http::fake(['hooks.test/*' => Http::response(['ok' => true], 200)]);
+
+    $contact = aContact('partial@example.com');
+    $job = new SyncContactToCrmJob((string) $contact->uuid, 'created');
+
+    expect(fn () => runSyncJob($job))->toThrow(CrmSyncRetryableException::class);
+
+    // The queue hands the same serialized job back for the next attempt.
+    runSyncJob(unserialize(serialize($job)));
+
+    Http::assertSentCount(3);
+    expect(collect(Http::recorded())->filter(fn ($pair) => str_contains($pair[0]->url(), 'hooks.test'))->count())->toBe(1);
 });

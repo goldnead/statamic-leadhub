@@ -24,9 +24,10 @@ class CrmSyncService
     ) {}
 
     /**
+     * @param  list<string>  $skip  destination keys already done (a retry of the same job)
      * @return array<string, SyncResult> keyed by destination key
      */
-    public function syncContact(Contact $contact, string $event): array
+    public function syncContact(Contact $contact, string $event, array $skip = []): array
     {
         // Compliance: never push opted-out contacts to external CRMs.
         if ($contact->do_not_contact) {
@@ -36,6 +37,10 @@ class CrmSyncService
         $results = [];
 
         foreach ($this->destinations->for($event) as $key => $destination) {
+            if (in_array($key, $skip, true)) {
+                continue;
+            }
+
             try {
                 $result = $destination->push($contact);
             } catch (\Throwable $e) {

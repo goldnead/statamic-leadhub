@@ -23,4 +23,15 @@ class SyncResult
     {
         return new self(false, $code, $message);
     }
+
+    /**
+     * A failure worth another attempt: the remote is rate limiting or broken
+     * right now. A 4xx it will answer the same way next time is not.
+     */
+    public function isRetryable(): bool
+    {
+        return ! $this->success
+            && $this->code !== null
+            && ($this->code === 429 || $this->code >= 500);
+    }
 }
