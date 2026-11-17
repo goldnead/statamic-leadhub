@@ -36,7 +36,9 @@ use Illuminate\Support\Str;
  *   `overwrite_existing_fields_from_submissions` says about form submissions.
  * - It never invents consent. A contact comes in as not consented unless the
  *   file has a consent column that says yes or the person ticks the box for
- *   the whole file.
+ *   the whole file. A value in the consent column beats the box, so a row
+ *   that says "nein" stays without consent. And an import never raises the
+ *   consent of a contact that already exists: a list is not a fresh opt-in.
  * - It never touches an address that opted out.
  */
 class ContactImportService
@@ -388,7 +390,9 @@ class ContactImportService
             fullName: $parsed['full_name'],
             phone: $parsed['phone'],
             company: $parsed['company'],
-            consent: $parsed['consent'],
+            // A list is not a fresh opt-in: an existing contact keeps the
+            // consent it has, the resolver would otherwise raise it.
+            consent: $existing ? false : $parsed['consent'],
             // Only a contact the import creates is "from the import"; an existing one keeps its origin.
             source: $existing ? null : 'import',
             defaultStatus: $parsed['status'],
@@ -455,7 +459,8 @@ class ContactImportService
 
             match ($target) {
                 'tags' => $row['tags'] = array_values(array_filter(array_map('trim', preg_split('/[,;|]/', $value) ?: []))),
-                'consent' => $row['consent'] = $row['consent'] || $this->truthy($value),
+                // The row's own answer wins over the box for the whole file.
+                'consent' => $row['consent'] = $this->truthy($value),
                 'status' => $row['status'] = $this->resolveStatus($value) ?? ($row['error'] = 'unknown_status'),
                 'country' => preg_match('/^[A-Za-z]{2}$/', $value) ? $row['country'] = strtoupper($value) : $row['error'] = 'invalid_country',
                 'postal_code' => mb_strlen($value) <= 16 ? $row['postal_code'] = $value : $row['error'] = 'invalid_postal_code',

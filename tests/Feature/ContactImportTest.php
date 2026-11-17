@@ -212,6 +212,31 @@ it('does not invent consent: unmapped means not consented, a column or the box s
         ->and(importContact('box@example.com')->consent_at)->not->toBeNull();
 });
 
+it('lets an explicit no in the row win over the consent box', function (): void {
+    $id = stageCsv("email,optin\nnein@example.com,nein\nleer@example.com,\nja@example.com,ja\n");
+    runImport($id, ['email', 'consent'], ['consent_given' => '1']);
+
+    expect((bool) importContact('nein@example.com')->consent)->toBeFalse()
+        ->and(importContact('nein@example.com')->consent_at)->toBeNull()
+        ->and((bool) importContact('leer@example.com')->consent)->toBeTrue()
+        ->and((bool) importContact('ja@example.com')->consent)->toBeTrue();
+});
+
+it('never raises the consent of an existing contact through an import', function (): void {
+    app(ContactResolver::class)->resolveOrCreate(new ContactDto(email: 'bestand@example.com'));
+    app(ContactResolver::class)->resolveOrCreate(new ContactDto(email: 'zelle@example.com'));
+
+    $id = stageCsv("email\nbestand@example.com\n");
+    runImport($id, ['email'], ['consent_given' => '1']);
+
+    $id = stageCsv("email,optin\nzelle@example.com,ja\n");
+    runImport($id, ['email', 'consent']);
+
+    expect((bool) importContact('bestand@example.com')->consent)->toBeFalse()
+        ->and(importContact('bestand@example.com')->consent_at)->toBeNull()
+        ->and((bool) importContact('zelle@example.com')->consent)->toBeFalse();
+});
+
 it('never touches an address that opted out', function (): void {
     [$contact] = app(ContactResolver::class)->resolveOrCreate(new ContactDto(email: 'gone@example.com'));
     $contact->do_not_contact = true;
