@@ -147,6 +147,16 @@ it('throws on a rate limit so the queue retries the job', function (): void {
         ->toThrow(CrmSyncRetryableException::class);
 });
 
+it('does not break the request on the sync queue, where no retry exists', function (): void {
+    config()->set('queue.default', 'sync');
+    Http::fake(['hooks.test/*' => Http::response('down', 503)]);
+    $contact = aContact('syncqueue@example.com');
+
+    SyncContactToCrmJob::dispatch((string) $contact->uuid, 'created');
+
+    expect(SyncLog::where('status', 'failed')->exists())->toBeTrue();
+});
+
 it('does not retry a client error the remote will repeat', function (): void {
     Http::fake(['hooks.test/*' => Http::response('bad', 422)]);
     $contact = aContact('noretry@example.com');

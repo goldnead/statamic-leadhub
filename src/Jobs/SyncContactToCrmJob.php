@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class SyncContactToCrmJob implements ShouldQueue
@@ -67,13 +68,25 @@ class SyncContactToCrmJob implements ShouldQueue
             return;
         }
 
+        $exception = CrmSyncRetryableException::for($this->contactUuid, $retryable);
+
+        // On the sync connection the job runs inside the request that fired
+        // the event (a form submission): a throw would turn a CRM hiccup into
+        // a failed submission, and there is no retry anyway. The failure is on
+        // the timeline and in the sync log already; say it in the log too.
+        if ($this->job?->getConnectionName() === 'sync') {
+            Log::warning($exception->getMessage().' (sync queue, no retry)');
+
+            return;
+        }
+
         // Without the throw the queue counts the attempt as a success and
         // `tries` never comes into play: the sync failed in silence.
         if ($this->runId !== null) {
             Cache::put($this->doneKey(), array_values(array_unique($done)), now()->addDay());
         }
 
-        throw CrmSyncRetryableException::for($this->contactUuid, $retryable);
+        throw $exception;
     }
 
     protected function doneKey(): string
