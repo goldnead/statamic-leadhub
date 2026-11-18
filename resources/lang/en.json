@@ -246,7 +246,7 @@
     "Import contacts": "Import contacts",
     "Invalid": "Invalid",
     "Leave this column out": "Leave this column out",
-    "Leave this off if you do not know. Contacts then come in without a recorded consent, and a consent column in the file is still honoured. LeadHub never fills this in for you.": "Leave this off if you do not know. Contacts then come in without a recorded consent, and a consent column in the file is still honoured. LeadHub never fills this in for you.",
+    "Leave this off if you do not know. Contacts then come in without a recorded consent, and a consent column in the file is still honoured. LeadHub never fills this in for you. This applies only to new contacts and only to rows without their own value in the consent column. Existing contacts keep their current status.": "Leave this off if you do not know. Contacts then come in without a recorded consent, and a consent column in the file is still honoured. LeadHub never fills this in for you. This applies only to new contacts and only to rows without their own value in the consent column. Existing contacts keep their current status.",
     "Map columns": "Map columns",
     "Match each column to a contact field": "Match each column to a contact field",
     "No imports yet.": "No imports yet.",

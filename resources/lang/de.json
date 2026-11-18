@@ -246,7 +246,7 @@
     "Import contacts": "Kontakte importieren",
     "Invalid": "Ungültig",
     "Leave this column out": "Diese Spalte auslassen",
-    "Leave this off if you do not know. Contacts then come in without a recorded consent, and a consent column in the file is still honoured. LeadHub never fills this in for you.": "Lass das aus, wenn du es nicht weißt. Die Kontakte kommen dann ohne erfasste Einwilligung herein, und eine Einwilligungsspalte in der Datei wird weiter beachtet. LeadHub trägt das nie für dich ein.",
+    "Leave this off if you do not know. Contacts then come in without a recorded consent, and a consent column in the file is still honoured. LeadHub never fills this in for you. This applies only to new contacts and only to rows without their own value in the consent column. Existing contacts keep their current status.": "Lass das aus, wenn du es nicht weißt. Die Kontakte kommen dann ohne erfasste Einwilligung herein, und eine Einwilligungsspalte in der Datei wird weiter beachtet. LeadHub trägt das nie für dich ein. Gilt nur für neue Kontakte und nur für Zeilen ohne eigenen Wert in der Einwilligungsspalte. Bestehende Kontakte behalten ihren Stand.",
     "Map columns": "Spalten zuordnen",
     "Match each column to a contact field": "Ordne jede Spalte einem Kontaktfeld zu",
     "No imports yet.": "Noch keine Importe.",

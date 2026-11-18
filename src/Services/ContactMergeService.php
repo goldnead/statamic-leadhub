@@ -28,7 +28,9 @@ class ContactMergeService
             throw new \InvalidArgumentException('Cannot merge a contact into itself.');
         }
 
-        DB::transaction(function () use ($loser, $winner) {
+        $consentChanges = [];
+
+        DB::transaction(function () use ($loser, $winner, &$consentChanges) {
             // Re-parent owned records.
             Event::query()->where('contact_id', $loser->id)->update(['contact_id' => $winner->id]);
             Note::query()->where('contact_id', $loser->id)->update(['contact_id' => $winner->id]);
@@ -62,6 +64,8 @@ class ContactMergeService
             // Highest engagement wins.
             $winner->engagement_score = max((int) $winner->engagement_score, (int) $loser->engagement_score);
 
+            $consentChanges = $this->mergeConsent($loser, $winner);
+
             $winner->save();
 
             // Tombstone the loser.
@@ -83,7 +87,10 @@ class ContactMergeService
             $winner,
             Event::TYPE_CONTACTS_MERGED,
             __('leadhub::timeline.contacts_merged', ['name' => $loser->displayName()]),
-            ['merged_contact_id' => $loser->id, 'merged_contact_uuid' => $loser->uuid],
+            array_merge(
+                ['merged_contact_id' => $loser->id, 'merged_contact_uuid' => $loser->uuid],
+                $consentChanges,
+            ),
         );
 
         event(new LeadHubContactsMerged($winner, null, [
@@ -92,6 +99,31 @@ class ContactMergeService
         ]));
 
         return $winner;
+    }
+
+    /**
+     * Opt-out and consent are about the person, not the record. A "no" under
+     * either address is a "no" for the merged contact, and consent survives
+     * only when both records had it. Returns what changed, for the timeline.
+     *
+     * @return array<string, bool>
+     */
+    protected function mergeConsent(Contact $loser, Contact $winner): array
+    {
+        $changes = [];
+
+        if ((bool) $loser->do_not_contact && ! (bool) $winner->do_not_contact) {
+            $winner->do_not_contact = true;
+            $changes['do_not_contact_inherited'] = true;
+        }
+
+        if ((bool) $winner->getAttribute('consent') && ! (bool) $loser->getAttribute('consent')) {
+            $winner->setAttribute('consent', false);
+            $winner->setAttribute('consent_at', null);
+            $changes['consent_withdrawn'] = true;
+        }
+
+        return $changes;
     }
 
     protected function backfillWinnerFields(Contact $loser, Contact $winner): void
