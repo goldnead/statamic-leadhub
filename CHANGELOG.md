@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.19.0 — 2026-11-18
+
+### Changed
+
+- **Consent is no longer invented.** Merging two contacts hands the loser's `do_not_contact` to the winner, and `consent` stays only when both records had it; both facts are written to the `contacts_merged` timeline entry. In an import, a value in the consent column beats the checkbox for the whole file and a "no" stays a no; the checkbox only applies to new contacts and rows without a value of their own. Existing contacts never get `consent` through an import.
+- Opting out reports its result (time, removed, failed, unsupported) and writes `contact_opted_out` to the timeline. A destination that failed gets a `RemoveContactFromCrmJob` with `tries` and `failed()`; a destination without `SupportsContactRemoval` (HubSpot, webhook) stands as a failure in the timeline and the sync log, reported only on the first opt-out.
+
+### Fixed
+
+- CRM sync: the job now throws on a 429 or 5xx so `tries = 3` actually retries, and a retry skips the destinations that already have the contact. On the `sync` queue the job does not throw into the request.
+- The help text of the import's consent checkbox names its scope. The committed `resources/dist/build` was rebuilt.
+
+### Upgrading
+
+- No migration, no new config key.
+
 ## 2.18.1 — 2026-11-16
 
 ### Fixed
