@@ -122,7 +122,7 @@ function outcomeLabel(outcome) {
                     <div class="sm:col-span-2">
                         <Checkbox v-model="consentGiven" :label="__('Everyone in this file gave consent to marketing emails')" />
                         <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                            {{ __('Leave this off if you do not know. Contacts then come in without a recorded consent, and a consent column in the file is still honoured. LeadHub never fills this in for you.') }}
+                            {{ __('Leave this off if you do not know. Contacts then come in without a recorded consent, and a consent column in the file is still honoured. LeadHub never fills this in for you. This applies only to new contacts and only to rows without their own value in the consent column. Existing contacts keep their current status.') }}
                         </p>
                     </div>
                 </div>
