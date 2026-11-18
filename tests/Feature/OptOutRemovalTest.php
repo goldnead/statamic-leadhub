@@ -114,6 +114,34 @@ it('records the final failure on the contact when every attempt is used up', fun
     expect($failed)->toHaveCount(1);
 });
 
+it('does not break the opt-out on the sync queue and records the last failure', function (): void {
+    config()->set('queue.default', 'sync');
+    Http::fake(['api.brevo.com/*' => Http::response(['message' => 'down'], 503)]);
+    $contact = LeadHub::create(['email' => 'syncqueue@example.com']);
+
+    $result = LeadHub::optOut($contact['id']);
+
+    expect(array_keys($result['opt_out']['failed']))->toBe(['brevo']);
+    $gaveUp = optOutEvents($contact['id'], Event::TYPE_CRM_SYNC_FAILED)
+        ->filter(fn ($e) => ($e->payload['reason'] ?? null) === 'removal_gave_up');
+    expect($gaveUp)->toHaveCount(1);
+});
+
+it('names an unsupported destination once, not on every repeated opt-out', function (): void {
+    Http::fake();
+    config()->set('leadhub.crm.destinations', [
+        'hub' => ['driver' => 'hubspot', 'enabled' => true, 'token' => 't', 'triggers' => ['created']],
+    ]);
+    $contact = LeadHub::create(['email' => 'zweimal@example.com']);
+
+    LeadHub::optOut($contact['id']);
+    $second = LeadHub::optOut($contact['id']);
+
+    expect($second['opt_out']['unsupported'])->toBe(['hub'])
+        ->and($second['opt_out']['opted_out_at'])->not->toBeNull()
+        ->and(optOutEvents($contact['id'], Event::TYPE_CRM_SYNC_FAILED))->toHaveCount(1);
+});
+
 it('does not remove twice from a destination that already took the opt-out', function (): void {
     config()->set('leadhub.crm.destinations.brevo2', [
         'driver' => 'brevo', 'enabled' => true, 'api_key' => 'k2', 'list_id' => 8, 'triggers' => ['created'],

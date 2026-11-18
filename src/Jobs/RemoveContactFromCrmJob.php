@@ -70,7 +70,17 @@ class RemoveContactFromCrmJob implements ShouldQueue
 
         Cache::put($this->doneKey(), array_values(array_unique($done)), now()->addDays(2));
 
-        throw CrmRemovalFailedException::for($this->contactUuid, $failures);
+        $exception = CrmRemovalFailedException::for($this->contactUuid, $failures);
+
+        // The sync connection has no second attempt: this run is the last
+        // one. Record it as given up instead of throwing into the request.
+        if ($this->job?->getConnectionName() === 'sync') {
+            $this->failed($exception);
+
+            return;
+        }
+
+        throw $exception;
     }
 
     public function failed(?\Throwable $e = null): void

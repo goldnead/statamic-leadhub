@@ -91,11 +91,12 @@ class CrmSyncService
      * Enabled destinations that have no way to remove a contact (HubSpot, a
      * plain webhook). They are not skipped in silence: each one gets a failed
      * entry on the timeline and in the sync log, so someone removes the
-     * contact there by hand.
+     * contact there by hand. With $record false only the keys come back (a
+     * repeated opt-out must not pile up the same entries).
      *
      * @return list<string> destination keys
      */
-    public function reportUnsupportedRemovals(Contact $contact): array
+    public function reportUnsupportedRemovals(Contact $contact, bool $record = true): array
     {
         $keys = [];
 
@@ -104,7 +105,9 @@ class CrmSyncService
                 continue;
             }
 
-            $this->recordRemovalProblem($contact, (string) $key, $destination->driver(), 'removal_unsupported');
+            if ($record) {
+                $this->recordRemovalProblem($contact, (string) $key, $destination->driver(), 'removal_unsupported');
+            }
             $keys[] = (string) $key;
         }
 

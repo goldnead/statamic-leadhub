@@ -293,7 +293,7 @@ class LeadHubManager
 
         $sync = app(CrmSyncService::class);
         $results = $sync->removeContact($contact);
-        $unsupported = $sync->reportUnsupportedRemovals($contact);
+        $unsupported = $sync->reportUnsupportedRemovals($contact, record: $optedOutAt !== null);
 
         $removed = [];
         $failed = [];
@@ -311,9 +311,8 @@ class LeadHubManager
                 RemoveContactFromCrmJob::dispatch((string) $contact->uuid, array_keys($failed));
                 $retryQueued = true;
             } catch (\Throwable $e) {
-                // On the sync queue the job runs right here and its failure
-                // surfaces as an exception. failed() has recorded it on the
-                // timeline already; the opt-out itself stands.
+                // The opt-out itself stands whatever the queue does with the
+                // retry; a failure to queue it must not undo the request.
                 Log::warning('[LeadHub] Opt-out removal retry failed inline', ['message' => $e->getMessage()]);
             }
         }
