@@ -18,6 +18,7 @@ return [
     'contact_archived' => 'Kontakt archiviert',
     'contact_deleted' => 'Kontakt gelöscht',
     'contacts_merged' => 'Kontakt ":name" in diesen zusammengeführt',
+    'contact_opted_out' => 'Abgemeldet am :date',
     'source_ingested' => 'Aktivität aus :source erfasst',
     'task_created' => 'Aufgabe ":title" erstellt',
     'task_completed' => 'Aufgabe ":title" erledigt',

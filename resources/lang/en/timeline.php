@@ -18,6 +18,7 @@ return [
     'contact_archived' => 'Contact archived',
     'contact_deleted' => 'Contact deleted',
     'contacts_merged' => 'Merged contact ":name" into this one',
+    'contact_opted_out' => 'Opted out on :date',
     'source_ingested' => 'Activity recorded from :source',
     'task_created' => 'Task ":title" created',
     'task_completed' => 'Task ":title" completed',
